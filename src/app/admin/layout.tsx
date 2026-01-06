@@ -1,15 +1,23 @@
-export default function AdminLayout({
+import { getCurrentUser } from '@/lib/session'
+import AdminLayoutClient from '@/components/admin/AdminLayoutClient'
+import AntdProvider from '@/components/providers/AntdProvider'
+
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // 获取当前用户信息（用于显示在 Header 中）
+  const user = await getCurrentUser()
+
   return (
-    <div className="min-h-screen">
-      {/* Admin Layout with Ant Design will be implemented here */}
-      <div className="p-4">
-        <h2 className="text-xl font-bold mb-4">Admin Dashboard</h2>
+    <AntdProvider>
+      <AdminLayoutClient
+        userName={user?.name}
+        userDisplayName={user?.displayName}
+      >
         {children}
-      </div>
-    </div>
+      </AdminLayoutClient>
+    </AntdProvider>
   )
 }
