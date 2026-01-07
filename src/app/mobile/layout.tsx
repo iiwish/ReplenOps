@@ -1,14 +1,13 @@
-export default function MobileLayout({
+import { getCurrentUser } from '@/lib/session'
+import MobileLayoutClient from '@/components/mobile/MobileLayoutClient'
+
+export default async function MobileLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Layout with ShadcnUI will be implemented here */}
-      <div className="p-4">
-        {children}
-      </div>
-    </div>
-  )
+  // 获取当前用户信息（用于权限验证）
+  await getCurrentUser()
+
+  return <MobileLayoutClient>{children}</MobileLayoutClient>
 }
