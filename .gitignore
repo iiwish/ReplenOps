@@ -63,5 +63,6 @@ logs
 .cache
 .temp
 
-# Auto Claude data directory
+# Claude Code
+.local-agent-state/settings.local.json
 .auto-claude/
