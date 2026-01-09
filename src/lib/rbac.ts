@@ -91,28 +91,39 @@ export function getRouteType(pathname: string): RouteType | null {
 
 /**
  * 检查用户角色是否有权限访问指定路径
- * @param role 用户角色
+ * @param role 用户角色（单个角色或角色数组）
  * @param pathname 路径
  * @returns 是否有权限
  */
-export function hasPermission(role: UserRole, pathname: string): boolean {
-  const permissions = ROLE_PERMISSIONS[role]
-  if (!permissions) {
-    return false
-  }
+export function hasPermission(role: UserRole | UserRole[], pathname: string): boolean {
+  // 支持多角色：只要有一个角色有权限就允许访问
+  const roles = Array.isArray(role) ? role : [role]
 
   const routeType = getRouteType(pathname)
 
-  switch (routeType) {
-    case 'public':
-      return true
-    case 'admin':
-      return permissions.canAccessAdmin
-    case 'mobile':
-      return permissions.canAccessMobile
-    default:
-      return false
+  // 公开路由所有人都可以访问
+  if (routeType === 'public') {
+    return true
   }
+
+  // 检查是否有任何角色具有访问权限
+  for (const r of roles) {
+    const permissions = ROLE_PERMISSIONS[r]
+    if (!permissions) {
+      continue
+    }
+
+    switch (routeType) {
+      case 'admin':
+        if (permissions.canAccessAdmin) return true
+        break
+      case 'mobile':
+        if (permissions.canAccessMobile) return true
+        break
+    }
+  }
+
+  return false
 }
 
 /**
@@ -127,36 +138,43 @@ export function getDefaultRoute(role: UserRole): string {
 /**
  * 获取用户应该被重定向到的路由
  * 当用户访问无权限的路由时，将其重定向到合适的页面
- * @param role 用户角色
+ * @param role 用户角色（单个角色或角色数组）
  * @param attemptedPath 尝试访问的路径
  * @returns 重定向路由
  */
 export function getRedirectRoute(
-  role: UserRole,
+  role: UserRole | UserRole[],
   attemptedPath: string
 ): string {
-  const permissions = ROLE_PERMISSIONS[role]
-  const routeType = getRouteType(attemptedPath)
-
   // 如果用户有权限访问，则返回原路径
   if (hasPermission(role, attemptedPath)) {
     return attemptedPath
   }
 
-  // 如果用户试图访问 admin 但没有权限，且有 mobile 权限，则重定向到 mobile
-  if (routeType === 'admin' && !permissions.canAccessAdmin) {
-    if (permissions.canAccessMobile) {
-      return ROUTE_PREFIXES.mobile
+  // 支持多角色
+  const roles = Array.isArray(role) ? role : [role]
+  const routeType = getRouteType(attemptedPath)
+
+  // 如果用户试图访问 admin 但没有权限，检查是否有 mobile 权限
+  if (routeType === 'admin') {
+    for (const r of roles) {
+      const permissions = ROLE_PERMISSIONS[r]
+      if (permissions && permissions.canAccessMobile) {
+        return ROUTE_PREFIXES.mobile
+      }
     }
   }
 
-  // 如果用户试图访问 mobile 但没有权限，且有 admin 权限，则重定向到 admin
-  if (routeType === 'mobile' && !permissions.canAccessMobile) {
-    if (permissions.canAccessAdmin) {
-      return ROUTE_PREFIXES.admin
+  // 如果用户试图访问 mobile 但没有权限，检查是否有 admin 权限
+  if (routeType === 'mobile') {
+    for (const r of roles) {
+      const permissions = ROLE_PERMISSIONS[r]
+      if (permissions && permissions.canAccessAdmin) {
+        return ROUTE_PREFIXES.admin
+      }
     }
   }
 
-  // 默认返回用户的默认路由
-  return getDefaultRoute(role)
+  // 默认返回第一个角色的默认路由
+  return getDefaultRoute(roles[0])
 }
