@@ -1,7 +1,45 @@
 import { requirePageAccess } from '@/lib/rbac-server'
-import PlaceholderPage from '@/components/admin/PlaceholderPage'
+import StockInListClient from './StockInListClient'
+import { stockInService } from '@/services/stock-in.service'
 
-export default async function StockInPage() {
+interface SearchParams {
+  page?: string
+  keyword?: string
+  status?: string
+  warehouseId?: string
+  startDate?: string
+  endDate?: string
+}
+
+export default async function StockInPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
   await requirePageAccess('/admin/stock-in')
-  return <PlaceholderPage title="入库管理" />
+
+  // 获取搜索参数
+  const params = await searchParams
+  const page = parseInt(params.page || '1', 10)
+  const keyword = params.keyword
+  const status = params.status
+  const warehouseId = params.warehouseId
+  const startDate = params.startDate
+  const endDate = params.endDate
+
+  // 获取入库单列表数据
+  const result = await stockInService.list({
+    page,
+    pageSize: 20,
+    keyword,
+    status,
+    warehouseId,
+    startDate,
+    endDate,
+  })
+
+  // 获取仓库列表（用于筛选）
+  const warehouses = await stockInService.getActiveWarehouses()
+
+  return <StockInListClient initialData={result} warehouses={warehouses} />
 }
