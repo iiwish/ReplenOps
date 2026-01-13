@@ -19,8 +19,7 @@ import {
   DeleteOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import { createStockIn, updateStockIn } from '@/actions/stock-in-actions'
-import { stockInService } from '@/services/stock-in.service'
+import { createStockIn, updateStockIn, searchGoods, getActiveWarehouses } from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
 
 const { TextArea } = Input
@@ -73,7 +72,7 @@ export default function StockInFormClient({
   const [goodsLoading, setGoodsLoading] = useState(false)
 
   // 搜索商品
-  const searchGoods = async (keyword: string) => {
+  const handleSearchGoods = async (keyword: string) => {
     if (!keyword || keyword.trim() === '') {
       setGoodsOptions([])
       return
@@ -81,10 +80,16 @@ export default function StockInFormClient({
 
     setGoodsLoading(true)
     try {
-      const result = await stockInService.searchGoods(keyword)
-      setGoodsOptions(result as GoodsOption[])
+      const result = await searchGoods(keyword)
+      if (result.success && result.data) {
+        setGoodsOptions(result.data as GoodsOption[])
+      } else {
+        message.error(result.message || '搜索商品失败')
+        setGoodsOptions([])
+      }
     } catch (error) {
       message.error('搜索商品失败')
+      setGoodsOptions([])
     } finally {
       setGoodsLoading(false)
     }
@@ -372,12 +377,12 @@ export default function StockInFormClient({
             prefix={<SearchOutlined />}
             value={goodsSearchKeyword}
             onChange={(e) => setGoodsSearchKeyword(e.target.value)}
-            onPressEnter={() => searchGoods(goodsSearchKeyword)}
+            onPressEnter={() => handleSearchGoods(goodsSearchKeyword)}
             allowClear
           />
           <Button
             type="primary"
-            onClick={() => searchGoods(goodsSearchKeyword)}
+            onClick={() => handleSearchGoods(goodsSearchKeyword)}
             loading={goodsLoading}
           >
             搜索

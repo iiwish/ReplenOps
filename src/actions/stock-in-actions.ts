@@ -378,3 +378,55 @@ export async function deleteStockIn(id: string): Promise<ActionResponse> {
     }
   }
 }
+
+/**
+ * 搜索商品（用于商品选择器）
+ */
+export async function searchGoods(keyword: string = ''): Promise<ActionResponse> {
+  try {
+    const goods = await stockInService.searchGoods(keyword)
+
+    return {
+      success: true,
+      data: goods,
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: error.message,
+      }
+    }
+
+    return {
+      success: false,
+      message: '搜索商品失败，请重试',
+    }
+  }
+}
+
+/**
+ * 获取所有启用的仓库
+ */
+export async function getActiveWarehouses(): Promise<ActionResponse> {
+  try {
+    const warehouses = await stockInService.getActiveWarehouses()
+
+    return {
+      success: true,
+      data: warehouses,
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        message: error.message,
+      }
+    }
+
+    return {
+      success: false,
+      message: '获取仓库列表失败，请重试',
+    }
+  }
+}
