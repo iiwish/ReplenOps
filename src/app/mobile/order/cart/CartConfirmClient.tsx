@@ -1,18 +1,25 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Trash2, Loader2 } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cart.store'
 import { QuantityInput } from '@/components/mobile/order/QuantityInput'
 import { toast } from '@/hooks/use-toast'
+import { createOrder } from '@/actions/order-actions'
 
-export default function CartConfirmClient() {
+interface CartConfirmClientProps {
+  storeId: string
+}
+
+export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
   const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { items, removeItem, updateQuantity, getTotalAmount, getTotalQuantity, clear } = useCartStore()
 
   const totalAmount = getTotalAmount()
@@ -28,15 +35,68 @@ export default function CartConfirmClient() {
       return
     }
 
-    // TODO: 调用创建订单的 API
-    toast({
-      title: '订单提交成功',
-      description: '您的订单已提交，等待审批',
-    })
+    setIsSubmitting(true)
 
-    // 清空购物车并返回
-    clear()
-    router.push('/mobile/orders')
+    try {
+      // 检查所有商品库存是否充足（防超卖）
+      const insufficientStock = items.find(
+        (item) => item.quantity > item.availableQty
+      )
+
+      if (insufficientStock) {
+        toast({
+          title: '库存不足',
+          description: `${insufficientStock.name} 库存不足，当前可用: ${insufficientStock.availableQty} ${insufficientStock.unit}`,
+          variant: 'destructive',
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      // 调用创建订单 API
+      const result = await createOrder({
+        storeId,
+        items: items.map((item) => ({
+          goodsId: item.goodsId,
+          quantity: item.quantity,
+          unitPrice: item.price,
+        })),
+        remark: undefined,
+      })
+
+      if (result.success) {
+        // 清空购物车
+        clear()
+
+        const orderData = result.data as { id: string; code: string } | undefined
+        toast({
+          title: '订单提交成功',
+          description: `订单号: ${orderData?.code}，等待审批`,
+        })
+
+        // 跳转到订单详情页
+        if (orderData?.id) {
+          router.push(`/mobile/orders/${orderData.id}`)
+        } else {
+          router.push('/mobile/orders')
+        }
+      } else {
+        toast({
+          title: '订单提交失败',
+          description: result.message || '请稍后重试',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('提交订单失败:', error)
+      toast({
+        title: '订单提交失败',
+        description: error instanceof Error ? error.message : '网络错误，请稍后重试',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (items.length === 0) {
@@ -219,8 +279,10 @@ export default function CartConfirmClient() {
             size="lg"
             className="min-h-[48px] px-12"
             onClick={handleSubmitOrder}
+            disabled={isSubmitting}
           >
-            提交订单
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSubmitting ? '提交中...' : '提交订单'}
           </Button>
         </div>
       </div>

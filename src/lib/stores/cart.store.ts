@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { toast } from '@/hooks/use-toast'
 
 export interface CartItem {
@@ -24,7 +25,9 @@ interface CartStore {
   getTotalQuantity: () => number
 }
 
-export const useCartStore = create<CartStore>((set, get) => ({
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
   items: [],
 
   addItem: (item) => {
@@ -120,4 +123,9 @@ export const useCartStore = create<CartStore>((set, get) => ({
   getTotalQuantity: () => {
     return get().items.reduce((sum, item) => sum + item.quantity, 0)
   },
-}))
+    }),
+    {
+      name: 'erp-cart-storage',
+    }
+  )
+)
