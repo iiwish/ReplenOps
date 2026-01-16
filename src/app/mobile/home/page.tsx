@@ -2,6 +2,7 @@ import { requireRoles } from '@/lib/rbac-server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { FileText, Package, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
+import { StoreSelector } from '@/components/mobile/StoreSelector'
 
 export default async function MobileHomePage() {
   // 验证用户权限，仅允许 store_admin 访问
@@ -9,6 +10,16 @@ export default async function MobileHomePage() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* 门店选择器 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">当前门店</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StoreSelector />
+        </CardContent>
+      </Card>
+
       {/* 欢迎信息 */}
       <Card>
         <CardHeader>

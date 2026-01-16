@@ -445,6 +445,47 @@ export class StoreService {
 
     return { success: true }
   }
+
+  /**
+   * 获取当前用户可访问的所有门店
+   */
+  async getUserStores() {
+    const { getCurrentUser } = await import('@/lib/session')
+    const user = await getCurrentUser()
+
+    if (!user) {
+      throw new Error('用户未登录')
+    }
+
+    // 查询用户关联的所有门店
+    const storeAdmins = await prisma.storeAdmin.findMany({
+      where: {
+        userId: user.id,
+      },
+      include: {
+        store: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+            isDeleted: true,
+          },
+        },
+      },
+    })
+
+    // 过滤出启用的门店
+    const stores = storeAdmins
+      .filter(sa => sa.store.isActive && !sa.store.isDeleted)
+      .map(sa => ({
+        id: sa.store.id,
+        code: sa.store.code,
+        name: sa.store.name,
+      }))
+
+    return stores
+  }
 }
 
 // 导出单例

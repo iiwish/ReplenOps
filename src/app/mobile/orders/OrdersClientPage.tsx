@@ -1,0 +1,209 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
+import { getOrders } from '@/actions/order-actions'
+import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
+
+// 状态映射
+const STATUS_MAP: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+  PENDING: { text: '待审批', variant: 'default' },
+  APPROVED: { text: '已审批', variant: 'secondary' },
+  COMPLETED: { text: '已完成', variant: 'outline' },
+  REJECTED: { text: '已拒绝', variant: 'destructive' },
+}
+
+interface Order {
+  id: string
+  code: string
+  storeId: string
+  storeName: string
+  status: string
+  totalAmount: number
+  remark: string | null
+  createdBy: string
+  createdAt: Date
+}
+
+export default function OrdersClientPage() {
+  const { selectedStoreId } = useStoreSelectionStore()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (selectedStoreId) {
+      loadOrders()
+    }
+  }, [selectedStoreId])
+
+  const loadOrders = async () => {
+    if (!selectedStoreId) return
+
+    setLoading(true)
+    try {
+      const result = await getOrders({
+        pageSize: 50,
+        storeId: selectedStoreId,
+      })
+
+      if (result.success && result.data) {
+        const data = result.data as { data: Order[] }
+        setOrders(data.data)
+      }
+    } catch (error) {
+      console.error('加载订单失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 按状态筛选订单
+  const allOrders = orders
+  const pendingOrders = orders.filter((o) => o.status === 'PENDING')
+  const approvedOrders = orders.filter((o) => o.status === 'APPROVED')
+  const completedOrders = orders.filter((o) => o.status === 'COMPLETED')
+
+  // 渲染订单卡片
+  const renderOrderCard = (order: Order) => {
+    const statusInfo = STATUS_MAP[order.status] || { text: order.status, variant: 'default' as const }
+
+    return (
+      <Link key={order.id} href={`/mobile/orders/${order.id}`}>
+        <Card className="touch-feedback active:scale-[0.98] transition-transform">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-base">{order.code}</CardTitle>
+                <CardDescription className="mt-1">
+                  {new Date(order.createdAt).toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </CardDescription>
+              </div>
+              <Badge variant={statusInfo.variant}>
+                {statusInfo.text}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground">
+                  {order.storeName}
+                </div>
+                <div className="text-lg font-bold text-primary mt-1">
+                  ¥{order.totalAmount.toFixed(2)}
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    )
+  }
+
+  if (!selectedStoreId) {
+    return (
+      <div className="p-4">
+        <div className="text-center text-muted-foreground py-8">
+          请先在首页选择门店
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4">
+        <div className="text-center text-muted-foreground py-8">
+          加载中...
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-4">
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="all">
+            全部
+            {allOrders.length > 0 && (
+              <span className="ml-1 text-xs">({allOrders.length})</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="pending">
+            待审批
+            {pendingOrders.length > 0 && (
+              <span className="ml-1 text-xs">({pendingOrders.length})</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="approved">
+            已审批
+            {approvedOrders.length > 0 && (
+              <span className="ml-1 text-xs">({approvedOrders.length})</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="completed">
+            已完成
+            {completedOrders.length > 0 && (
+              <span className="ml-1 text-xs">({completedOrders.length})</span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="space-y-3 mt-4">
+          {allOrders.length > 0 ? (
+            allOrders.map(renderOrderCard)
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              暂无订单
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-3 mt-4">
+          {pendingOrders.length > 0 ? (
+            pendingOrders.map(renderOrderCard)
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              暂无待审批订单
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="approved" className="space-y-3 mt-4">
+          {approvedOrders.length > 0 ? (
+            approvedOrders.map(renderOrderCard)
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              暂无已审批订单
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-3 mt-4">
+          {completedOrders.length > 0 ? (
+            completedOrders.map(renderOrderCard)
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              暂无已完成订单
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* 底部间距 */}
+      <div className="h-4" />
+    </div>
+  )
+}

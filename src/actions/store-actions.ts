@@ -322,3 +322,24 @@ export async function checkStoreCode(
     }
   }
 }
+
+/**
+ * 获取当前用户可访问的所有门店
+ */
+export async function getUserStores(): Promise<ActionResponse> {
+  try {
+    const stores = await storeService.getUserStores()
+
+    return {
+      success: true,
+      data: stores,
+    }
+  } catch (error) {
+    console.error('获取用户门店失败:', error)
+
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '获取用户门店失败',
+    }
+  }
+}

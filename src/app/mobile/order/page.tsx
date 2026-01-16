@@ -6,6 +6,8 @@ export default async function MobileOrderPage() {
   // 验证用户权限，仅允许 store_admin 访问
   await requireRoles(['store_admin'])
 
+  // 注意：storeId 现在由客户端状态管理提供，不再从服务端获取
+
   // 获取所有启用的分类
   const categories = await prisma.goodsCategory.findMany({
     where: {

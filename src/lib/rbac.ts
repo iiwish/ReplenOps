@@ -175,6 +175,22 @@ export function getRedirectRoute(
     }
   }
 
-  // 默认返回第一个角色的默认路由
+  // 智能选择默认路由：优先选择 admin 权限的角色，因为 admin 权限更高
+  // 如果没有 admin 权限，再选择 mobile 权限的角色
+  for (const r of roles) {
+    const permissions = ROLE_PERMISSIONS[r]
+    if (permissions && permissions.canAccessAdmin) {
+      return getDefaultRoute(r)
+    }
+  }
+
+  for (const r of roles) {
+    const permissions = ROLE_PERMISSIONS[r]
+    if (permissions && permissions.canAccessMobile) {
+      return getDefaultRoute(r)
+    }
+  }
+
+  // 兜底：返回第一个角色的默认路由
   return getDefaultRoute(roles[0])
 }

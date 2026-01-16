@@ -3,138 +3,212 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { getOrderById } from '@/actions/order-actions'
+import { notFound } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 interface OrderDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
+}
+
+// 状态映射
+const STATUS_MAP: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+  PENDING: { text: '待审批', variant: 'default' },
+  APPROVED: { text: '已审批', variant: 'secondary' },
+  COMPLETED: { text: '已完成', variant: 'outline' },
+  REJECTED: { text: '已拒绝', variant: 'destructive' },
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   // 验证用户权限，仅允许 store_admin 访问
   await requireRoles(['store_admin'])
 
-  // 示例订单详情数据
-  const order = {
-    id: params.id,
-    status: 'pending',
-    statusText: '待审批',
-    date: '2024-01-15 10:30',
-    store: '门店A',
-    items: [
-      {
-        id: 1,
-        name: '商品A',
-        price: 99.00,
-        quantity: 10,
-        unit: '件',
-      },
-      {
-        id: 2,
-        name: '商品B',
-        price: 149.00,
-        quantity: 5,
-        unit: '件',
-      },
-    ],
-    subtotal: 1735.00,
-    tax: 0,
-    total: 1735.00,
-    notes: '请尽快发货',
+  const { id } = await params
+
+  // 获取真实订单数据
+  const result = await getOrderById(id)
+
+  if (!result.success || !result.data) {
+    notFound()
   }
 
+  const order = result.data as {
+    id: string
+    code: string
+    storeId: string
+    storeName: string
+    status: string
+    totalAmount: number
+    remark: string | null
+    createdBy: string
+    approvedBy: string | null
+    approvedAt: Date | null
+    completedAt: Date | null
+    revokedBy: string | null
+    revokedAt: Date | null
+    revokeReason: string | null
+    createdAt: Date
+    updatedAt: Date
+    items: Array<{
+      id: string
+      goodsId: string
+      goodsCode: string
+      goodsName: string
+      goodsUnit: string
+      measureType: string
+      quantity: number
+      unitPrice: number
+      totalPrice: number
+    }>
+  }
+
+  const statusInfo = STATUS_MAP[order.status] || { text: order.status, variant: 'default' as const }
+
   return (
-    <div className="p-4 space-y-4">
-      {/* 订单状态卡片 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle>{order.id}</CardTitle>
-              <CardDescription className="mt-1">
-                {order.date}
-              </CardDescription>
-            </div>
-            <Badge>
-              {order.statusText}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">门店</span>
-              <span>{order.store}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 商品列表 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">商品清单</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between items-start">
-              <div className="flex-1">
-                <div className="font-medium">{item.name}</div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  ¥{item.price.toFixed(2)} × {item.quantity} {item.unit}
-                </div>
-              </div>
-              <div className="font-medium">
-                ¥{(item.price * item.quantity).toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* 金额汇总 */}
-      <Card>
-        <CardContent className="pt-6 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">小计</span>
-            <span>¥{order.subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">税费</span>
-            <span>¥{order.tax.toFixed(2)}</span>
-          </div>
-          <Separator />
-          <div className="flex justify-between text-lg font-bold">
-            <span>合计</span>
-            <span className="text-primary">¥{order.total.toFixed(2)}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 备注 */}
-      {order.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">备注</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{order.notes}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 操作按钮 */}
-      <div className="flex gap-3 pt-2">
-        <Button variant="outline" className="flex-1 min-h-[48px]">
-          取消订单
-        </Button>
-        <Button className="flex-1 min-h-[48px]">
-          确认订单
-        </Button>
+    <div className="flex flex-col h-full">
+      {/* 顶部导航栏 */}
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background px-4 py-3">
+        <Link href="/mobile/orders">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <h1 className="text-lg font-semibold">订单详情</h1>
       </div>
 
-      {/* 底部间距 */}
-      <div className="h-4" />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* 订单状态卡片 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>{order.code}</CardTitle>
+                <CardDescription className="mt-1">
+                  {new Date(order.createdAt).toLocaleString('zh-CN')}
+                </CardDescription>
+              </div>
+              <Badge variant={statusInfo.variant}>
+                {statusInfo.text}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">门店</span>
+                <span>{order.storeName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">订单号</span>
+                <span className="font-mono text-xs">{order.code}</span>
+              </div>
+              {order.approvedBy && order.approvedAt && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">审批人</span>
+                    <span>{order.approvedBy}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">审批时间</span>
+                    <span>{new Date(order.approvedAt).toLocaleString('zh-CN')}</span>
+                  </div>
+                </>
+              )}
+              {order.revokedBy && order.revokedAt && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">拒绝人</span>
+                    <span>{order.revokedBy}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">拒绝时间</span>
+                    <span>{new Date(order.revokedAt).toLocaleString('zh-CN')}</span>
+                  </div>
+                  {order.revokeReason && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">拒绝原因</span>
+                      <span className="text-destructive">{order.revokeReason}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 商品列表 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">商品清单</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {order.items.map((item, index) => (
+              <div key={item.id}>
+                {index > 0 && <Separator className="my-3" />}
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="font-medium">{item.goodsName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      编号: {item.goodsCode}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      ¥{item.unitPrice.toFixed(2)} × {item.quantity} {item.goodsUnit}
+                    </div>
+                  </div>
+                  <div className="font-medium">
+                    ¥{item.totalPrice.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* 金额汇总 */}
+        <Card>
+          <CardContent className="pt-6 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">商品种类</span>
+              <span>{order.items.length} 种</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">商品总数</span>
+              <span>
+                {order.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(3)}
+              </span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-lg font-bold">
+              <span>合计</span>
+              <span className="text-primary">¥{order.totalAmount.toFixed(2)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 备注 */}
+        {order.remark && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">备注</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{order.remark}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 底部间距 */}
+        <div className="h-4" />
+      </div>
     </div>
   )
 }

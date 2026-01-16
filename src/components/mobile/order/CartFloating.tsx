@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
 
 interface CartFloatingProps {
   onClick: () => void
+  onCheckout: () => void
 }
 
-export function CartFloating({ onClick }: CartFloatingProps) {
+export function CartFloating({ onClick, onCheckout }: CartFloatingProps) {
   const { items, getTotalAmount, getTotalQuantity } = useCartStore()
 
   const totalAmount = getTotalAmount()
@@ -21,7 +22,7 @@ export function CartFloating({ onClick }: CartFloatingProps) {
     <div className="fixed bottom-20 left-0 right-0 z-20 px-4 pb-4">
       <div
         className={cn(
-          'relative flex items-center justify-between gap-4 rounded-full border bg-background p-3 shadow-lg transition-all',
+          'relative flex items-center justify-between gap-2 rounded-full border bg-background p-3 shadow-lg transition-all',
           hasItems && 'border-primary bg-primary/5'
         )}
       >
@@ -62,15 +63,26 @@ export function CartFloating({ onClick }: CartFloatingProps) {
           </div>
         </button>
 
-        {/* 查看购物车按钮 */}
-        <Button
-          size="lg"
-          onClick={onClick}
-          disabled={!hasItems}
-          className="min-h-[48px] rounded-full px-6"
-        >
-          查看购物车
-        </Button>
+        {/* 按钮组 */}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onClick}
+            disabled={!hasItems}
+            className="min-h-[48px] rounded-full px-4"
+          >
+            查看
+          </Button>
+          <Button
+            size="lg"
+            onClick={onCheckout}
+            disabled={!hasItems}
+            className="min-h-[48px] rounded-full px-6"
+          >
+            结算
+          </Button>
+        </div>
       </div>
     </div>
   )

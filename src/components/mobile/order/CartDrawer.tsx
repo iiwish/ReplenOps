@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   Sheet,
@@ -19,15 +18,15 @@ import { QuantityInput } from './QuantityInput'
 interface CartDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onCheckout: () => void
 }
 
-export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
-  const router = useRouter()
+export function CartDrawer({ open, onOpenChange, onCheckout }: CartDrawerProps) {
   const { items, removeItem, updateQuantity, getTotalAmount, getTotalQuantity, clear } = useCartStore()
 
   const handleCheckout = () => {
     onOpenChange(false)
-    router.push('/mobile/order/cart' as never)
+    onCheckout()
   }
 
   const totalAmount = getTotalAmount()
