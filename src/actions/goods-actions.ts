@@ -15,7 +15,7 @@ const goodsSchema = z.object({
   spec: z.string().optional(),
   unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
   measureType: z.enum(['INT', 'DECIMAL'], {
-    errorMap: () => ({ message: '请选择计量类型' }),
+    message: '请选择计量类型',
   }),
   costPrice: z.number().min(0, '成本价不能为负数'),
   partnerPrice: z.number().min(0, '合作价不能为负数'),
@@ -30,7 +30,7 @@ const updateGoodsSchema = z.object({
   spec: z.string().optional(),
   unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
   measureType: z.enum(['INT', 'DECIMAL'], {
-    errorMap: () => ({ message: '请选择计量类型' }),
+    message: '请选择计量类型',
   }),
   costPrice: z.number().min(0, '成本价不能为负数'),
   partnerPrice: z.number().min(0, '合作价不能为负数'),
@@ -70,8 +70,12 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
     // Zod 验证
     const validatedData = goodsSchema.parse(rawData)
 
-    // 调用 Service 创建
-    const goods = await goodsService.create(validatedData)
+    // 调用 Service 创建 (过滤掉null值)
+    const goods = await goodsService.create({
+      ...validatedData,
+      imageUrl: validatedData.imageUrl || undefined,
+      description: validatedData.description || undefined,
+    })
 
     // 重新验证缓存
     revalidatePath('/admin/goods')
@@ -131,8 +135,12 @@ export async function updateGoods(
     // Zod 验证
     const validatedData = updateGoodsSchema.parse(rawData)
 
-    // 调用 Service 更新
-    const goods = await goodsService.update(id, validatedData)
+    // 调用 Service 更新 (过滤掉null值)
+    const goods = await goodsService.update(id, {
+      ...validatedData,
+      imageUrl: validatedData.imageUrl || undefined,
+      description: validatedData.description || undefined,
+    })
 
     // 重新验证缓存
     revalidatePath('/admin/goods')

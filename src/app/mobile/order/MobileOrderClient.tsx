@@ -41,7 +41,6 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
     categories.length > 0 ? categories[0]?.id || null : null
   )
   const [cartOpen, setCartOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { selectedStoreId } = useStoreSelectionStore()
   const { items, clear } = useCartStore()
@@ -73,7 +72,6 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
       return
     }
 
-    setIsSubmitting(true)
 
     try {
       // 检查所有商品库存是否充足（防超卖）
@@ -87,7 +85,6 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
           description: `${insufficientStock.name} 库存不足，当前可用: ${insufficientStock.availableQty} ${insufficientStock.unit}`,
           variant: 'destructive',
         })
-        setIsSubmitting(false)
         return
       }
 
@@ -133,7 +130,6 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
         variant: 'destructive',
       })
     } finally {
-      setIsSubmitting(false)
     }
   }
 

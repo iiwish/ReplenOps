@@ -11,7 +11,7 @@ export default async function CartConfirmPage() {
   // 获取当前用户
   const user = await getCurrentUser()
   if (!user) {
-    redirect('/auth/signin')
+    redirect('/auth/signin' as any)
   }
 
   // 获取用户的门店信息

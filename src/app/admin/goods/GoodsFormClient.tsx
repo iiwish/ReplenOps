@@ -45,9 +45,6 @@ export default function GoodsFormClient({
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [measureType, setMeasureType] = useState<'INT' | 'DECIMAL'>(
-    initialValues?.measureType || 'INT'
-  )
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsFormData) => {
@@ -181,7 +178,7 @@ export default function GoodsFormClient({
           rules={[{ required: true, message: '请选择计量类型' }]}
           tooltip="整数：库存、订单数量只能输入整数；小数：可输入小数（精度0.001）"
         >
-          <Radio.Group onChange={(e) => setMeasureType(e.target.value)}>
+          <Radio.Group>
             <Radio value="INT">整数（如：1, 2, 3...）</Radio>
             <Radio value="DECIMAL">小数（如：1.5, 2.35...）</Radio>
           </Radio.Group>

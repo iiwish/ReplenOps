@@ -19,7 +19,7 @@ import {
   DeleteOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import { createStockIn, updateStockIn, searchGoods, getActiveWarehouses } from '@/actions/stock-in-actions'
+import { createStockIn, updateStockIn, searchGoods } from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
 
 const { TextArea } = Input

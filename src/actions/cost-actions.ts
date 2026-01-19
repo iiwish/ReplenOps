@@ -1,7 +1,7 @@
 'use server'
 
 import { costService } from '@/services/cost.service'
-import { auth } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/session'
 import { z } from 'zod'
 
 // 成本历史列表查询参数 Schema
@@ -27,8 +27,8 @@ export async function getCostHistory(params: {
 }) {
   try {
     // 验证用户权限
-    const session = await auth()
-    if (!session) {
+    const user = await getCurrentUser()
+    if (!user) {
       return {
         success: false,
         error: '未登录',
@@ -71,8 +71,8 @@ export async function getCostTrend(params: {
 }) {
   try {
     // 验证用户权限
-    const session = await auth()
-    if (!session) {
+    const user = await getCurrentUser()
+    if (!user) {
       return {
         success: false,
         error: '未登录',
@@ -117,8 +117,8 @@ export async function getLatestCost(params: {
 }) {
   try {
     // 验证用户权限
-    const session = await auth()
-    if (!session) {
+    const user = await getCurrentUser()
+    if (!user) {
       return {
         success: false,
         error: '未登录',

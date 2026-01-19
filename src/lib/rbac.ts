@@ -192,5 +192,5 @@ export function getRedirectRoute(
   }
 
   // 兜底：返回第一个角色的默认路由
-  return getDefaultRoute(roles[0])
+  return getDefaultRoute(roles[0] as UserRole)
 }

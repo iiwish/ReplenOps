@@ -1,6 +1,6 @@
 'use client'
 
-import { useStoreSelectionStore, StoreInfo } from '@/lib/stores/store-selection.store'
+import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import {
   Select,
   SelectContent,

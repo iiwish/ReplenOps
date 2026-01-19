@@ -148,8 +148,8 @@ export default function CostHistoryListClient({
     }
 
     return (
-      <Link href={`${config.routePrefix}/${referenceId}`}>
-        <Text type="link">{config.label}</Text>
+      <Link href={`${config.routePrefix}/${referenceId}` as any}>
+        <Text className="text-blue-600 hover:underline">{config.label}</Text>
       </Link>
     )
   }
