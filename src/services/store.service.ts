@@ -67,6 +67,11 @@ export interface StoreAdminInfo {
   userId: string
   storeId: string
   createdAt: Date
+  user?: {
+    displayName: string
+    email: string
+    avatar?: string
+  }
 }
 
 export class StoreService {
@@ -353,7 +358,25 @@ export class StoreService {
       orderBy: { createdAt: 'desc' },
     })
 
-    return admins
+    // 获取用户详细信息
+    const { casdoorUserService } = await import('./casdoor-user.service')
+    const adminsWithUserInfo = await Promise.all(
+      admins.map(async (admin) => {
+        const user = await casdoorUserService.getUserById(admin.userId)
+        return {
+          ...admin,
+          user: user
+            ? {
+                displayName: user.displayName || user.name,
+                email: user.email || '',
+                avatar: user.avatar,
+              }
+            : undefined,
+        }
+      })
+    )
+
+    return adminsWithUserInfo
   }
 
   /**
@@ -457,7 +480,7 @@ export class StoreService {
       throw new Error('用户未登录')
     }
 
-    // 查询用户关联的所有门店
+    // 查询用户关联的所有门店（使用UUID格式的userId）
     const storeAdmins = await prisma.storeAdmin.findMany({
       where: {
         userId: user.id,

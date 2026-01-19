@@ -17,6 +17,9 @@ export default async function MobileLayout({
     ? (storesResult.data as Array<{ id: string; code: string; name: string }>)
     : []
 
+  console.log('[MobileLayout] getUserStores result:', storesResult)
+  console.log('[MobileLayout] Stores to initialize:', stores)
+
   return (
     <>
       <StoreInitializer stores={stores} />

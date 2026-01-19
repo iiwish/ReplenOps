@@ -1,6 +1,7 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import { notFound } from 'next/navigation'
 import { storeService } from '@/services/store.service'
+import { App } from 'antd'
 import StoreAdminsClient from './StoreAdminsClient'
 
 interface PageProps {
@@ -18,14 +19,16 @@ export default async function StoreAdminsPage({ params }: PageProps) {
     const admins = await storeService.listAdmins(id)
 
     return (
-      <div>
-        <h2 style={{ marginBottom: 24 }}>门店管理员管理</h2>
-        <StoreAdminsClient
-          storeId={id}
-          storeName={store.name}
-          initialAdmins={admins}
-        />
-      </div>
+      <App>
+        <div>
+          <h2 style={{ marginBottom: 24 }}>门店管理员管理</h2>
+          <StoreAdminsClient
+            storeId={id}
+            storeName={store.name}
+            initialAdmins={admins}
+          />
+        </div>
+      </App>
     )
   } catch (error) {
     // 如果门店不存在，返回 404

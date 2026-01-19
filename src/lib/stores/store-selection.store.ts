@@ -32,16 +32,20 @@ export const useStoreSelectionStore = create<StoreSelectionStore>()(
       initializeStore: (stores: StoreInfo[]) => {
         const currentStoreId = get().selectedStoreId
 
+        // 更新可用门店列表
+        set({ availableStores: stores })
+
         // 如果已经有选中的门店，且该门店在可用列表中，保持不变
         if (currentStoreId && stores.some(s => s.id === currentStoreId)) {
-          set({ availableStores: stores })
+          return
+        }
+
+        // 否则选择第一个门店
+        const firstStore = stores[0]
+        if (firstStore) {
+          set({ selectedStoreId: firstStore.id })
         } else {
-          // 否则选择第一个门店
-          const firstStore = stores[0]
-          set({
-            availableStores: stores,
-            selectedStoreId: firstStore?.id || null,
-          })
+          set({ selectedStoreId: null })
         }
       },
     }),

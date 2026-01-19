@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Modal, message, Card, Space, Tag } from 'antd'
+import { Table, Button, Modal, Card, Space, Tag, Select, Avatar, Spin, App } from 'antd'
 import { DeleteOutlined, ArrowLeftOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { addStoreAdmin, removeStoreAdmin } from '@/actions/store-actions'
 import type { StoreAdminInfo } from '@/services/store.service'
+import type { SimpleUserInfo } from '@/services/casdoor-user.service'
 
 interface StoreAdminsClientProps {
   storeId: string
@@ -20,10 +21,38 @@ export default function StoreAdminsClient({
   initialAdmins,
 }: StoreAdminsClientProps) {
   const router = useRouter()
+  const { message, modal } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [admins, setAdmins] = useState<StoreAdminInfo[]>(initialAdmins)
   const [addModalVisible, setAddModalVisible] = useState(false)
   const [newUserId, setNewUserId] = useState('')
+  const [users, setUsers] = useState<SimpleUserInfo[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
+  // 加载用户列表
+  useEffect(() => {
+    if (addModalVisible && users.length === 0) {
+      loadUsers()
+    }
+  }, [addModalVisible])
+
+  const loadUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      const response = await fetch('/api/casdoor/users')
+      const result = await response.json()
+      if (result.success && result.data) {
+        setUsers(result.data)
+      } else {
+        message.error('加载用户列表失败')
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error)
+      message.error('加载用户列表失败')
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
 
   // 返回列表页
   const handleBack = () => {
@@ -32,9 +61,10 @@ export default function StoreAdminsClient({
 
   // 删除管理员
   const handleRemoveAdmin = (admin: StoreAdminInfo) => {
-    Modal.confirm({
+    const displayName = admin.user?.displayName || admin.userId
+    modal.confirm({
       title: '确认移除',
-      content: `确定要移除管理员 "${admin.userId}" 吗？`,
+      content: `确定要移除管理员 "${displayName}" 吗？`,
       okText: '确认',
       okType: 'danger',
       cancelText: '取消',
@@ -61,7 +91,7 @@ export default function StoreAdminsClient({
   // 添加管理员
   const handleAddAdmin = async () => {
     if (!newUserId.trim()) {
-      message.warning('请输入用户ID')
+      message.warning('请选择用户')
       return
     }
 
@@ -73,11 +103,9 @@ export default function StoreAdminsClient({
       const result = await addStoreAdmin(storeId, formData)
       if (result.success) {
         message.success(result.message)
+        // 直接添加到列表中
         if (result.data) {
           setAdmins([...admins, result.data as StoreAdminInfo])
-        } else {
-          // 如果没有返回数据，刷新页面
-          router.refresh()
         }
         setNewUserId('')
         setAddModalVisible(false)
@@ -94,14 +122,36 @@ export default function StoreAdminsClient({
   // 表格列定义
   const columns: ColumnsType<StoreAdminInfo> = [
     {
+      title: '管理员',
+      dataIndex: 'user',
+      key: 'user',
+      render: (user, record) => (
+        <Space>
+          <Avatar src={user?.avatar} icon={<UserOutlined />} />
+          <div>
+            <div style={{ fontWeight: 500 }}>
+              {user?.displayName || record.userId}
+            </div>
+            {user?.email && (
+              <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                {user.email}
+              </div>
+            )}
+          </div>
+        </Space>
+      ),
+    },
+    {
       title: '用户ID',
       dataIndex: 'userId',
       key: 'userId',
+      width: 200,
     },
     {
       title: '添加时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
+      width: 180,
       render: (date: Date) => new Date(date).toLocaleString('zh-CN'),
     },
     {
@@ -124,8 +174,8 @@ export default function StoreAdminsClient({
 
   return (
     <div>
-      <Card bordered={false}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Card variant="borderless">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* 顶部操作栏 */}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Space>
@@ -180,24 +230,56 @@ export default function StoreAdminsClient({
         <div style={{ padding: '20px 0' }}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8 }}>
-              用户ID（Casdoor User ID）：
+              选择用户：
             </label>
-            <input
-              type="text"
-              value={newUserId}
-              onChange={(e) => setNewUserId(e.target.value)}
-              placeholder="请输入 Casdoor 用户 ID"
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                border: '1px solid #d9d9d9',
-                borderRadius: '6px',
-                fontSize: '14px',
+            <Select
+              showSearch
+              style={{ width: '100%' }}
+              placeholder="请选择用户"
+              value={newUserId || undefined}
+              onChange={(value) => setNewUserId(value)}
+              loading={loadingUsers}
+              filterOption={(input, option) => {
+                const user = users.find((u) => u.id === option?.value)
+                if (!user) return false
+                const searchText = input.toLowerCase()
+                return (
+                  user.displayName.toLowerCase().includes(searchText) ||
+                  user.name.toLowerCase().includes(searchText) ||
+                  user.email.toLowerCase().includes(searchText)
+                )
               }}
-            />
+              notFoundContent={
+                loadingUsers ? <Spin size="small" /> : '暂无用户'
+              }
+            >
+              {users
+                .filter(
+                  (user) => !admins.some((admin) => admin.userId === user.id)
+                )
+                .map((user) => (
+                  <Select.Option key={user.id} value={user.id}>
+                    <Space>
+                      <Avatar
+                        src={user.avatar}
+                        size="small"
+                        icon={<UserOutlined />}
+                      />
+                      <div>
+                        <div>{user.displayName}</div>
+                        {user.email && (
+                          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                            {user.email}
+                          </div>
+                        )}
+                      </div>
+                    </Space>
+                  </Select.Option>
+                ))}
+            </Select>
           </div>
           <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            提示：用户 ID 需要从 Casdoor 用户管理页面获取
+            提示：只显示未添加的用户。一个用户可以管理多个门店。
           </div>
         </div>
       </Modal>

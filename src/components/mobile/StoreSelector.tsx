@@ -14,7 +14,11 @@ export function StoreSelector() {
   const { selectedStoreId, availableStores, setSelectedStoreId } = useStoreSelectionStore()
 
   if (availableStores.length === 0) {
-    return null
+    return (
+      <div className="text-sm text-muted-foreground">
+        暂无可用门店
+      </div>
+    )
   }
 
   // 如果只有一个门店，显示为静态文本
@@ -28,8 +32,11 @@ export function StoreSelector() {
   }
 
   return (
-    <Select value={selectedStoreId || undefined} onValueChange={setSelectedStoreId}>
-      <SelectTrigger className="w-full max-w-[200px] h-9">
+    <Select
+      value={selectedStoreId || undefined}
+      onValueChange={setSelectedStoreId}
+    >
+      <SelectTrigger className="w-full h-10">
         <div className="flex items-center gap-2">
           <Store className="h-4 w-4 text-muted-foreground" />
           <SelectValue placeholder="选择门店" />

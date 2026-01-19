@@ -234,6 +234,21 @@ export async function addStoreAdmin(
     // 调用 Service 添加管理员
     const admin = await storeService.addAdmin(storeId, validatedData.userId)
 
+    // 获取用户详细信息
+    const { casdoorUserService } = await import('@/services/casdoor-user.service')
+    const user = await casdoorUserService.getUserById(validatedData.userId)
+
+    const adminWithUser = {
+      ...admin,
+      user: user
+        ? {
+            displayName: user.displayName || user.name,
+            email: user.email || '',
+            avatar: user.avatar,
+          }
+        : undefined,
+    }
+
     // 重新验证缓存
     revalidatePath('/admin/stores')
     revalidatePath(`/admin/stores/${storeId}/admins`)
@@ -241,7 +256,7 @@ export async function addStoreAdmin(
     return {
       success: true,
       message: '管理员添加成功',
-      data: admin,
+      data: adminWithUser,
     }
   } catch (error) {
     // 处理 Zod 验证错误
