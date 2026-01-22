@@ -123,7 +123,11 @@ class ContainerTrackingService {
       throw new Error('出库单不存在')
     }
 
-    const storeId = stockOut.orderId || ''
+    if (!stockOut.order) {
+      throw new Error('订单信息缺失')
+    }
+
+    const storeId = stockOut.order.storeId || ''
     if (!storeId) {
       throw new Error('订单缺少门店信息')
     }
@@ -180,7 +184,6 @@ class ContainerTrackingService {
 
       await prismaClient.containerLog.create({
         data: {
-          containerId,
           containerTrackingId: tracking.id,
           orderId: stockOut.orderId,
           opType: 'BORROW',
