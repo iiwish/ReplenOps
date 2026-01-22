@@ -8,18 +8,11 @@ import dayjs from 'dayjs'
 const { Text } = Typography
 
 export interface AuditLogListProps {
-  onFiltersChange: (filters: any) => void
-  filters: any
   data: any[]
   loading?: boolean
 }
 
-export function AuditLogList({
-  onFiltersChange,
-  filters,
-  data,
-  loading = false,
-}: AuditLogListProps) {
+export function AuditLogList({ data, loading = false }: AuditLogListProps) {
   const router = useRouter()
 
   const getActionTag = (action: string) => {
@@ -97,13 +90,13 @@ export function AuditLogList({
     },
     {
       title: '操作说明',
-      dataIndex: 'remark',
-      key: 'remark',
+      dataIndex: 'reason',
+      key: 'reason',
       width: 200,
-      render: (remark: string) => (
-        <Tooltip title={remark}>
+      render: (reason: string) => (
+        <Tooltip title={reason}>
           <Text ellipsis style={{ maxWidth: 180 }}>
-            {remark || '-'}
+            {reason || '-'}
           </Text>
         </Tooltip>
       ),
@@ -117,7 +110,7 @@ export function AuditLogList({
           <Button
             type="link"
             size="small"
-            onClick={() => router.push(`/admin/audit-logs/${record.id}`)}
+            onClick={() => router.push(`/admin/audit-logs/${record.id}` as any)}
           >
             详情
           </Button>

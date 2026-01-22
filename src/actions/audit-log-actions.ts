@@ -1,21 +1,8 @@
 'use server'
 
-import { headers } from 'next/headers'
-import { z } from 'zod'
 import { auditLogService } from '@/services/audit-log.service'
-import { revalidatePath } from 'next/cache'
-
-export const listAuditLogsSchema = z.object({
-  page: z.number().int().positive().default(1),
-  pageSize: z.number().int().positive().max(100).default(20),
-  actions: z.array(z.string()).optional(),
-  operatorId: z.string().optional(),
-  orderId: z.string().optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-})
-
-export type ListAuditLogsInput = z.infer<typeof listAuditLogsSchema>
+import { getCurrentUser, getUserRoles } from '@/lib/session'
+import type { ListAuditLogsInput } from '@/types/audit-log.types'
 
 export async function listAuditLogs(input: ListAuditLogsInput) {
   try {
@@ -28,16 +15,10 @@ export async function listAuditLogs(input: ListAuditLogsInput) {
       }
     }
 
-    const canViewAll = await auditLogService.canUserViewAll(user.id)
+    const roles = getUserRoles(user)
+    const isSuperAdmin = roles.includes('super_admin')
 
-    if (!canViewAll) {
-      if (input.actions || input.operatorId || input.orderId) {
-        return {
-          success: false,
-          error: '无权查看他人的操作日志',
-        }
-      }
-    }
+    const operatorId = isSuperAdmin ? input.operatorId : user.id
 
     const startDate = input.startDate ? new Date(input.startDate) : undefined
     const endDate = input.endDate ? new Date(input.endDate) : undefined
@@ -46,7 +27,7 @@ export async function listAuditLogs(input: ListAuditLogsInput) {
       page: input.page,
       pageSize: input.pageSize,
       actions: input.actions,
-      operatorId: canViewAll ? undefined : input.operatorId || user.id,
+      operatorId,
       orderId: input.orderId,
       startDate,
       endDate,
@@ -76,11 +57,12 @@ export async function getAuditLogDetail(id: string) {
       }
     }
 
-    const canViewAll = await auditLogService.canUserViewAll(user.id)
+    const roles = getUserRoles(user)
+    const isSuperAdmin = roles.includes('super_admin')
 
     const log = await auditLogService.getById(id)
 
-    if (!canViewAll && log.operatedBy !== user.id) {
+    if (!isSuperAdmin && log.operatedBy !== user.id) {
       return {
         success: false,
         error: '无权查看他人的操作日志',
@@ -111,9 +93,10 @@ export async function exportAuditLogs(input: ListAuditLogsInput) {
       }
     }
 
-    const canViewAll = await auditLogService.canUserViewAll(user.id)
+    const roles = getUserRoles(user)
+    const isSuperAdmin = roles.includes('super_admin')
 
-    if (!canViewAll) {
+    if (!isSuperAdmin) {
       return {
         success: false,
         error: '无权导出审计日志',
@@ -127,7 +110,7 @@ export async function exportAuditLogs(input: ListAuditLogsInput) {
       page: input.page,
       pageSize: input.pageSize,
       actions: input.actions,
-      operatorId: canViewAll ? undefined : input.operatorId || user.id,
+      operatorId: input.operatorId,
       orderId: input.orderId,
       startDate,
       endDate,

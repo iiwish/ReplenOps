@@ -1,9 +1,7 @@
 'use client'
 
-import { Card, Descriptions, Tag, Space, Button, Typography, Alert } from 'antd'
+import { Card, Descriptions, Tag, Space, Button } from 'antd'
 import dayjs from 'dayjs'
-
-const { Text, Paragraph } = Typography
 
 export interface AuditLogDetailProps {
   log: any
@@ -22,18 +20,6 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
     return <Tag color={config.color}>{config.label}</Tag>
   }
 
-  const formatData = (data: any, label: string) => {
-    if (!data) return null
-    return (
-      <div className="space-y-2">
-        <div className="mb-1 font-semibold">{label}:</div>
-        <pre className="overflow-x-auto rounded bg-gray-50 p-2 text-sm">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       <Space>
@@ -46,9 +32,9 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
             {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
           <Descriptions.Item label="操作类型">{getActionTag(log.action)}</Descriptions.Item>
-          <Descriptions.Item label="操作人">{log.operatorName || log.operatedBy}</Descriptions.Item>
+          <Descriptions.Item label="操作人">{log.operatedBy}</Descriptions.Item>
           <Descriptions.Item label="IP地址">{log.operatorIp || '-'}</Descriptions.Item>
-          <Descriptions.Item label="操作说明">{log.remark || '-'}</Descriptions.Item>
+          <Descriptions.Item label="操作说明">{log.reason || '-'}</Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -65,19 +51,6 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
             </Descriptions.Item>
             <Descriptions.Item label="门店">{log.orderStore || '-'}</Descriptions.Item>
           </Descriptions>
-        </Card>
-      )}
-
-      {(log.beforeData || log.afterData) && (
-        <Card title="数据对比" className="mb-4">
-          <Alert
-            message="以下为操作前后的数据对比（如有）"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          {formatData(log.beforeData, '操作前')}
-          {formatData(log.afterData, '操作后')}
         </Card>
       )}
     </div>

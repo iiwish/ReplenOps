@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 
 export interface ListAuditLogsParams {
   page?: number
@@ -14,14 +14,12 @@ export interface ListAuditLogsParams {
 export interface AuditLogListItem {
   id: string
   action: string
+  reason?: string
   operatedBy: string
   operatorIp?: string
   orderId?: string
   orderCode?: string
   orderStore?: string
-  remark?: string
-  beforeData?: any
-  afterData?: any
   createdAt: Date
 }
 
@@ -36,16 +34,13 @@ export interface PaginatedAuditLogResult {
 export interface AuditLogDetail {
   id: string
   action: string
+  reason?: string
   operatedBy: string
   operatorIp?: string
   orderId?: string
   orderCode?: string
   orderStore?: string
-  remark?: string
-  beforeData?: any
-  afterData?: any
   createdAt: Date
-  operatorName?: string
 }
 
 export class AuditLogService {
@@ -89,7 +84,16 @@ export class AuditLogService {
         where,
         include: {
           order: {
-            select: { id: true, code: true, store: true },
+            select: {
+              id: true,
+              code: true,
+              store: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -99,17 +103,15 @@ export class AuditLogService {
       prisma.approvalLog.count({ where }),
     ])
 
-    const items = logs.map((log) => ({
+    const items: AuditLogListItem[] = logs.map((log) => ({
       id: log.id,
       action: log.action,
+      reason: log.reason || undefined,
       operatedBy: log.operatedBy,
       operatorIp: log.operatorIp || undefined,
-      orderId: log.orderId,
+      orderId: log.orderId || undefined,
       orderCode: log.order?.code || undefined,
       orderStore: log.order?.store?.name || undefined,
-      remark: log.remark || undefined,
-      beforeData: log.beforeData,
-      afterData: log.afterData,
       createdAt: log.createdAt,
     }))
 
@@ -127,7 +129,16 @@ export class AuditLogService {
       where: { id },
       include: {
         order: {
-          select: { id: true, code: true, store: true },
+          select: {
+            id: true,
+            code: true,
+            store: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         },
       },
     })
@@ -139,37 +150,30 @@ export class AuditLogService {
     return {
       id: log.id,
       action: log.action,
+      reason: log.reason || undefined,
       operatedBy: log.operatedBy,
       operatorIp: log.operatorIp || undefined,
-      orderId: log.orderId,
+      orderId: log.orderId || undefined,
       orderCode: log.order?.code || undefined,
       orderStore: log.order?.store?.name || undefined,
-      remark: log.remark || undefined,
-      beforeData: log.beforeData,
-      afterData: log.afterData,
       createdAt: log.createdAt,
-      operatorName: log.operatedBy,
     }
   }
 
   async create(data: {
     orderId?: string
     action: string
-    operator: string
-    operatorIp: string
-    remark?: string
-    beforeData?: any
-    afterData?: any
+    operatedBy: string
+    operatorIp?: string
+    reason?: string
   }): Promise<void> {
     await prisma.approvalLog.create({
       data: {
         orderId: data.orderId,
         action: data.action,
-        operator: data.operator,
+        operatedBy: data.operatedBy,
         operatorIp: data.operatorIp,
-        remark: data.remark,
-        beforeData: data.beforeData,
-        afterData: data.afterData,
+        reason: data.reason,
       },
     })
   }
@@ -185,35 +189,15 @@ export class AuditLogService {
       log.operatedBy,
       log.operatorIp || '-',
       log.orderCode || '-',
-      log.remark || '-',
+      log.reason || '-',
     ])
 
-    const workbook = {
-      Headers: headers,
-      Sheets: [
-        {
-          name: '审计日志',
-          data: [headers, ...rows],
-        },
-      ],
-    }
-
     const XLSX = await import('xlsx')
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    XLSX.utils.book_append_sheet(workbook, worksheet, '审计日志')
+
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
-  }
-
-  async canUserViewAll(userId: string): Promise<boolean> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { roles: true },
-    })
-
-    if (!user) {
-      return false
-    }
-
-    const roles = user.roles || []
-    return roles.some((role) => role.name === 'super_admin' && role.isEnabled)
   }
 }
 
