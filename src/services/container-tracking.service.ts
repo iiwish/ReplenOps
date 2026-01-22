@@ -242,6 +242,205 @@ class ContainerTrackingService {
       })
     })
   }
+
+  async batchReturnContainers(data: {
+    storeId: string
+    items: Array<{
+      containerId: string
+      quantity: number
+    }>
+    remark?: string
+    operatorId: string
+  }): Promise<
+    Array<{
+      containerId: string
+      containerName: string
+      quantity: number
+      remainingBorrowed: number
+    }>
+  > {
+    return await prisma.$transaction(async (tx) => {
+      const results = []
+
+      for (const item of data.items) {
+        const tracking = await tx.containerTracking.findUnique({
+          where: {
+            storeId_containerId: {
+              storeId: data.storeId,
+              containerId: item.containerId,
+            },
+          },
+          include: {
+            container: {
+              select: { id: true, name: true },
+            },
+          },
+        })
+
+        if (!tracking) {
+          throw new Error(`门店无此包装物的借出记录: ${item.containerId}`)
+        }
+
+        if (item.quantity > tracking.currentBorrowed.toNumber()) {
+          throw new Error(
+            `${tracking.container.name} 归还数量(${item.quantity}) 超过在外数量(${tracking.currentBorrowed.toNumber()})`
+          )
+        }
+
+        if (tracking.currentBorrowed.toNumber() === 0) {
+          throw new Error(`${tracking.container.name} 当前在外数量为0，无需归还`)
+        }
+
+        const beforeBorrowed = tracking.currentBorrowed.toNumber()
+        const afterBorrowed = beforeBorrowed - item.quantity
+
+        await tx.containerTracking.update({
+          where: { id: tracking.id },
+          data: {
+            totalReturned: { increment: item.quantity },
+            currentBorrowed: { decrement: item.quantity },
+            lastReturnAt: new Date(),
+          },
+        })
+
+        await tx.containerLog.create({
+          data: {
+            containerTrackingId: tracking.id,
+            opType: 'RETURN',
+            quantity: item.quantity,
+            beforeBorrowed,
+            afterBorrowed,
+            remark: data.remark || '门店归还',
+            operatedBy: data.operatorId,
+            operatedAt: new Date(),
+          },
+        })
+
+        results.push({
+          containerId: item.containerId,
+          containerName: tracking.container.name,
+          quantity: item.quantity,
+          remainingBorrowed: afterBorrowed,
+        })
+      }
+
+      return results
+    })
+  }
+
+  async getReturnLogs(params: {
+    storeId?: string
+    containerId?: string
+    dateFrom?: Date
+    dateTo?: Date
+    page?: number
+    pageSize?: number
+  }): Promise<{ data: ContainerLogItem[]; total: number }> {
+    const { page = 1, pageSize = 20, ...filters } = params
+
+    const where: Prisma.ContainerLogWhereInput = {
+      opType: 'RETURN',
+    }
+
+    if (filters.storeId || filters.containerId) {
+      where.tracking = {}
+      if (filters.storeId) {
+        where.tracking.storeId = filters.storeId
+      }
+      if (filters.containerId) {
+        where.tracking.containerId = filters.containerId
+      }
+    }
+
+    if (filters.dateFrom || filters.dateTo) {
+      where.operatedAt = {}
+      if (filters.dateFrom) {
+        where.operatedAt.gte = filters.dateFrom
+      }
+      if (filters.dateTo) {
+        where.operatedAt.lte = filters.dateTo
+      }
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.containerLog.findMany({
+        where,
+        include: {
+          order: {
+            select: { id: true, code: true },
+          },
+          tracking: {
+            include: {
+              store: {
+                select: { id: true, name: true },
+              },
+              container: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+        },
+        orderBy: { operatedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.containerLog.count({ where }),
+    ])
+
+    return {
+      data: logs.map((log) => ({
+        id: log.id,
+        containerTrackingId: log.containerTrackingId,
+        orderId: log.orderId,
+        orderCode: log.order?.code || null,
+        opType: log.opType,
+        quantity: log.quantity.toNumber(),
+        beforeBorrowed: log.beforeBorrowed.toNumber(),
+        afterBorrowed: log.afterBorrowed.toNumber(),
+        remark: log.remark,
+        operatedBy: log.operatedBy,
+        operatedAt: log.operatedAt,
+        storeName: log.tracking?.store?.name || '',
+        containerName: log.tracking?.container?.name || '',
+      })),
+      total,
+    }
+  }
+
+  async getReturnableContainers(storeId: string): Promise<
+    Array<{
+      trackingId: string
+      containerId: string
+      containerName: string
+      currentBorrowed: number
+      deposit: number
+    }>
+  > {
+    const trackings = await prisma.containerTracking.findMany({
+      where: {
+        storeId,
+        currentBorrowed: { gt: 0 },
+      },
+      include: {
+        container: {
+          select: {
+            id: true,
+            name: true,
+            deposit: true,
+          },
+        },
+      },
+      orderBy: { lastBorrowAt: 'desc' },
+    })
+
+    return trackings.map((t) => ({
+      trackingId: t.id,
+      containerId: t.container.id,
+      containerName: t.container.name,
+      currentBorrowed: t.currentBorrowed.toNumber(),
+      deposit: t.container.deposit.toNumber(),
+    }))
+  }
 }
 
 export const containerTrackingService = new ContainerTrackingService()
