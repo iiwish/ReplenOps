@@ -155,9 +155,7 @@ export function ApprovalListClient() {
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       width: 120,
-      render: (amount: number) => (
-        <span className="font-semibold">¥{amount.toFixed(2)}</span>
-      ),
+      render: (amount: number) => <span className="font-semibold">¥{amount.toFixed(2)}</span>,
     },
     {
       title: '备注',
@@ -172,8 +170,10 @@ export function ApprovalListClient() {
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <Link href={`/order-approval/${record.id}`}>
-          <Button type="link" size="small">审批</Button>
+        <Link href={`/admin/order-approval/${record.id}`}>
+          <Button type="link" size="small">
+            审批
+          </Button>
         </Link>
       ),
     },
@@ -194,7 +194,11 @@ export function ApprovalListClient() {
           <Space wrap>
             <span>日期范围:</span>
             <RangePicker
-              value={filters.startDate && filters.endDate ? [dayjs(filters.startDate), dayjs(filters.endDate)] : null}
+              value={
+                filters.startDate && filters.endDate
+                  ? [dayjs(filters.startDate), dayjs(filters.endDate)]
+                  : null
+              }
               onChange={(dates) => {
                 if (dates) {
                   setFilters({
@@ -235,7 +239,9 @@ export function ApprovalListClient() {
               onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
               onSearch={handleFilter}
             />
-            <Button type="primary" onClick={handleFilter}>查询</Button>
+            <Button type="primary" onClick={handleFilter}>
+              查询
+            </Button>
             <Button onClick={handleReset}>重置</Button>
           </Space>
         </Space>

@@ -75,7 +75,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
 
       if (res.success) {
         message.success(res.message)
-        router.push('/order-approval')
+        router.push('/admin/order-approval')
       } else {
         message.error(res.message)
       }
@@ -121,9 +121,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
       dataIndex: 'totalPrice',
       key: 'totalPrice',
       width: 120,
-      render: (price: number) => (
-        <span className="font-semibold">¥{price.toFixed(2)}</span>
-      ),
+      render: (price: number) => <span className="font-semibold">¥{price.toFixed(2)}</span>,
     },
     {
       title: '库存状态',
@@ -132,17 +130,13 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
       render: (_: any, record: any) => {
         const { stockStatus, availableStock } = record
         const color =
-          stockStatus === 'sufficient'
-            ? 'green'
-            : stockStatus === 'tight'
-            ? 'orange'
-            : 'red'
+          stockStatus === 'sufficient' ? 'green' : stockStatus === 'tight' ? 'orange' : 'red'
         const text =
           stockStatus === 'sufficient'
             ? `✓ 充足(${availableStock})`
             : stockStatus === 'tight'
-            ? `⚠ 紧张(${availableStock})`
-            : `✗ 不足(${availableStock})`
+              ? `⚠ 紧张(${availableStock})`
+              : `✗ 不足(${availableStock})`
         return <Tag color={color}>{text}</Tag>
       },
     },
@@ -180,9 +174,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
                   <span className="font-semibold">合计</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1}>
-                  <span className="font-semibold text-lg">
-                    ¥{order.totalAmount.toFixed(2)}
-                  </span>
+                  <span className="text-lg font-semibold">¥{order.totalAmount.toFixed(2)}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={2} />
               </Table.Summary.Row>
@@ -206,10 +198,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
             <div className="mb-2">审批决策:</div>
-            <Radio.Group
-              value={decision}
-              onChange={(e) => setDecision(e.target.value)}
-            >
+            <Radio.Group value={decision} onChange={(e) => setDecision(e.target.value)}>
               <Radio value="approve" disabled={!order.canApprove}>
                 审批通过
               </Radio>
@@ -224,9 +213,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
             <TextArea
               rows={4}
               placeholder={
-                decision === 'reject'
-                  ? '请填写拒绝原因(至少5个字符)'
-                  : '可填写审批意见(可选)'
+                decision === 'reject' ? '请填写拒绝原因(至少5个字符)' : '可填写审批意见(可选)'
               }
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -236,11 +223,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
           <div>
             <Space>
               <Button onClick={() => router.back()}>取消</Button>
-              <Button
-                type="primary"
-                onClick={handleSubmit}
-                loading={submitting}
-              >
+              <Button type="primary" onClick={handleSubmit} loading={submitting}>
                 提交审批
               </Button>
             </Space>
