@@ -1,7 +1,7 @@
 import { requirePageAccess } from '@/lib/rbac-server'
-import PlaceholderPage from '@/components/admin/PlaceholderPage'
+import ContainersListClient from './ContainersListClient'
 
 export default async function ContainersPage() {
   await requirePageAccess('/admin/containers')
-  return <PlaceholderPage title="包装物管理" />
+  return <ContainersListClient />
 }
