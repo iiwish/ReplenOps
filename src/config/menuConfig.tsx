@@ -45,7 +45,7 @@ export const menuItems: MenuItemConfig[] = [
       {
         key: 'inventory-query',
         label: '库存查询',
-        path: '/admin/inventory',
+        path: '/admin/inventory/query',
       },
       {
         key: 'stock-in',
@@ -193,9 +193,7 @@ export function getKeyToPathMap(items: MenuItemConfig[]): Map<string, string> {
 }
 
 // 生成 key 到标签的映射（用于面包屑）
-export function getKeyToLabelMap(
-  items: MenuItemConfig[]
-): Map<string, string> {
+export function getKeyToLabelMap(items: MenuItemConfig[]): Map<string, string> {
   const map = new Map<string, string>()
 
   function traverse(items: MenuItemConfig[]) {
@@ -218,10 +216,7 @@ export function getBreadcrumbItems(
 ): Array<{ key: string; label: string; path?: string }> {
   const breadcrumbs: Array<{ key: string; label: string; path?: string }> = []
 
-  function findPath(
-    items: MenuItemConfig[],
-    currentPath: Array<MenuItemConfig>
-  ): boolean {
+  function findPath(items: MenuItemConfig[], currentPath: Array<MenuItemConfig>): boolean {
     for (const item of items) {
       const newPath = [...currentPath, item]
 

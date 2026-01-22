@@ -287,6 +287,27 @@ export class GoodsCategoryService {
     const count = await prisma.goodsCategory.count({ where })
     return count === 0
   }
+
+  /**
+   * 获取所有商品分类（用于下拉选择）
+   */
+  async listAll(): Promise<Array<{ id: string; name: string }>> {
+    const categories = await prisma.goodsCategory.findMany({
+      where: {
+        isActive: true,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        sortOrder: 'asc',
+      },
+    })
+
+    return categories
+  }
 }
 
 // 导出单例

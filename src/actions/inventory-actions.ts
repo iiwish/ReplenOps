@@ -52,7 +52,7 @@ export async function adjustStock(data: {
 
     // 重新验证缓存
     revalidatePath('/admin/inventory/logs')
-    revalidatePath('/admin/inventory')
+    revalidatePath('/admin/inventory/query')
     revalidatePath('/admin/inventory/adjustment')
 
     return {
@@ -121,10 +121,7 @@ export async function getInventoryInfo(
   goodsId: string
 ): Promise<ActionResponse> {
   try {
-    const inventory = await inventoryService.findByWarehouseAndGoods(
-      warehouseId,
-      goodsId
-    )
+    const inventory = await inventoryService.findByWarehouseAndGoods(warehouseId, goodsId)
 
     if (!inventory) {
       return {

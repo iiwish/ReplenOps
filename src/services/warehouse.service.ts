@@ -287,6 +287,28 @@ export class WarehouseService {
     const count = await prisma.warehouse.count({ where })
     return count === 0
   }
+
+  /**
+   * 获取所有仓库（用于下拉选择）
+   */
+  async listAll(): Promise<Array<{ id: string; code: string; name: string }>> {
+    const warehouses = await prisma.warehouse.findMany({
+      where: {
+        isActive: true,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+      },
+      orderBy: {
+        code: 'asc',
+      },
+    })
+
+    return warehouses
+  }
 }
 
 // 导出单例
