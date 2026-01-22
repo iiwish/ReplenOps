@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { Card, Descriptions, Table, Button, message, Tag, Space, Timeline } from 'antd'
 import { useRouter } from 'next/navigation'
 import { getOrderById } from '@/actions/order-actions'
+import { canRevokeOrder } from '@/actions/order-revocation-actions'
+import { RevokeOrderModal } from '@/components/admin/orders/RevokeOrderModal'
+import { getCurrentUser } from '@/lib/session'
 import dayjs from 'dayjs'
 import Link from 'next/link'
 
@@ -44,6 +47,8 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
+  const [showRevokeModal, setShowRevokeModal] = useState(false)
+  const [revokeLoading, setRevokeLoading] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -67,7 +72,10 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
     return <div>加载中...</div>
   }
 
-  const statusConfig = ORDER_STATUS_CONFIG[order.status] || { label: order.status, color: 'default' }
+  const statusConfig = ORDER_STATUS_CONFIG[order.status] || {
+    label: order.status,
+    color: 'default',
+  }
 
   const columns = [
     {
@@ -108,9 +116,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
       dataIndex: 'totalPrice',
       key: 'totalPrice',
       width: 120,
-      render: (price: number) => (
-        <span className="font-semibold">¥{price.toFixed(2)}</span>
-      ),
+      render: (price: number) => <span className="font-semibold">¥{price.toFixed(2)}</span>,
     },
   ]
 
@@ -157,9 +163,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
                   <span className="font-semibold">合计</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1}>
-                  <span className="font-semibold text-lg">
-                    ¥{order.totalAmount.toFixed(2)}
-                  </span>
+                  <span className="text-lg font-semibold">¥{order.totalAmount.toFixed(2)}</span>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
             </Table.Summary>
@@ -176,10 +180,10 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
               children: (
                 <div>
                   <div className="font-semibold">订单创建</div>
-                  <div className="text-gray-500 text-sm">
+                  <div className="text-sm text-gray-500">
                     {dayjs(order.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                   </div>
-                  <div className="text-gray-500 text-sm">创建人: {order.createdBy}</div>
+                  <div className="text-sm text-gray-500">创建人: {order.createdBy}</div>
                 </div>
               ),
             },
@@ -193,14 +197,12 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
                           {order.status === 'REJECTED' ? '订单拒绝' : '订单审批'}
                         </div>
                         {order.approvedAt && (
-                          <div className="text-gray-500 text-sm">
+                          <div className="text-sm text-gray-500">
                             {dayjs(order.approvedAt).format('YYYY-MM-DD HH:mm:ss')}
                           </div>
                         )}
                         {order.approvedBy && (
-                          <div className="text-gray-500 text-sm">
-                            审批人: {order.approvedBy}
-                          </div>
+                          <div className="text-sm text-gray-500">审批人: {order.approvedBy}</div>
                         )}
                       </div>
                     ),
@@ -220,8 +222,23 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
               <Button type="primary">去审批</Button>
             </Link>
           )}
+          {canRevoke && (
+            <Button danger onClick={() => setShowRevokeModal(true)}>
+              撤销订单
+            </Button>
+          )}
         </Space>
       </div>
+
+      {/* 撤销订单弹窗 */}
+      <RevokeOrderModal
+        visible={showRevokeModal}
+        orderId={orderId}
+        orderCode={order?.code || ''}
+        onConfirm={handleRevoke}
+        onCancel={() => setShowRevokeModal(false)}
+        loading={revokeLoading}
+      />
     </div>
   )
 }
