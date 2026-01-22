@@ -441,6 +441,237 @@ class ContainerTrackingService {
       deposit: t.container.deposit.toNumber(),
     }))
   }
+
+  async getSummary(params?: { storeId?: string; containerId?: string }): Promise<{
+    totalContainers: number
+    totalBorrowed: number
+    totalDeposit: number
+    avgReturnRate: number
+  }> {
+    const where: Prisma.ContainerTrackingWhereInput = {}
+    if (params?.storeId) {
+      where.storeId = params.storeId
+    }
+    if (params?.containerId) {
+      where.containerId = params.containerId
+    }
+
+    const trackings = await prisma.containerTracking.findMany({
+      where,
+      include: {
+        container: {
+          select: {
+            id: true,
+            name: true,
+            deposit: true,
+          },
+        },
+      },
+    })
+
+    let totalBorrowed = 0
+    let totalDeposit = 0
+    let totalReturnRate = 0
+
+    trackings.forEach((t) => {
+      const borrowed = t.currentBorrowed.toNumber()
+      const deposit = t.container.deposit.toNumber()
+
+      totalBorrowed += borrowed
+      totalDeposit += borrowed * deposit
+
+      if (t.totalBorrowed.toNumber() > 0) {
+        totalReturnRate += (t.totalReturned.toNumber() / t.totalBorrowed.toNumber()) * 100
+      }
+    })
+
+    return {
+      totalContainers: trackings.length,
+      totalBorrowed,
+      totalDeposit,
+      avgReturnRate: trackings.length > 0 ? totalReturnRate / trackings.length : 0,
+    }
+  }
+
+  async listTracking(params: {
+    storeId?: string
+    containerId?: string
+    hasUnreturned?: boolean
+    orderBy?: 'currentBorrowed' | 'returnRate' | 'lastBorrowAt'
+    page?: number
+    pageSize?: number
+  }): Promise<{
+    data: Array<{
+      id: string
+      storeId: string
+      storeName: string
+      containerId: string
+      containerName: string
+      containerCode: string
+      containerUnit: string
+      containerDeposit: number
+      totalBorrowed: number
+      totalReturned: number
+      currentBorrowed: number
+      returnRate: number
+      depositAmount: number
+      lastBorrowAt: Date | null
+      lastReturnAt: Date | null
+      daysUnreturned: number
+      warningLevel: 'none' | 'info' | 'warning' | 'danger'
+    }>
+    total: number
+  }> {
+    const where: Prisma.ContainerTrackingWhereInput = {}
+    if (params.storeId) {
+      where.storeId = params.storeId
+    }
+    if (params.containerId) {
+      where.containerId = params.containerId
+    }
+    if (params.hasUnreturned) {
+      where.currentBorrowed = { gt: 0 }
+    }
+
+    const orderBy = {
+      currentBorrowed: 'desc',
+      returnRate: 'asc',
+      lastBorrowAt: 'desc',
+    }[params.orderBy || 'lastBorrowAt'] as Prisma.ContainerTrackingOrderByWithRelationInput
+
+    const [trackings, total] = await Promise.all([
+      prisma.containerTracking.findMany({
+        where,
+        include: {
+          store: {
+            select: { id: true, name: true },
+          },
+          container: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              unit: true,
+              deposit: true,
+            },
+          },
+        },
+        orderBy,
+        skip: params.page && params.pageSize ? (params.page - 1) * params.pageSize : undefined,
+        take: params.pageSize,
+      }),
+      prisma.containerTracking.count({ where }),
+    ])
+
+    const data = trackings.map((t) => {
+      const returnRate =
+        t.totalBorrowed.toNumber() > 0
+          ? (t.totalReturned.toNumber() / t.totalBorrowed.toNumber()) * 100
+          : 0
+
+      const depositAmount = t.currentBorrowed.toNumber() * t.container.deposit.toNumber()
+
+      const daysUnreturned = t.lastBorrowAt
+        ? Math.floor((Date.now() - t.lastBorrowAt.getTime()) / (1000 * 60 * 60 * 24))
+        : 0
+
+      const warningLevel = this.getWarningLevel(
+        t.currentBorrowed.toNumber(),
+        returnRate,
+        daysUnreturned
+      )
+
+      return {
+        id: t.id,
+        storeId: t.storeId,
+        storeName: t.store.name,
+        containerId: t.containerId,
+        containerName: t.container.name,
+        containerCode: t.container.code,
+        containerUnit: t.container.unit,
+        containerDeposit: t.container.deposit.toNumber(),
+        totalBorrowed: t.totalBorrowed.toNumber(),
+        totalReturned: t.totalReturned.toNumber(),
+        currentBorrowed: t.currentBorrowed.toNumber(),
+        returnRate,
+        depositAmount,
+        lastBorrowAt: t.lastBorrowAt,
+        lastReturnAt: t.lastReturnAt,
+        daysUnreturned,
+        warningLevel,
+      }
+    })
+
+    return { data, total }
+  }
+
+  private getWarningLevel(
+    currentBorrowed: number,
+    returnRate: number,
+    daysUnreturned: number
+  ): 'none' | 'info' | 'warning' | 'danger' {
+    if (currentBorrowed === 0) {
+      return 'none'
+    }
+    if (daysUnreturned > 60 || returnRate < 40) {
+      return 'danger'
+    }
+    if (daysUnreturned > 30 || returnRate < 60) {
+      return 'warning'
+    }
+    if (returnRate < 80) {
+      return 'info'
+    }
+    return 'none'
+  }
+
+  async getAbnormalTrackings(days: number = 30): Promise<
+    Array<{
+      id: string
+      storeId: string
+      storeName: string
+      containerId: string
+      containerName: string
+      currentBorrowed: number
+      depositAmount: number
+      daysUnreturned: number
+    }>
+  > {
+    const trackings = await prisma.containerTracking.findMany({
+      where: {
+        currentBorrowed: { gt: 0 },
+      },
+      include: {
+        store: {
+          select: { id: true, name: true },
+        },
+        container: {
+          select: { id: true, name: true, deposit: true },
+        },
+      },
+    })
+
+    return trackings
+      .filter((t) => {
+        if (!t.lastBorrowAt) return false
+        const daysUnreturned = Math.floor(
+          (Date.now() - t.lastBorrowAt.getTime()) / (1000 * 60 * 60 * 24)
+        )
+        return daysUnreturned >= days
+      })
+      .map((t) => ({
+        id: t.id,
+        storeId: t.storeId,
+        storeName: t.store.name,
+        containerId: t.containerId,
+        containerName: t.container.name,
+        currentBorrowed: t.currentBorrowed.toNumber(),
+        depositAmount: t.currentBorrowed.toNumber() * t.container.deposit.toNumber(),
+        daysUnreturned: Math.floor(
+          (Date.now() - (t.lastBorrowAt?.getTime() || Date.now())) / (1000 * 60 * 60 * 24)
+        ),
+      }))
+  }
 }
 
 export const containerTrackingService = new ContainerTrackingService()
