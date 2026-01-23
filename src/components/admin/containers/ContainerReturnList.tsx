@@ -11,9 +11,18 @@ interface LogsResult {
   data: LogItem[]
   total: number
 }
-import { storeService } from '@/services/store.service'
-import { containerService } from '@/services/container.service'
-import type { StoreListItem } from '@/services/store.service'
+
+interface StoreListItem {
+  id: string
+  code: string
+  name: string
+}
+
+interface StoreListItem {
+  id: string
+  code: string
+  name: string
+}
 
 interface LogItem {
   id: string
@@ -48,8 +57,20 @@ export function ContainerReturnList({ storeId, containerId }: ContainerReturnLis
 
   const loadStores = async () => {
     try {
-      const result = await storeService.list()
-      setStores(result.data || [])
+      const response = await fetch('/api/stores/user', {
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          setStores(result.data)
+        } else {
+          message.error(result.message || '加载门店失败')
+        }
+      } else {
+        message.error('加载门店失败')
+      }
     } catch (error) {
       console.error('加载门店失败:', error)
       message.error('加载门店失败')
@@ -58,8 +79,16 @@ export function ContainerReturnList({ storeId, containerId }: ContainerReturnLis
 
   const loadContainers = async () => {
     try {
-      const result = await containerService.list()
-      setContainers(result)
+      const response = await fetch('/api/containers', {
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setContainers(result || [])
+      } else {
+        message.error('加载包装物失败')
+      }
     } catch (error) {
       console.error('加载包装物失败:', error)
       message.error('加载包装物失败')

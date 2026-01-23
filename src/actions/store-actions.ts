@@ -16,10 +16,7 @@ const storeSchema = z.object({
   contactPhone: z
     .string()
     .optional()
-    .refine(
-      (val) => !val || /^1[3-9]\d{9}$/.test(val),
-      '请输入正确的手机号码'
-    ),
+    .refine((val) => !val || /^1[3-9]\d{9}$/.test(val), '请输入正确的手机号码'),
 })
 
 const updateStoreSchema = z.object({
@@ -29,10 +26,7 @@ const updateStoreSchema = z.object({
   contactPhone: z
     .string()
     .optional()
-    .refine(
-      (val) => !val || /^1[3-9]\d{9}$/.test(val),
-      '请输入正确的手机号码'
-    ),
+    .refine((val) => !val || /^1[3-9]\d{9}$/.test(val), '请输入正确的手机号码'),
 })
 
 const addAdminSchema = z.object({
@@ -103,10 +97,7 @@ export async function createStore(formData: FormData): Promise<ActionResponse> {
 /**
  * 更新门店
  */
-export async function updateStore(
-  id: string,
-  formData: FormData
-): Promise<ActionResponse> {
+export async function updateStore(id: string, formData: FormData): Promise<ActionResponse> {
   try {
     // 从 FormData 提取数据
     const rawData = {
@@ -218,10 +209,7 @@ export async function toggleStoreStatus(id: string): Promise<ActionResponse> {
 /**
  * 添加门店管理员
  */
-export async function addStoreAdmin(
-  storeId: string,
-  formData: FormData
-): Promise<ActionResponse> {
+export async function addStoreAdmin(storeId: string, formData: FormData): Promise<ActionResponse> {
   try {
     // 从 FormData 提取数据
     const rawData = {
@@ -286,10 +274,7 @@ export async function addStoreAdmin(
 /**
  * 移除门店管理员
  */
-export async function removeStoreAdmin(
-  storeId: string,
-  userId: string
-): Promise<ActionResponse> {
+export async function removeStoreAdmin(storeId: string, userId: string): Promise<ActionResponse> {
   try {
     await storeService.removeAdmin(storeId, userId)
 
@@ -343,7 +328,19 @@ export async function checkStoreCode(
  */
 export async function getUserStores(): Promise<ActionResponse> {
   try {
-    const stores = await storeService.getUserStores()
+    // 先获取当前用户
+    const { getCurrentUser } = await import('@/lib/session')
+    const user = await getCurrentUser()
+
+    if (!user) {
+      return {
+        success: false,
+        message: '用户未登录',
+      }
+    }
+
+    // 传递user给service
+    const stores = await storeService.getUserStores(user)
 
     return {
       success: true,

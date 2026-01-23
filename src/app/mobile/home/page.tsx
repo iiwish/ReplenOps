@@ -1,89 +1,247 @@
-import { requireRoles } from '@/lib/rbac-server'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FileText, Package, TrendingUp } from 'lucide-react'
-import Link from 'next/link'
-import { StoreSelector } from '@/components/mobile/StoreSelector'
+'use client'
 
-export default async function MobileHomePage() {
-  // 验证用户权限，仅允许 store_admin 访问
-  const { user } = await requireRoles(['store_admin'])
+import { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { StatCard } from '@/components/mobile/dashboard/StatCard'
+import { TodoList } from '@/components/mobile/dashboard/TodoList'
+import { QuickActions } from '@/components/mobile/dashboard/QuickActions'
+import { ShoppingBag, DollarSign, Clock, AlertTriangle, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+
+interface CasdoorUser {
+  id: string
+  name: string
+  displayName?: string
+  email?: string
+  phone?: string
+  avatar?: string
+  roles?: Array<{
+    name: string
+    displayName?: string
+    isEnabled: boolean
+  }>
+  properties?: {
+    role?: string
+    storeName?: string
+    [key: string]: any
+  }
+}
+
+// 客户端获取当前用户
+async function getCurrentUserClient(): Promise<CasdoorUser | null> {
+  try {
+    const response = await fetch('/api/auth/session', {
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json()
+    return data.user || null
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    return null
+  }
+}
+
+// 客户端登出
+async function logoutClient(): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+    })
+  } catch (error) {
+    console.error('登出失败:', error)
+  }
+}
+
+interface DashboardData {
+  stats: {
+    orderCount: number
+    totalAmount: number
+    pendingCount: number
+    lowStockCount: number
+  }
+  todos: Array<{
+    key: string
+    todo: import('@/services/dashboard.service').TodoItem
+  }>
+}
+
+export default function HomePage() {
+  const router = useRouter()
+  const [refreshing, setRefreshing] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [data, setData] = useState<DashboardData>({
+    stats: {
+      orderCount: 0,
+      totalAmount: 0,
+      pendingCount: 0,
+      lowStockCount: 0,
+    },
+    todos: [],
+  })
+
+  const loadData = async () => {
+    try {
+      const [currentUser] = await Promise.all([getCurrentUserClient()])
+
+      if (currentUser) {
+        setUser(currentUser)
+      }
+
+      setData({
+        stats: {
+          orderCount: 3,
+          totalAmount: 1250,
+          pendingCount: 1,
+          lowStockCount: 2,
+        },
+        todos: [
+          {
+            key: 'order',
+            todo: {
+              id: 'pending-orders',
+              type: 'order',
+              title: '待收货订单',
+              description: '有订单待收货处理',
+              count: 2,
+              link: '/mobile/orders',
+            },
+          },
+          {
+            key: 'container',
+            todo: {
+              id: 'containers-return',
+              type: 'container',
+              title: '包装物待归还',
+              description: '有包装物需归还',
+              count: 5,
+              link: '/mobile/containers',
+            },
+          },
+          {
+            key: 'inventory',
+            todo: {
+              id: 'low-stock',
+              type: 'inventory',
+              title: '库存预警',
+              description: '部分商品库存不足',
+              count: 3,
+              link: '/mobile/inventory',
+            },
+          },
+        ],
+      })
+    } catch (error) {
+      console.error('加载数据失败:', error)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadData()
+    setRefreshing(false)
+  }
+
+  const handleLogout = async () => {
+    await logoutClient()
+    router.push('/login')
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: 'CNY',
+    }).format(amount)
+  }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* 门店选择器 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">当前门店</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StoreSelector />
-        </CardContent>
-      </Card>
-
-      {/* 欢迎信息 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>欢迎回来</CardTitle>
-          <CardDescription>
-            {user.displayName || user.name}
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      {/* 数据概览 */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>今日订单</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              <TrendingUp className="w-3 h-3 mr-1" />
-              <span>+2 较昨日</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>待审批</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              需处理
-            </div>
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-gray-50 pb-6">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm opacity-80">你好,</div>
+            <div className="text-xl font-bold">{user?.name || '用户'}</div>
+            {user?.properties?.storeName && (
+              <div className="mt-1 text-sm opacity-80">🏪 {user.properties.storeName}</div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white hover:bg-white/20"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white hover:bg-white/20"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* 快速入口 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>快速操作</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <Link
-            href="/mobile/order"
-            className="flex flex-col items-center justify-center p-6 border rounded-lg hover:bg-accent transition-colors min-h-[100px]"
-          >
-            <FileText className="w-8 h-8 mb-2 text-primary" />
-            <span className="text-sm font-medium">下单</span>
-          </Link>
+      <div className="space-y-4 px-4 pt-6">
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard
+            icon={ShoppingBag}
+            title="今日订单"
+            value={data.stats.orderCount}
+            color="blue"
+          />
+          <StatCard
+            icon={DollarSign}
+            title="今日销售额"
+            value={formatCurrency(data.stats.totalAmount)}
+            color="green"
+          />
+        </div>
 
-          <Link
-            href="/mobile/orders"
-            className="flex flex-col items-center justify-center p-6 border rounded-lg hover:bg-accent transition-colors min-h-[100px]"
-          >
-            <Package className="w-8 h-8 mb-2 text-primary" />
-            <span className="text-sm font-medium">查看订单</span>
-          </Link>
-        </CardContent>
-      </Card>
+        {data.stats.pendingCount > 0 && (
+          <StatCard
+            icon={Clock}
+            title="待审批订单"
+            value={data.stats.pendingCount}
+            subtitle="需尽快处理"
+            color="orange"
+          />
+        )}
 
-      {/* 底部间距 */}
-      <div className="h-4" />
+        {data.stats.lowStockCount > 0 && (
+          <StatCard
+            icon={AlertTriangle}
+            title="库存预警"
+            value={data.stats.lowStockCount}
+            subtitle="部分商品库存不足"
+            color="red"
+          />
+        )}
+
+        <TodoList items={data.todos} />
+
+        <QuickActions />
+      </div>
+
+      {refreshing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <RefreshCw className="h-8 w-8 animate-spin text-white" />
+        </div>
+      )}
     </div>
   )
 }

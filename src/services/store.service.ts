@@ -382,10 +382,7 @@ export class StoreService {
   /**
    * 添加门店管理员
    */
-  async addAdmin(
-    storeId: string,
-    userId: string
-  ): Promise<StoreAdminInfo> {
+  async addAdmin(storeId: string, userId: string): Promise<StoreAdminInfo> {
     // 检查门店是否存在
     const store = await prisma.store.findUnique({
       where: { id: storeId },
@@ -429,10 +426,7 @@ export class StoreService {
   /**
    * 移除门店管理员
    */
-  async removeAdmin(
-    storeId: string,
-    userId: string
-  ): Promise<{ success: boolean }> {
+  async removeAdmin(storeId: string, userId: string): Promise<{ success: boolean }> {
     // 检查门店是否存在
     const store = await prisma.store.findUnique({
       where: { id: storeId },
@@ -470,11 +464,15 @@ export class StoreService {
   }
 
   /**
-   * 获取当前用户可访问的所有门店
+   * 获取用户可访问的所有门店
+   * @param user 用户信息（可选，如果不提供则从session获取）
    */
-  async getUserStores() {
-    const { getCurrentUser } = await import('@/lib/session')
-    const user = await getCurrentUser()
+  async getUserStores(user?: any) {
+    // 如果没有提供user，尝试从session获取
+    if (!user) {
+      const { getCurrentUser } = await import('@/lib/session')
+      user = await getCurrentUser()
+    }
 
     if (!user) {
       throw new Error('用户未登录')
@@ -500,8 +498,8 @@ export class StoreService {
 
     // 过滤出启用的门店
     const stores = storeAdmins
-      .filter(sa => sa.store.isActive && !sa.store.isDeleted)
-      .map(sa => ({
+      .filter((sa) => sa.store.isActive && !sa.store.isDeleted)
+      .map((sa) => ({
         id: sa.store.id,
         code: sa.store.code,
         name: sa.store.name,

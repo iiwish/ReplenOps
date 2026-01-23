@@ -16,7 +16,6 @@ import {
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { batchReturnContainers, getReturnableContainers } from '@/actions/container-return-actions'
-import { storeService, type StoreListItem } from '@/services/store.service'
 
 interface ReturnItem {
   containerId: string
@@ -67,10 +66,16 @@ interface Container {
 }
 
 interface ContainerReturnFormProps {
+  storeId?: string
   onSuccess?: () => void
 }
 
-export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
+interface StoreListItem {
+  id: string
+  name: string
+}
+
+export function ContainerReturnForm({ storeId, onSuccess }: ContainerReturnFormProps) {
   const [form] = Form.useForm()
   const [isPending, startTransition] = useTransition()
   const [stores, setStores] = useState<StoreListItem[]>([])
@@ -79,8 +84,18 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
 
   const loadStores = async () => {
     try {
-      const result = await storeService.list()
-      setStores(result.data || [])
+      const response = await fetch('/api/stores', {
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          setStores(result.data)
+        }
+      } else {
+        message.error('加载门店失败')
+      }
     } catch (error) {
       console.error('加载门店失败:', error)
       message.error('加载门店失败')
