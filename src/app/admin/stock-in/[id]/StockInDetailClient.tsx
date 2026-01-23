@@ -298,9 +298,9 @@ export default function StockInDetailClient({
 
   return (
     <div>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         {/* 头部操作栏 */}
-        <Card bordered={false}>
+        <Card variant="borderless">
           <div
             style={{
               display: 'flex',
@@ -365,7 +365,7 @@ export default function StockInDetailClient({
         </Card>
 
         {/* 基本信息 */}
-        <Card title="基本信息" bordered={false}>
+        <Card title="基本信息" variant="borderless">
           <Descriptions column={2}>
             <Descriptions.Item label="入库单号">
               {data.code}
@@ -405,7 +405,7 @@ export default function StockInDetailClient({
         </Card>
 
         {/* 商品明细 */}
-        <Card title="商品明细" bordered={false}>
+        <Card title="商品明细" variant="borderless">
           <Table
             columns={itemColumns}
             dataSource={data.items}
@@ -428,7 +428,7 @@ export default function StockInDetailClient({
         </Card>
 
         {/* 状态流转记录 */}
-        <Card title="状态流转记录" bordered={false}>
+        <Card title="状态流转记录" variant="borderless">
           <Timeline items={timelineItems} />
         </Card>
       </Space>

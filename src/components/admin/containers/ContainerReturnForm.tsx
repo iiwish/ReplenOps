@@ -295,7 +295,7 @@ export function ContainerReturnForm({ storeId, onSuccess }: ContainerReturnFormP
                 暂无包装物
               </div>
             ) : (
-              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                 {items.map((item) => {
                   const remaining = item.currentBorrowed - item.quantity
                   return (
@@ -327,7 +327,7 @@ export function ContainerReturnForm({ storeId, onSuccess }: ContainerReturnFormP
                 })}
                 <Divider />
                 <div style={{ textAlign: 'right' }}>
-                  <Space direction="vertical" size="small">
+                  <Space orientation="vertical" size="small">
                     <div>
                       归还总数:{' '}
                       <strong>{items.reduce((sum, item) => sum + item.quantity, 0)} 个</strong>

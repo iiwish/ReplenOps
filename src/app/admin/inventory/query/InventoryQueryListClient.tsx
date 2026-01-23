@@ -160,8 +160,8 @@ export default function InventoryQueryListClient({
 
   return (
     <div>
-      <Card bordered={false}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Card variant="borderless">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space wrap>
               <Select

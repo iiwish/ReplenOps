@@ -71,7 +71,7 @@ export default function WarehouseFormClient({
   }
 
   return (
-    <Card bordered={false}>
+    <Card variant="borderless">
       <Form
         form={form}
         layout="vertical"

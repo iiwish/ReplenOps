@@ -27,7 +27,7 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
       </Space>
 
       <Card title="基本信息" className="mb-4">
-        <Descriptions column={2} bordered>
+        <Descriptions column={2} variant="outlined">
           <Descriptions.Item label="操作时间">
             {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
@@ -40,7 +40,7 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
 
       {log.orderCode && (
         <Card title="关联订单" className="mb-4">
-          <Descriptions column={2} bordered>
+          <Descriptions column={2} variant="outlined">
             <Descriptions.Item label="订单号">
               <Button
                 type="link"

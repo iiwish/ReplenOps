@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react'
 import { Card, Descriptions, Table, Button, message, Tag, Space, Timeline } from 'antd'
 import { useRouter } from 'next/navigation'
 import { getOrderById } from '@/actions/order-actions'
-import { canRevokeOrder } from '@/actions/order-revocation-actions'
+import { revokeOrder } from '@/actions/order-revocation-actions'
 import { RevokeOrderModal } from '@/components/admin/orders/RevokeOrderModal'
-import { getCurrentUser } from '@/lib/session'
 import dayjs from 'dayjs'
 import Link from 'next/link'
 
@@ -68,6 +67,26 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
     }
   }
 
+  const handleRevoke = async (reason: string) => {
+    setRevokeLoading(true)
+    try {
+      const res = await revokeOrder(orderId, reason)
+      if ('success' in res && res.success) {
+        message.success('订单撤销成功')
+        setShowRevokeModal(false)
+        router.push('/admin/orders')
+      } else if ('error' in res) {
+        message.error(res.error || '撤销失败')
+      } else {
+        message.error('撤销失败')
+      }
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '撤销失败')
+    } finally {
+      setRevokeLoading(false)
+    }
+  }
+
   if (loading || !order) {
     return <div>加载中...</div>
   }
@@ -76,6 +95,8 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
     label: order.status,
     color: 'default',
   }
+
+  const canRevoke = order.status === 'COMPLETED'
 
   const columns = [
     {
@@ -234,7 +255,6 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
       <RevokeOrderModal
         visible={showRevokeModal}
         orderId={orderId}
-        orderCode={order?.code || ''}
         onConfirm={handleRevoke}
         onCancel={() => setShowRevokeModal(false)}
         loading={revokeLoading}

@@ -190,7 +190,7 @@ export function ApprovalListClient() {
     <div>
       {/* 筛选条件 */}
       <Card className="mb-4">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Space wrap>
             <span>日期范围:</span>
             <RangePicker

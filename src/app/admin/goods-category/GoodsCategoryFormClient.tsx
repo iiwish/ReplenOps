@@ -69,7 +69,7 @@ export default function GoodsCategoryFormClient({
   }
 
   return (
-    <Card bordered={false}>
+    <Card variant="borderless">
       <Form
         form={form}
         layout="vertical"

@@ -123,7 +123,7 @@ export default function CostHistoryListClient({
     const prefix = isPositive ? '+' : ''
 
     return (
-      <Space direction="vertical" size={0}>
+      <Space orientation="vertical" size={0}>
         <Text strong style={{ color }}>
           {prefix}
           {costChange.toFixed(2)} 元

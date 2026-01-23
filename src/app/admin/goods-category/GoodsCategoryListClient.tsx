@@ -183,9 +183,9 @@ export default function GoodsCategoryListClient({
 
   return (
     <div>
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Space
-          direction="vertical"
+          orientation="vertical"
           size="middle"
           style={{ width: '100%' }}
         >

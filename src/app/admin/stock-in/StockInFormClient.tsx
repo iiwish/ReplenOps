@@ -270,7 +270,7 @@ export default function StockInFormClient({
 
   return (
     <>
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Form
           form={form}
           layout="vertical"
@@ -371,7 +371,7 @@ export default function StockInFormClient({
         footer={null}
         width={800}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Input
             placeholder="搜索商品名称或编码"
             prefix={<SearchOutlined />}

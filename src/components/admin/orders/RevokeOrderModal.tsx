@@ -57,7 +57,7 @@ export function RevokeOrderModal({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      await onConfirm(values.reason)
+      await onConfirm(values.reason as string)
       form.resetFields()
     } catch (error) {
       console.error('表单验证失败:', error)

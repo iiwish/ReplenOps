@@ -183,7 +183,7 @@ export function OrderListClient() {
     <div>
       {/* 筛选条件 */}
       <Card className="mb-4">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Space wrap>
             <span>订单状态:</span>
             <Select

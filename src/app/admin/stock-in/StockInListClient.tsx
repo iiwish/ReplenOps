@@ -434,8 +434,8 @@ export default function StockInListClient({
 
   return (
     <div>
-      <Card bordered={false}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Card variant="borderless">
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* 顶部操作栏 */}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Space wrap>
