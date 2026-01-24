@@ -465,17 +465,11 @@ export class StoreService {
 
   /**
    * 获取用户可访问的所有门店
-   * @param user 用户信息（可选，如果不提供则从session获取）
+   * @param user 用户信息（必须提供）
    */
-  async getUserStores(user?: any) {
-    // 如果没有提供user，尝试从session获取
+  async getUserStores(user: any) {
     if (!user) {
-      const { getCurrentUser } = await import('@/lib/session')
-      user = await getCurrentUser()
-    }
-
-    if (!user) {
-      throw new Error('用户未登录')
+      throw new Error('用户信息不能为空')
     }
 
     // 查询用户关联的所有门店（使用UUID格式的userId）

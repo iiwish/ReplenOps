@@ -70,7 +70,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
   const handleRevoke = async (reason: string) => {
     setRevokeLoading(true)
     try {
-      const res = await revokeOrder(orderId, reason)
+      const res = await revokeOrder(orderId, { reason })
       if ('success' in res && res.success) {
         message.success('订单撤销成功')
         setShowRevokeModal(false)

@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { profitReportService } from '@/services/profit-report.service'
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser } from '@/lib/session.server'
 
 interface ActionResponse<T = unknown> {
   success: boolean

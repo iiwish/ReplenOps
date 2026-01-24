@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { containerTrackingService } from '@/services/container-tracking.service'
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser } from '@/lib/session.server'
 
 interface ActionResponse<T = unknown> {
   success: boolean

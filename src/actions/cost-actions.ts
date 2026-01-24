@@ -1,8 +1,8 @@
 'use server'
 
-import { costService } from '@/services/cost.service'
-import { getCurrentUser } from '@/lib/session'
 import { z } from 'zod'
+import { costService } from '@/services/cost.service'
+import { getCurrentUser } from '@/lib/session.server'
 
 // 成本历史列表查询参数 Schema
 const listCostHistorySchema = z.object({
@@ -111,10 +111,7 @@ const getLatestCostSchema = z.object({
 /**
  * 获取最新成本
  */
-export async function getLatestCost(params: {
-  warehouseId: string
-  goodsId: string
-}) {
+export async function getLatestCost(params: { warehouseId: string; goodsId: string }) {
   try {
     // 验证用户权限
     const user = await getCurrentUser()

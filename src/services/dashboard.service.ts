@@ -198,12 +198,12 @@ export class DashboardService {
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate)
       date.setDate(date.getDate() + i)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = date.toISOString().split('T')[0] ?? ''
       trendMap.set(dateStr, { amount: 0, count: 0 })
     }
 
     for (const order of orders) {
-      const dateStr = order.createdAt.toISOString().split('T')[0]
+      const dateStr = order.createdAt.toISOString().split('T')[0] ?? ''
       const existing = trendMap.get(dateStr)
       if (existing !== undefined) {
         existing.amount += Number(order.totalAmount)

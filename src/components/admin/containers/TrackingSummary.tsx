@@ -27,7 +27,7 @@ import { storeService } from '@/services/store.service'
 import { containerService } from '@/services/container.service'
 import type { StoreListItem } from '@/services/store.service'
 
-interface TrackingItem {
+export interface TrackingItem {
   id: string
   storeId: string
   storeName: string

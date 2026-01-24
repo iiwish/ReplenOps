@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { inventoryService } from '@/services/inventory.service'
 import { inventoryLogService } from '@/services/inventory-log.service'
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser } from '@/lib/session.server'
 
 // Zod 验证 Schema
 const adjustStockSchema = z.object({

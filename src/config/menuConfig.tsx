@@ -6,6 +6,7 @@ import {
   SettingOutlined,
   ShopOutlined,
   ShoppingCartOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 
@@ -41,6 +42,11 @@ export const menuItems: MenuItemConfig[] = [
         key: 'goods',
         label: '商品管理',
         path: '/admin/goods',
+      },
+      {
+        key: 'goods-category',
+        label: '商品分类',
+        path: '/admin/goods-category',
       },
       {
         key: 'inventory-query',

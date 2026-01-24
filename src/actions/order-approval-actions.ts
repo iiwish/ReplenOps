@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { orderApprovalService } from '@/services/order-approval.service'
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser } from '@/lib/session.server'
 
 // Zod 验证 Schema
 const approveOrderSchema = z.object({
@@ -65,9 +65,7 @@ export async function getPendingOrders(params: {
 /**
  * 获取订单详情(含库存检查)
  */
-export async function getOrderDetailWithStock(
-  orderId: string
-): Promise<ActionResponse> {
+export async function getOrderDetailWithStock(orderId: string): Promise<ActionResponse> {
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -192,9 +190,7 @@ export async function rejectOrder(data: {
 /**
  * 批量审批订单
  */
-export async function batchApproveOrders(data: {
-  orderIds: string[]
-}): Promise<ActionResponse> {
+export async function batchApproveOrders(data: { orderIds: string[] }): Promise<ActionResponse> {
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -205,10 +201,7 @@ export async function batchApproveOrders(data: {
     const validatedData = batchApproveSchema.parse(data)
 
     // 调用 Service
-    const results = await orderApprovalService.batchApprove(
-      validatedData.orderIds,
-      user.id
-    )
+    const results = await orderApprovalService.batchApprove(validatedData.orderIds, user.id)
 
     // 统计成功失败数量
     const successCount = results.filter((r) => r.success).length

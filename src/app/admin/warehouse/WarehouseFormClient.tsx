@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Form, Input, Button, Card, message, Space } from 'antd'
+import { Form, Input, Button, Card, App, Space } from 'antd'
 import { createWarehouse, updateWarehouse } from '@/actions/warehouse-actions'
 
 interface WarehouseFormData {
@@ -18,13 +18,11 @@ interface WarehouseFormClientProps {
   initialValues?: WarehouseFormData & { id: string }
 }
 
-export default function WarehouseFormClient({
-  mode,
-  initialValues,
-}: WarehouseFormClientProps) {
+export default function WarehouseFormClient({ mode, initialValues }: WarehouseFormClientProps) {
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const { message } = App.useApp()
 
   // 表单提交处理
   const handleSubmit = async (values: WarehouseFormData) => {
@@ -52,12 +50,10 @@ export default function WarehouseFormClient({
       } else {
         // 处理验证错误
         if (result.errors) {
-          const fieldErrors = Object.entries(result.errors).map(
-            ([field, errors]) => ({
-              name: field,
-              errors,
-            })
-          )
+          const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
+            name: field,
+            errors,
+          }))
           form.setFields(fieldErrors)
         } else {
           message.error(result.message || '操作失败')
@@ -91,11 +87,7 @@ export default function WarehouseFormClient({
           ]}
           tooltip="格式：WH + 4位数字，如 WH0001"
         >
-          <Input
-            placeholder="如：WH0001"
-            disabled={mode === 'edit'}
-            maxLength={6}
-          />
+          <Input placeholder="如：WH0001" disabled={mode === 'edit'} maxLength={6} />
         </Form.Item>
 
         <Form.Item
@@ -107,12 +99,7 @@ export default function WarehouseFormClient({
         </Form.Item>
 
         <Form.Item label="地址" name="address">
-          <Input.TextArea
-            placeholder="请输入仓库地址"
-            rows={3}
-            maxLength={200}
-            showCount
-          />
+          <Input.TextArea placeholder="请输入仓库地址" rows={3} maxLength={200} showCount />
         </Form.Item>
 
         <Form.Item

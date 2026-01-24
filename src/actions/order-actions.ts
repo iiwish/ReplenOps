@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { orderService } from '@/services/order.service'
-import { getCurrentUser } from '@/lib/session'
+import { getCurrentUser } from '@/lib/session.server'
 
 // Zod 验证 Schema
 const orderItemSchema = z.object({
@@ -237,10 +237,7 @@ export async function approveOrder(data: {
 /**
  * 拒绝订单
  */
-export async function rejectOrder(data: {
-  id: string
-  reason: string
-}): Promise<ActionResponse> {
+export async function rejectOrder(data: { id: string; reason: string }): Promise<ActionResponse> {
   try {
     const user = await getCurrentUser()
     if (!user) {

@@ -1,7 +1,7 @@
 'use server'
 
 import { auditLogService } from '@/services/audit-log.service'
-import { getCurrentUser, getUserRoles } from '@/lib/session'
+import { getCurrentUser, getUserRoles } from '@/lib/session.server'
 import type { ListAuditLogsInput } from '@/types/audit-log.types'
 
 export async function listAuditLogs(input: ListAuditLogsInput) {

@@ -1,17 +1,13 @@
 'use client'
 
 import { AntdRegistry } from '@ant-design/nextjs-registry'
-import { ConfigProvider } from 'antd'
+import { App, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import React from 'react'
 
-export default function AntdProvider({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AntdProvider({ children }: { children: React.ReactNode }) {
   return (
-    <AntdRegistry>
+    <AntdRegistry hashPriority="low">
       <ConfigProvider
         locale={zhCN}
         theme={{
@@ -21,7 +17,7 @@ export default function AntdProvider({
           },
         }}
       >
-        {children}
+        <App>{children}</App>
       </ConfigProvider>
     </AntdRegistry>
   )

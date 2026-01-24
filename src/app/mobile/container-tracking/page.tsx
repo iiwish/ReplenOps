@@ -98,6 +98,8 @@ export default function MobileTrackingPage() {
     try {
       const result = await listTracking({
         storeId: selectedStore.id,
+        page: 1,
+        pageSize: 100,
       })
 
       if (result.success && result.data) {

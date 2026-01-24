@@ -6,8 +6,12 @@ import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/mobile/dashboard/StatCard'
 import { TodoList } from '@/components/mobile/dashboard/TodoList'
 import { QuickActions } from '@/components/mobile/dashboard/QuickActions'
+import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
 import { ShoppingBag, DollarSign, Clock, AlertTriangle, LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
+import { getUserStores } from '@/actions/store-actions'
+import type { StoreInfo } from '@/lib/stores/store-selection.store'
 
 interface CasdoorUser {
   id: string
@@ -24,11 +28,11 @@ interface CasdoorUser {
   properties?: {
     role?: string
     storeName?: string
+    storeId?: string
     [key: string]: any
   }
 }
 
-// 客户端获取当前用户
 async function getCurrentUserClient(): Promise<CasdoorUser | null> {
   try {
     const response = await fetch('/api/auth/session', {
@@ -47,7 +51,6 @@ async function getCurrentUserClient(): Promise<CasdoorUser | null> {
   }
 }
 
-// 客户端登出
 async function logoutClient(): Promise<void> {
   try {
     await fetch('/api/auth/logout', {
@@ -85,69 +88,75 @@ export default function HomePage() {
     todos: [],
   })
 
-  const loadData = async () => {
-    try {
-      const [currentUser] = await Promise.all([getCurrentUserClient()])
+  const { selectedStoreId, availableStores, setAvailableStores, initializeStore } =
+    useStoreSelectionStore()
 
-      if (currentUser) {
-        setUser(currentUser)
+  const initializeUserStores = async () => {
+    try {
+      const currentUser = await getCurrentUserClient()
+
+      if (!currentUser) {
+        return
       }
 
-      setData({
-        stats: {
-          orderCount: 3,
-          totalAmount: 1250,
-          pendingCount: 1,
-          lowStockCount: 2,
-        },
-        todos: [
-          {
-            key: 'order',
-            todo: {
-              id: 'pending-orders',
-              type: 'order',
-              title: '待收货订单',
-              description: '有订单待收货处理',
-              count: 2,
-              link: '/mobile/orders',
-            },
-          },
-          {
-            key: 'container',
-            todo: {
-              id: 'containers-return',
-              type: 'container',
-              title: '包装物待归还',
-              description: '有包装物需归还',
-              count: 5,
-              link: '/mobile/containers',
-            },
-          },
-          {
-            key: 'inventory',
-            todo: {
-              id: 'low-stock',
-              type: 'inventory',
-              title: '库存预警',
-              description: '部分商品库存不足',
-              count: 3,
-              link: '/mobile/inventory',
-            },
-          },
-        ],
-      })
+      setUser(currentUser)
+
+      const result = await getUserStores()
+
+      if (!result.success || !result.data) {
+        console.error('获取用户门店失败:', result.message)
+        return
+      }
+
+      const userStores = result.data as StoreInfo[]
+
+      setAvailableStores(userStores)
+
+      if (userStores.length > 0) {
+        initializeStore(userStores)
+      }
+    } catch (error) {
+      console.error('初始化用户门店失败:', error)
+    }
+  }
+
+  const loadDashboardData = async (storeId?: string) => {
+    try {
+      const response = await fetch(`/api/dashboard?${storeId ? `storeId=${storeId}` : ''}`)
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setData({
+          stats: result.data.stats,
+          todos: result.data.todoList.map((item: any, index: number) => ({
+            key: ['order', 'container', 'inventory'][index],
+            todo: item,
+          })),
+        })
+      }
     } catch (error) {
       console.error('加载数据失败:', error)
     }
+  }
+
+  const loadData = async () => {
+    await initializeUserStores()
+    await loadDashboardData(selectedStoreId || undefined)
   }
 
   useEffect(() => {
     loadData()
   }, [])
 
+  useEffect(() => {
+    if (selectedStoreId) {
+      loadDashboardData(selectedStoreId)
+    }
+  }, [selectedStoreId])
+
   const handleRefresh = async () => {
     setRefreshing(true)
-    await loadData()
+    await loadDashboardData(selectedStoreId || undefined)
     setRefreshing(false)
   }
 
@@ -167,11 +176,13 @@ export default function HomePage() {
     <div className="min-h-screen bg-gray-50 pb-6">
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-6 text-white">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <div className="text-sm opacity-80">你好,</div>
             <div className="text-xl font-bold">{user?.name || '用户'}</div>
-            {user?.properties?.storeName && (
-              <div className="mt-1 text-sm opacity-80">🏪 {user.properties.storeName}</div>
+            {availableStores.length > 0 && (
+              <div className="mt-2">
+                <StoreSelector />
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2">

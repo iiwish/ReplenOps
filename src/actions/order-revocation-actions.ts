@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers'
 import { z } from 'zod'
-import { getCurrentUser, getUserRoles } from '@/lib/session'
+import { getCurrentUser, getUserRoles } from '@/lib/session.server'
 import { orderRevocationService } from '@/services/order-revocation.service'
 import { revalidatePath } from 'next/cache'
 
