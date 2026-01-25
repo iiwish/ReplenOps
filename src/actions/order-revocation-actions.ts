@@ -6,13 +6,11 @@ import { getCurrentUser, getUserRoles } from '@/lib/session.server'
 import { orderRevocationService } from '@/services/order-revocation.service'
 import { revalidatePath } from 'next/cache'
 
-export const revokeOrderSchema = z.object({
+const revokeOrderSchema = z.object({
   reason: z.string().min(10, '撤销原因至少 10 个字符').max(500, '撤销原因不能超过 500 字'),
 })
 
-export type RevokeOrderInput = z.infer<typeof revokeOrderSchema>
-
-export async function revokeOrder(orderId: string, data: RevokeOrderInput) {
+export async function revokeOrder(orderId: string, data: { reason: string }) {
   try {
     const user = await getCurrentUser()
 
@@ -31,10 +29,17 @@ export async function revokeOrder(orderId: string, data: RevokeOrderInput) {
       }
     }
 
+    const validatedData = revokeOrderSchema.parse(data)
+
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown'
 
-    const result = await orderRevocationService.revokeOrder(orderId, data.reason, user.id, ip)
+    const result = await orderRevocationService.revokeOrder(
+      orderId,
+      validatedData.reason,
+      user.id,
+      ip
+    )
 
     revalidatePath('/admin/orders')
     revalidatePath('/admin/orders/[id]')
