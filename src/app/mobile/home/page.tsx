@@ -13,27 +13,17 @@ import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { getUserStores } from '@/actions/store-actions'
 import type { StoreInfo } from '@/lib/stores/store-selection.store'
 
-interface CasdoorUser {
+interface UserInfo {
   id: string
-  name: string
+  name: string | null
   displayName?: string
-  email?: string
-  phone?: string
-  avatar?: string
-  roles?: Array<{
-    name: string
-    displayName?: string
-    isEnabled: boolean
-  }>
-  properties?: {
-    role?: string
-    storeName?: string
-    storeId?: string
-    [key: string]: any
-  }
+  email?: string | null
+  phone?: string | null
+  avatar?: string | null
+  roles?: string[]
 }
 
-async function getCurrentUserClient(): Promise<CasdoorUser | null> {
+async function getCurrentUserClient(): Promise<UserInfo | null> {
   try {
     const response = await fetch('/api/auth/session', {
       cache: 'no-store',

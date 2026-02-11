@@ -4,16 +4,18 @@ import { getAuditLogDetail } from '@/actions/audit-log-actions'
 import { AuditLogDetail } from '@/components/admin/audit-logs/AuditLogDetail'
 import { Spin, Button, Space, message } from 'antd'
 import { useState, useEffect } from 'react'
+import type { AuditLogDetail as AuditLogDetailType } from '@/services/audit-log.service'
 
-export default function AuditLogDetailPage({ params }: { params: { id: string } }) {
+export default function AuditLogDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [loading, setLoading] = useState(false)
-  const [log, setLog] = useState<any>(null)
+  const [log, setLog] = useState<AuditLogDetailType | null>(null)
 
   const loadDetail = async () => {
     setLoading(true)
     try {
-      const result = await getAuditLogDetail(params.id)
-      if (result.success) {
+      const { id } = await params
+      const result = await getAuditLogDetail(id)
+      if (result.success && result.data) {
         setLog(result.data)
       } else {
         message.error(result.error || '加载失败')
@@ -28,7 +30,7 @@ export default function AuditLogDetailPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     loadDetail()
-  }, [params.id])
+  }, [params])
 
   const handleBack = () => {
     window.history.back()

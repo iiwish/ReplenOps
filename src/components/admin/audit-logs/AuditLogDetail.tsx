@@ -2,9 +2,10 @@
 
 import { Card, Descriptions, Tag, Space, Button } from 'antd'
 import dayjs from 'dayjs'
+import type { AuditLogDetail as AuditLogDetailType } from '@/services/audit-log.service'
 
 export interface AuditLogDetailProps {
-  log: any
+  log: AuditLogDetailType
   onBack: () => void
 }
 
@@ -27,7 +28,7 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
       </Space>
 
       <Card title="基本信息" className="mb-4">
-        <Descriptions column={2} variant="outlined">
+        <Descriptions column={2} bordered>
           <Descriptions.Item label="操作时间">
             {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
@@ -40,11 +41,15 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
 
       {log.orderCode && (
         <Card title="关联订单" className="mb-4">
-          <Descriptions column={2} variant="outlined">
+          <Descriptions column={2} bordered>
             <Descriptions.Item label="订单号">
               <Button
                 type="link"
-                onClick={() => (window as any).open(`/admin/orders/${log.orderId}`)}
+                onClick={() =>
+                  (window as unknown as { open: (url: string) => void }).open(
+                    `/admin/orders/${log.orderId}`
+                  )
+                }
               >
                 {log.orderCode}
               </Button>

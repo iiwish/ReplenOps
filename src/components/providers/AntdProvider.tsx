@@ -1,24 +1,15 @@
 'use client'
 
 import { AntdRegistry } from '@ant-design/nextjs-registry'
-import { App, ConfigProvider } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
 import React from 'react'
 
-export default function AntdProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <AntdRegistry hashPriority="low">
-      <ConfigProvider
-        locale={zhCN}
-        theme={{
-          token: {
-            colorPrimary: '#1890ff',
-            borderRadius: 6,
-          },
-        }}
-      >
-        <App>{children}</App>
-      </ConfigProvider>
-    </AntdRegistry>
-  )
+/**
+ * AntdRegistry wrapper for root layout
+ * This must be in root layout to ensure SSR styles are correctly extracted
+ */
+export function AntdRegistryProvider({ children }: { children: React.ReactNode }) {
+  return <AntdRegistry hashPriority="low">{children}</AntdRegistry>
 }
+
+// Re-export AntdRegistry for direct use
+export { AntdRegistry }

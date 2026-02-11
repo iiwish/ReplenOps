@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { storeService } from '@/services/store.service'
+import { userService } from '@/services/user.service'
 
 // Zod 验证 Schema
 const storeSchema = z.object({
@@ -50,9 +51,9 @@ export async function createStore(formData: FormData): Promise<ActionResponse> {
     const rawData = {
       code: formData.get('code') as string,
       name: formData.get('name') as string,
-      address: formData.get('address') as string | null,
-      contactName: formData.get('contactName') as string | null,
-      contactPhone: formData.get('contactPhone') as string | null,
+      address: (formData.get('address') as string) || '',
+      contactName: (formData.get('contactName') as string) || '',
+      contactPhone: (formData.get('contactPhone') as string) || '',
     }
 
     // Zod 验证
@@ -102,9 +103,9 @@ export async function updateStore(id: string, formData: FormData): Promise<Actio
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
-      address: formData.get('address') as string | null,
-      contactName: formData.get('contactName') as string | null,
-      contactPhone: formData.get('contactPhone') as string | null,
+      address: (formData.get('address') as string) || '',
+      contactName: (formData.get('contactName') as string) || '',
+      contactPhone: (formData.get('contactPhone') as string) || '',
     }
 
     // Zod 验证
@@ -222,17 +223,15 @@ export async function addStoreAdmin(storeId: string, formData: FormData): Promis
     // 调用 Service 添加管理员
     const admin = await storeService.addAdmin(storeId, validatedData.userId)
 
-    // 获取用户详细信息
-    const { casdoorUserService } = await import('@/services/casdoor-user.service')
-    const user = await casdoorUserService.getUserById(validatedData.userId)
+    const user = await userService.findById(validatedData.userId)
 
     const adminWithUser = {
       ...admin,
       user: user
         ? {
-            displayName: user.displayName || user.name,
+            displayName: user.displayName || user.name || '',
             email: user.email || '',
-            avatar: user.avatar,
+            avatar: user.avatar || undefined,
           }
         : undefined,
     }

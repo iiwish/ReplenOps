@@ -40,15 +40,13 @@ interface ActionResponse<T = unknown> {
 /**
  * 创建仓库
  */
-export async function createWarehouse(
-  formData: FormData
-): Promise<ActionResponse> {
+export async function createWarehouse(formData: FormData): Promise<ActionResponse> {
   try {
     // 从 FormData 提取数据
     const rawData = {
       code: formData.get('code') as string,
       name: formData.get('name') as string,
-      address: formData.get('address') as string,
+      address: (formData.get('address') as string) || '',
       contactName: formData.get('contactName') as string,
       contactPhone: formData.get('contactPhone') as string,
     }
@@ -95,15 +93,12 @@ export async function createWarehouse(
 /**
  * 更新仓库
  */
-export async function updateWarehouse(
-  id: string,
-  formData: FormData
-): Promise<ActionResponse> {
+export async function updateWarehouse(id: string, formData: FormData): Promise<ActionResponse> {
   try {
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
-      address: formData.get('address') as string,
+      address: (formData.get('address') as string) || '',
       contactName: formData.get('contactName') as string,
       contactPhone: formData.get('contactPhone') as string,
     }
@@ -180,9 +175,7 @@ export async function deleteWarehouse(id: string): Promise<ActionResponse> {
 /**
  * 切换仓库状态（启用/禁用）
  */
-export async function toggleWarehouseStatus(
-  id: string
-): Promise<ActionResponse> {
+export async function toggleWarehouseStatus(id: string): Promise<ActionResponse> {
   try {
     const warehouse = await warehouseService.toggleStatus(id)
 

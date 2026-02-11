@@ -4,11 +4,12 @@ import { Table, Tag, Space, Button, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
+import type { AuditLogListItem } from '@/services/audit-log.service'
 
 const { Text } = Typography
 
 export interface AuditLogListProps {
-  data: any[]
+  data: AuditLogListItem[]
   loading?: boolean
 }
 
@@ -26,13 +27,13 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
     return <Tag color={config.color}>{config.label}</Tag>
   }
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<AuditLogListItem> = [
     {
       title: '操作时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 180,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: Date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
       sorter: true,
     },
     {
@@ -55,10 +56,10 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       dataIndex: 'operatorIp',
       key: 'operatorIp',
       width: 130,
-      render: (ip: string) => (
+      render: (ip: string | undefined) => (
         <Tooltip title={ip}>
           <Text ellipsis style={{ maxWidth: 120 }}>
-            {ip}
+            {ip || '-'}
           </Text>
         </Tooltip>
       ),
@@ -68,7 +69,7 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       dataIndex: 'orderCode',
       key: 'orderCode',
       width: 150,
-      render: (code: string, record: any) =>
+      render: (code: string | undefined, record: AuditLogListItem) =>
         code ? (
           <Button
             type="link"
@@ -87,13 +88,14 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       key: 'orderStore',
       width: 100,
       sorter: true,
+      render: (store: string | undefined) => store || '-',
     },
     {
       title: '操作说明',
       dataIndex: 'reason',
       key: 'reason',
       width: 200,
-      render: (reason: string) => (
+      render: (reason: string | undefined) => (
         <Tooltip title={reason}>
           <Text ellipsis style={{ maxWidth: 180 }}>
             {reason || '-'}
@@ -105,12 +107,12 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       title: '操作',
       key: 'action',
       width: 100,
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: AuditLogListItem) => (
         <Space size="small">
           <Button
             type="link"
             size="small"
-            onClick={() => router.push(`/admin/audit-logs/${record.id}` as any)}
+            onClick={() => router.push(`/admin/audit-logs/${record.id}`)}
           >
             详情
           </Button>

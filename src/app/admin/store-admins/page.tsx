@@ -1,6 +1,6 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import { prisma } from '@/lib/prisma'
-import { casdoorUserService } from '@/services/casdoor-user.service'
+import { userService } from '@/services/user.service'
 import { App } from 'antd'
 import StoreAdminsPageClient from './StoreAdminsPageClient'
 
@@ -33,12 +33,12 @@ export default async function StoreAdminsPage() {
     stores.map(async (store) => {
       const admins = await Promise.all(
         store.storeAdmins.map(async (admin) => {
-          const user = await casdoorUserService.getUserById(admin.userId)
+          const user = await userService.findById(admin.userId)
           return {
             userId: admin.userId,
             displayName: user?.displayName || user?.name || admin.userId,
             email: user?.email || '',
-            avatar: user?.avatar,
+            avatar: user?.avatar || undefined,
           }
         })
       )

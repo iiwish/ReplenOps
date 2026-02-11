@@ -1,23 +1,18 @@
 import { getCurrentUser } from '@/lib/session'
 import AdminLayoutClient from '@/components/admin/AdminLayoutClient'
-import AntdProvider from '@/components/providers/AntdProvider'
+import AntdConfigProvider from '@/components/providers/AntdConfigProvider'
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  // 获取当前用户信息（用于显示在 Header 中）
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
 
   return (
-    <AntdProvider>
+    <AntdConfigProvider>
       <AdminLayoutClient
-        userName={user?.name}
-        userDisplayName={user?.displayName}
+        userName={user?.name ?? undefined}
+        userDisplayName={user?.displayName ?? undefined}
       >
         {children}
       </AdminLayoutClient>
-    </AntdProvider>
+    </AntdConfigProvider>
   )
 }

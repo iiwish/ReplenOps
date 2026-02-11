@@ -7,7 +7,7 @@ import { DeleteOutlined, ArrowLeftOutlined, PlusOutlined, UserOutlined } from '@
 import type { ColumnsType } from 'antd/es/table'
 import { addStoreAdmin, removeStoreAdmin } from '@/actions/store-actions'
 import type { StoreAdminInfo } from '@/services/store.service'
-import type { SimpleUserInfo } from '@/services/casdoor-user.service'
+import type { SimpleUserInfo } from '@/types/user'
 
 interface StoreAdminsClientProps {
   storeId: string
@@ -129,14 +129,8 @@ export default function StoreAdminsClient({
         <Space>
           <Avatar src={user?.avatar} icon={<UserOutlined />} />
           <div>
-            <div style={{ fontWeight: 500 }}>
-              {user?.displayName || record.userId}
-            </div>
-            {user?.email && (
-              <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                {user.email}
-              </div>
-            )}
+            <div style={{ fontWeight: 500 }}>{user?.displayName || record.userId}</div>
+            {user?.email && <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{user.email}</div>}
           </div>
         </Space>
       ),
@@ -191,11 +185,7 @@ export default function StoreAdminsClient({
                 </Tag>
               </div>
             </Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setAddModalVisible(true)}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
               添加管理员
             </Button>
           </div>
@@ -229,9 +219,7 @@ export default function StoreAdminsClient({
       >
         <div style={{ padding: '20px 0' }}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8 }}>
-              选择用户：
-            </label>
+            <label style={{ display: 'block', marginBottom: 8 }}>选择用户：</label>
             <Select
               showSearch
               style={{ width: '100%' }}
@@ -249,28 +237,18 @@ export default function StoreAdminsClient({
                   user.email.toLowerCase().includes(searchText)
                 )
               }}
-              notFoundContent={
-                loadingUsers ? <Spin size="small" /> : '暂无用户'
-              }
+              notFoundContent={loadingUsers ? <Spin size="small" /> : '暂无用户'}
             >
               {users
-                .filter(
-                  (user) => !admins.some((admin) => admin.userId === user.id)
-                )
+                .filter((user) => !admins.some((admin) => admin.userId === user.id))
                 .map((user) => (
                   <Select.Option key={user.id} value={user.id}>
                     <Space>
-                      <Avatar
-                        src={user.avatar}
-                        size="small"
-                        icon={<UserOutlined />}
-                      />
+                      <Avatar src={user.avatar} size="small" icon={<UserOutlined />} />
                       <div>
                         <div>{user.displayName}</div>
                         {user.email && (
-                          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                            {user.email}
-                          </div>
+                          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{user.email}</div>
                         )}
                       </div>
                     </Space>

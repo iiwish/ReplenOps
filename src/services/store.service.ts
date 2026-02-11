@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { userService } from './user.service'
 
 // 列表参数接口
 export interface ListStoresParams {
@@ -358,18 +359,16 @@ export class StoreService {
       orderBy: { createdAt: 'desc' },
     })
 
-    // 获取用户详细信息
-    const { casdoorUserService } = await import('./casdoor-user.service')
     const adminsWithUserInfo = await Promise.all(
       admins.map(async (admin) => {
-        const user = await casdoorUserService.getUserById(admin.userId)
+        const user = await userService.findById(admin.userId)
         return {
           ...admin,
           user: user
             ? {
-                displayName: user.displayName || user.name,
+                displayName: user.displayName || user.name || '',
                 email: user.email || '',
-                avatar: user.avatar,
+                avatar: user.avatar || undefined,
               }
             : undefined,
         }

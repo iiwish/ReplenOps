@@ -1,11 +1,15 @@
 'use client'
 
 import { Space, Button, DatePicker, Select, Card, Input, Form } from 'antd'
+import dayjs from 'dayjs'
+import type { ListAuditLogsInput } from '@/types/audit-log.types'
 
 const { RangePicker } = DatePicker
 
 export interface AuditLogFiltersProps {
-  onFiltersChange: (filters: any) => void
+  onFiltersChange: (
+    filters: Omit<ListAuditLogsInput, 'page' | 'pageSize'> & { page: number; pageSize: number }
+  ) => void
   loading?: boolean
 }
 
@@ -16,15 +20,25 @@ const actionOptions = [
   { label: '创建订单', value: 'create' },
 ]
 
+interface FormValues {
+  actions?: string[]
+  operatorId?: string
+  dateRange?: [dayjs.Dayjs | null, dayjs.Dayjs | null]
+  orderId?: string
+}
+
 export default function AuditLogFilters({
   onFiltersChange,
   loading = false,
 }: AuditLogFiltersProps) {
-  const [form] = Form.useForm()
+  const [form] = Form.useForm<FormValues>()
 
   const handleFilterChange = () => {
     const values = form.getFieldsValue()
-    const filters: any = {
+    const filters: Omit<ListAuditLogsInput, 'page' | 'pageSize'> & {
+      page: number
+      pageSize: number
+    } = {
       page: 1,
       pageSize: 20,
     }
@@ -61,7 +75,7 @@ export default function AuditLogFilters({
   return (
     <Card title="筛选条件" size="small">
       <Form form={form} layout="inline" size="small">
-        <Form.Item name="actions" label="操作类型">
+        <Form.Item<FormValues> name="actions" label="操作类型">
           <Select
             mode="multiple"
             placeholder="全部"
@@ -72,15 +86,15 @@ export default function AuditLogFilters({
           />
         </Form.Item>
 
-        <Form.Item name="operatorId" label="操作人ID">
+        <Form.Item<FormValues> name="operatorId" label="操作人ID">
           <Input placeholder="输入操作人ID" style={{ width: 150 }} />
         </Form.Item>
 
-        <Form.Item name="dateRange" label="时间范围">
+        <Form.Item<FormValues> name="dateRange" label="时间范围">
           <RangePicker placeholder={['开始日期', '结束日期']} style={{ width: 250 }} />
         </Form.Item>
 
-        <Form.Item name="orderId" label="订单号">
+        <Form.Item<FormValues> name="orderId" label="订单号">
           <Input placeholder="请输入订单号" style={{ width: 180 }} />
         </Form.Item>
 
