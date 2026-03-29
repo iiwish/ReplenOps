@@ -76,9 +76,7 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
     }
   }
 
-  const handleSubmit = () => {
-    form.submit()
-  }
+  // handleSubmit removed - form submission is handled by onFinish directly
 
   return (
     <Card title={mode === 'create' ? '新增仓库' : '编辑仓库'}>
@@ -129,7 +127,7 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
 
         <Form.Item>
           <Space>
-            <Button type="primary" htmlType="button" loading={loading} onClick={handleSubmit}>
+            <Button type="primary" htmlType="submit" loading={loading}>
               {loading ? '提交中…' : '创 建'}
             </Button>
             <Button htmlType="button" onClick={() => router.back()}>
