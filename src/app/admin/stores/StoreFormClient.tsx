@@ -47,8 +47,7 @@ export default function StoreFormClient({
 
       if (result.success) {
         message.success(result.message)
-        router.push('/admin/stores')
-        router.refresh()
+        window.location.href = '/admin/stores'
       } else {
         // 处理验证错误
         if (result.errors) {

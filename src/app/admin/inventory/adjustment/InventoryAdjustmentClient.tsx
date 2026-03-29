@@ -142,7 +142,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
         setChangeQty(null)
         setGoodsOptions([])
         // 跳转到日志页面
-        router.push('/admin/inventory/logs' as any)
+        window.location.href = '/admin/inventory/logs'
       } else {
         if (result.errors) {
           // 显示字段级错误

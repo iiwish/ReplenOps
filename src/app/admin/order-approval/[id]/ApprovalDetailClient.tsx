@@ -75,7 +75,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
 
       if (res.success) {
         message.success(res.message)
-        router.push('/admin/order-approval')
+        window.location.href = '/admin/order-approval'
       } else {
         message.error(res.message)
       }

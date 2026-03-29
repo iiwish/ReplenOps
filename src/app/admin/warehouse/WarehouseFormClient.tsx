@@ -37,30 +37,33 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
         }
       })
 
-      // 调用对应的 Server Action
-      const result =
-        mode === 'create'
-          ? await createWarehouse(formData)
-          : await updateWarehouse(initialValues!.id, formData)
-
-      if (result.success) {
-        message.success(result.message)
-        router.push('/admin/warehouse')
-        router.refresh()
+      if (mode === 'create') {
+        // createWarehouse 内部会 redirect，不会返回
+        await createWarehouse(formData)
       } else {
-        // 处理验证错误
-        if (result.errors) {
-          const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
-            name: field,
-            errors,
-          }))
-          form.setFields(fieldErrors)
+        // updateWarehouse 返回结果，客户端处理导航
+        const result = await updateWarehouse(initialValues!.id, formData)
+        if (result.success) {
+          message.success(result.message)
+          window.location.href = '/admin/warehouse'
         } else {
-          message.error(result.message || '操作失败')
+          if (result.errors) {
+            const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
+              name: field,
+              errors,
+            }))
+            form.setFields(fieldErrors)
+          } else {
+            message.error(result.message || '操作失败')
+          }
         }
       }
     } catch (error) {
-      message.error('操作失败，请重试')
+      // Next.js redirect 会抛出包含 NEXT_REDIRECT 的错误，静默处理
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (!errorMessage.includes('NEXT_REDIRECT')) {
+        message.error(errorMessage || '操作失败，请重试')
+      }
     } finally {
       setLoading(false)
     }

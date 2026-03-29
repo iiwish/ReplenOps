@@ -67,8 +67,7 @@ export default function GoodsFormClient({
 
       if (result.success) {
         message.success(result.message)
-        router.push('/admin/goods')
-        router.refresh()
+        window.location.href = '/admin/goods'
       } else {
         // 处理验证错误
         if (result.errors) {

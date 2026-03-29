@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { warehouseService } from '@/services/warehouse.service'
 
@@ -60,6 +61,10 @@ export async function createWarehouse(formData: FormData): Promise<ActionRespons
     // 重新验证缓存
     revalidatePath('/admin/warehouse')
 
+    // Server Action 中直接 redirect，避免客户端导航问题
+    redirect('/admin/warehouse')
+
+    // 以下代码不会执行，redirect 会抛出重定向
     return {
       success: true,
       message: '仓库创建成功',

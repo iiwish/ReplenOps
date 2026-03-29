@@ -3,22 +3,8 @@ import { headers } from 'next/headers'
 import { cookies } from 'next/headers'
 import type { UserRole } from '@/types'
 import { ROLE_PERMISSIONS } from '@/lib/rbac'
+import { getCurrentUser, getUserRoles } from '@/lib/session'
 import PlatformSwitch from '@/components/PlatformSwitch'
-
-// 开发模式模拟用户（有所有权限）
-function getMockUser() {
-  return {
-    id: 'dev-user-1',
-    username: 'dev_user',
-    name: '开发者',
-    role: 'super_admin' as UserRole,
-  }
-}
-
-// 获取用户角色列表
-function getUserRoles(user: { role: UserRole }): UserRole[] {
-  return [user.role]
-}
 
 // 检测是否为移动设备
 function detectMobileDevice(headersList: Headers) {
@@ -57,15 +43,12 @@ export default async function HomePage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const params = await searchParams
-  const isDevMode = params.dev === 'bypass'
 
   const headersList = await headers()
   const isMobileDevice = detectMobileDevice(headersList)
 
-  // 获取用户信息
-  // 生产环境: 从 session 获取
-  // 开发环境: 使用模拟用户
-  const user = isDevMode ? getMockUser() : null
+  // 获取当前登录用户
+  const user = await getCurrentUser()
 
   // 如果未登录，重定向到登录页
   if (!user) {

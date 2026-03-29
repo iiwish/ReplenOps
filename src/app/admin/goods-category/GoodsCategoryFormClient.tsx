@@ -45,8 +45,7 @@ export default function GoodsCategoryFormClient({
 
       if (result.success) {
         message.success(result.message)
-        router.push('/admin/goods-category')
-        router.refresh()
+        window.location.href = '/admin/goods-category'
       } else {
         // 处理验证错误
         if (result.errors) {

@@ -256,8 +256,7 @@ export default function StockInFormClient({
 
       if (result.success) {
         message.success(result.message)
-        router.push('/admin/stock-in')
-        router.refresh()
+        window.location.href = '/admin/stock-in'
       } else {
         message.error(result.message || '操作失败')
       }
