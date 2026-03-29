@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Form,
@@ -45,6 +45,7 @@ export default function GoodsFormClient({
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsFormData) => {
@@ -67,7 +68,7 @@ export default function GoodsFormClient({
 
       if (result.success) {
         message.success(result.message)
-        window.location.href = '/admin/goods'
+        setShouldNavigateTo('/admin/goods')
       } else {
         // 处理验证错误
         if (result.errors) {
@@ -88,6 +89,12 @@ export default function GoodsFormClient({
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   return (
     <Card variant="borderless">

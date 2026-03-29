@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Form, Input, InputNumber, Button, Card, message, Space } from 'antd'
 import { createGoodsCategory, updateGoodsCategory } from '@/actions/goods-category-actions'
@@ -23,6 +23,7 @@ export default function GoodsCategoryFormClient({
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsCategoryFormData) => {
@@ -45,7 +46,7 @@ export default function GoodsCategoryFormClient({
 
       if (result.success) {
         message.success(result.message)
-        window.location.href = '/admin/goods-category'
+        setShouldNavigateTo('/admin/goods-category')
       } else {
         // 处理验证错误
         if (result.errors) {
@@ -66,6 +67,12 @@ export default function GoodsCategoryFormClient({
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   return (
     <Card variant="borderless">

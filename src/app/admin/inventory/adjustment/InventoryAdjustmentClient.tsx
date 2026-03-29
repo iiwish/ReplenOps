@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Card,
@@ -40,6 +40,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const [loadingInventory, setLoadingInventory] = useState(false)
   const [searchingGoods, setSearchingGoods] = useState(false)
 
@@ -141,8 +142,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
         setCurrentInventory(null)
         setChangeQty(null)
         setGoodsOptions([])
-        // 跳转到日志页面
-        window.location.href = '/admin/inventory/logs'
+        setShouldNavigateTo('/admin/inventory/logs')
       } else {
         if (result.errors) {
           // 显示字段级错误
@@ -168,6 +168,12 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
   const handleCancel = () => {
     router.back()
   }
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   return (
     <div className="p-6">

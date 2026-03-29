@@ -61,15 +61,12 @@ export async function createWarehouse(formData: FormData): Promise<ActionRespons
     // 重新验证缓存
     revalidatePath('/admin/warehouse')
 
-    // Server Action 中直接 redirect，避免客户端导航问题
-    redirect('/admin/warehouse')
-
-    // 以下代码不会执行，redirect 会抛出重定向
     return {
       success: true,
       message: '仓库创建成功',
       data: warehouse,
     }
+  } catch (error) {
   } catch (error) {
     // 处理 Zod 验证错误
     if (error instanceof z.ZodError) {

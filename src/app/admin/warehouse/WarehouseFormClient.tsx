@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Form, Input, Button, Card, App, Space } from 'antd'
 import { createWarehouse, updateWarehouse } from '@/actions/warehouse-actions'
@@ -19,28 +19,15 @@ interface WarehouseFormClientProps {
 }
 
 export default function WarehouseFormClient({ mode, initialValues }: WarehouseFormClientProps) {
-  const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [shouldNavigate, setShouldNavigate] = useState(false)
   const { message } = App.useApp()
+  const router = useRouter()
 
-  // useEffect 监听导航状态，在 React 渲染周期之外执行导航
-  useEffect(() => {
-    if (shouldNavigate) {
-      window.location.href = '/admin/warehouse'
-    }
-  }, [shouldNavigate])
-
-  // 使用 Button onClick 处理提交，避免 Ant Design Form 的 Server Action 机制干扰
-  const handleSubmit = async () => {
+  // 使用 Ant Design Form 的 onFinish 回调
+  const handleFinish = async (values: WarehouseFormData) => {
     setLoading(true)
-
     try {
-      // 手动校验表单
-      const values = await form.validateFields()
-
-      // 转换为 FormData
       const formData = new FormData()
       Object.entries(values).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -49,10 +36,25 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
       })
 
       if (mode === 'create') {
-        await createWarehouse(formData)
+        createWarehouse(formData).then(() => {
+          // 成功创建后跳转
+          message.success('仓库创建成功')
+          window.location.href = '/admin/warehouse'
+        }).catch((error) => {
+          const msg = error instanceof Error ? error.message : String(error)
+          if (!msg.includes('NEXT_REDIRECT')) {
+            message.error(msg || '创建失败')
+          }
+          setLoading(false)
+        })
+        // 返回让 loading 状态保持，避免重复提交
+        return
       } else {
         const result = await updateWarehouse(initialValues!.id, formData)
-        if (!result.success) {
+        if (result.success) {
+          message.success(result.message)
+          router.push('/admin/warehouse')
+        } else {
           if (result.errors) {
             const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
               name: field,
@@ -63,78 +65,75 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
             message.error(result.message || '更新失败')
           }
           setLoading(false)
-          return
         }
-        message.success(result.message)
       }
-
-      // 标记需要导航，让 useEffect 处理
-      setShouldNavigate(true)
-    } catch {
-      // 表单校验失败不需要显示错误，Ant Design 会自动显示
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      if (!msg.includes('NEXT_REDIRECT') && !msg.includes('next-client')) {
+        message.error(msg || '操作失败')
+      }
       setLoading(false)
     }
   }
 
+  const handleSubmit = () => {
+    form.submit()
+  }
+
   return (
-    <Card variant="borderless">
+    <Card title={mode === 'create' ? '新增仓库' : '编辑仓库'}>
       <Form
         form={form}
         layout="vertical"
         initialValues={initialValues}
-        style={{ maxWidth: 600 }}
+        onFinish={handleFinish}
       >
         <Form.Item
-          label="仓库编码"
           name="code"
-          rules={[
-            { required: true, message: '请输入仓库编码' },
-            { pattern: /^[A-Z0-9]+$/, message: '编码只能包含大写字母和数字' },
-          ]}
+          label="仓库编码"
+          rules={[{ required: true, message: '请输入仓库编码' }]}
         >
-          <Input placeholder="如：WH0001" disabled={mode === 'edit'} maxLength={6} />
+          <Input placeholder="如：WH0001" />
         </Form.Item>
 
         <Form.Item
-          label="仓库名称"
           name="name"
+          label="仓库名称"
           rules={[{ required: true, message: '请输入仓库名称' }]}
         >
-          <Input placeholder="请输入仓库名称" maxLength={50} />
+          <Input placeholder="请输入仓库名称" />
         </Form.Item>
 
-        <Form.Item label="地址" name="address">
-          <Input placeholder="请输入仓库地址" maxLength={200} showCount />
+        <Form.Item name="address" label="地址">
+          <Input.TextArea placeholder="请输入仓库地址" rows={3} showCount maxLength={200} />
         </Form.Item>
 
-        <Space style={{ display: 'flex' }} size="middle">
-          <Form.Item
-            label="联系人"
-            name="contactName"
-            rules={[{ required: true, message: '请输入联系人' }]}
-          >
-            <Input placeholder="请输入联系人姓名" style={{ width: 200 }} />
-          </Form.Item>
+        <Form.Item
+          name="contactName"
+          label="联系人"
+          rules={[{ required: true, message: '请输入联系人' }]}
+        >
+          <Input placeholder="请输入联系人姓名" />
+        </Form.Item>
 
-          <Form.Item
-            label="联系电话"
-            name="contactPhone"
-            rules={[
-              { required: true, message: '请输入联系电话' },
-              { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' },
-            ]}
-          >
-            <Input placeholder="请输入手机号码" style={{ width: 200 }} />
-          </Form.Item>
-        </Space>
+        <Form.Item
+          name="contactPhone"
+          label="联系电话"
+          rules={[
+            { required: true, message: '请输入联系电话' },
+            { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' },
+          ]}
+        >
+          <Input placeholder="请输入手机号码" />
+        </Form.Item>
 
-        <Form.Item style={{ marginTop: 24 }}>
+        <Form.Item>
           <Space>
-            <Button type="primary" loading={loading} onClick={handleSubmit}>
-              {mode === 'create' ? '创建' : '保存'}
+            <Button type="primary" htmlType="button" loading={loading} onClick={handleSubmit}>
+              {loading ? '提交中…' : '创 建'}
             </Button>
-            <Button onClick={() => router.back()} disabled={loading}>
-              取消
+            <Button htmlType="button" onClick={() => router.back()}>
+              取 消
             </Button>
           </Space>
         </Form.Item>

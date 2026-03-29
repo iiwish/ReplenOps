@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Form,
@@ -65,6 +65,7 @@ export default function StockInFormClient({
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const [items, setItems] = useState<StockInItem[]>(initialValues?.items || [])
   const [goodsModalVisible, setGoodsModalVisible] = useState(false)
   const [goodsSearchKeyword, setGoodsSearchKeyword] = useState('')
@@ -256,7 +257,7 @@ export default function StockInFormClient({
 
       if (result.success) {
         message.success(result.message)
-        window.location.href = '/admin/stock-in'
+        setShouldNavigateTo('/admin/stock-in')
       } else {
         message.error(result.message || '操作失败')
       }
@@ -266,6 +267,12 @@ export default function StockInFormClient({
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   return (
     <>

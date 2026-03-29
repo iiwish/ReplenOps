@@ -40,6 +40,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [decision, setDecision] = useState<'approve' | 'reject'>('approve')
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const [comment, setComment] = useState('')
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
 
       if (res.success) {
         message.success(res.message)
-        window.location.href = '/admin/order-approval'
+        setShouldNavigateTo('/admin/order-approval')
       } else {
         message.error(res.message)
       }
@@ -83,6 +84,12 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   if (loading || !order) {
     return <div>加载中...</div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Form, Input, Button, Card, message, Space } from 'antd'
 import { createStore, updateStore } from '@/actions/store-actions'
@@ -25,6 +25,7 @@ export default function StoreFormClient({
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
 
   // 表单提交处理
   const handleSubmit = async (values: StoreFormData) => {
@@ -47,7 +48,7 @@ export default function StoreFormClient({
 
       if (result.success) {
         message.success(result.message)
-        window.location.href = '/admin/stores'
+        setShouldNavigateTo('/admin/stores')
       } else {
         // 处理验证错误
         if (result.errors) {
@@ -68,6 +69,12 @@ export default function StoreFormClient({
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   return (
     <Card variant="borderless">
