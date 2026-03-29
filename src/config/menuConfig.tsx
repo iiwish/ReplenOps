@@ -128,6 +128,11 @@ export const menuItems: MenuItemConfig[] = [
     icon: <SettingOutlined />,
     children: [
       {
+        key: 'system-config',
+        label: '报货时间',
+        path: '/admin/system-config',
+      },
+      {
         key: 'users',
         label: '用户管理',
         path: '/admin/users',

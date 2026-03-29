@@ -7,6 +7,7 @@ import { StatCard } from '@/components/mobile/dashboard/StatCard'
 import { TodoList } from '@/components/mobile/dashboard/TodoList'
 import { QuickActions } from '@/components/mobile/dashboard/QuickActions'
 import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
+import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
 import { ShoppingBag, DollarSign, Clock, AlertTriangle, LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
@@ -197,7 +198,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="space-y-4 px-4 pt-6">
+      <OrderingReminder />
+
+      <div className="space-y-4 px-4 pt-2">
         <div className="grid grid-cols-2 gap-4">
           <StatCard
             icon={ShoppingBag}

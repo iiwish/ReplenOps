@@ -128,13 +128,7 @@ export default async function HomePage({
 }
 
 // 客户端自动跳转组件
-function AutoRedirect({
-  targetPlatform,
-  isMobileDevice,
-}: {
-  targetPlatform: 'admin' | 'mobile'
-  isMobileDevice: boolean
-}) {
+function AutoRedirect({ isMobileDevice }: { isMobileDevice: boolean }) {
   return (
     <script
       dangerouslySetInnerHTML={{

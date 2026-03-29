@@ -6,6 +6,7 @@ import { CategorySidebar } from '@/components/mobile/order/CategorySidebar'
 import { GoodsGrid } from '@/components/mobile/order/GoodsGrid'
 import { CartFloating } from '@/components/mobile/order/CartFloating'
 import { CartDrawer } from '@/components/mobile/order/CartDrawer'
+import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { useCartStore } from '@/lib/stores/cart.store'
 import { createOrder } from '@/actions/order-actions'
@@ -134,26 +135,29 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   }
 
   return (
-    <div className="flex h-full">
-      {/* 左侧分类 */}
-      <CategorySidebar
-        categories={categories}
-        activeCategory={activeCategory}
-        onCategoryClick={handleCategoryClick}
-      />
-
-      {/* 右侧商品列表 */}
-      <div className="flex-1 flex flex-col relative">
-        <GoodsGrid
+    <div className="flex flex-col h-full">
+      <OrderingReminder />
+      <div className="flex flex-1">
+        {/* 左侧分类 */}
+        <CategorySidebar
           categories={categories}
-          onCategoryVisible={handleCategoryVisible}
+          activeCategory={activeCategory}
+          onCategoryClick={handleCategoryClick}
         />
 
-        {/* 悬浮购物车 */}
-        <CartFloating
-          onClick={() => setCartOpen(true)}
-          onCheckout={handleCheckout}
-        />
+        {/* 右侧商品列表 */}
+        <div className="flex-1 flex flex-col relative">
+          <GoodsGrid
+            categories={categories}
+            onCategoryVisible={handleCategoryVisible}
+          />
+
+          {/* 悬浮购物车 */}
+          <CartFloating
+            onClick={() => setCartOpen(true)}
+            onCheckout={handleCheckout}
+          />
+        </div>
       </div>
 
       {/* 购物车抽屉 */}

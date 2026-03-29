@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { orderService } from '@/services/order.service'
+import type { CartRestoreItem } from '@/services/order.service'
+import { orderingScheduleService } from '@/services/ordering-schedule.service'
 import { getCurrentUser } from '@/lib/session.server'
 
 // Zod 验证 Schema
@@ -65,6 +67,22 @@ export async function createOrder(data: {
 
     // Zod 验证
     const validatedData = createOrderSchema.parse(data)
+
+    // 检查报货时间窗口
+    const isWithinTime = await orderingScheduleService.isWithinOrderingTime()
+    if (!isWithinTime) {
+      const status = await orderingScheduleService.getOrderingStatus()
+      if (status.nextOrderingTime) {
+        return {
+          success: false,
+          message: `当前不在报货时间内，下次报货时间为${status.nextOrderingTime.dayName} ${status.nextOrderingTime.startTime}`,
+        }
+      }
+      return {
+        success: false,
+        message: '当前不在报货时间内，请在工作日 07:30-18:30 内报货',
+      }
+    }
 
     // 调用 Service 创建
     const order = await orderService.create({
@@ -273,6 +291,40 @@ export async function rejectOrder(data: { id: string; reason: string }): Promise
     return {
       success: false,
       message: error instanceof Error ? error.message : '拒绝订单失败',
+    }
+  }
+}
+
+/**
+ * 撤回订单（移动端：软删除 + 返回商品用于恢复购物车）
+ * 允许 PENDING / REJECTED 状态的订单被撤回
+ */
+export async function revokeOrder(orderId: string): Promise<ActionResponse & { restoredCartItems?: CartRestoreItem[] }> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return {
+        success: false,
+        message: '用户未登录',
+      }
+    }
+
+    const restoredItems = await orderService.revokeOrder(Number(orderId))
+
+    revalidatePath('/mobile/orders')
+    revalidatePath('/admin/orders')
+
+    return {
+      success: true,
+      message: `订单已撤回，${restoredItems.length} 件商品已恢复至购物车`,
+      restoredCartItems: restoredItems,
+    }
+  } catch (error) {
+    console.error('撤回订单失败:', error)
+
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '撤回订单失败',
     }
   }
 }

@@ -7,6 +7,7 @@ import { getOrderById } from '@/actions/order-actions'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { WithdrawOrderButton } from '@/components/mobile/order/WithdrawOrderButton'
 
 interface OrderDetailPageProps {
   params: Promise<{
@@ -208,6 +209,17 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* 底部间距 */}
         <div className="h-4" />
+
+        {/* 撤回按钮（PENDING / REJECTED 状态显示） */}
+        {(order.status === 'PENDING' || order.status === 'REJECTED') && (
+          <div className="sticky bottom-0 left-0 right-0 p-4 bg-background border-t">
+            <WithdrawOrderButton
+              orderId={order.id}
+              orderCode={order.code}
+              orderItems={order.items}
+            />
+          </div>
+        )}
       </div>
     </div>
   )
