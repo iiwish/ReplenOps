@@ -56,7 +56,7 @@ export default async function MobileOrderPage() {
     )
 
     return {
-      id: goods.id,
+      id: String(goods.id),
       code: goods.code,
       name: goods.name,
       spec: goods.spec,
@@ -64,17 +64,17 @@ export default async function MobileOrderPage() {
       measureType: goods.measureType,
       partnerPrice: Number(goods.partnerPrice),
       imageUrl: goods.imageUrl,
-      categoryId: goods.categoryId,
+      categoryId: String(goods.categoryId),
       availableQty: totalAvailableQty,
     }
   })
 
   // 按分类分组商品
   const categoriesWithGoods = categories.map((category) => ({
-    id: category.id,
+    id: String(category.id),
     name: category.name,
     code: category.code,
-    goods: goodsWithInventory.filter((goods) => goods.categoryId === category.id),
+    goods: goodsWithInventory.filter((goods) => goods.categoryId === String(category.id)),
   }))
 
   return <MobileOrderClient categories={categoriesWithGoods} />

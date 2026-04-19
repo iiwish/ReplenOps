@@ -11,12 +11,13 @@ export default async function StockInDetailPage({ params }: PageProps) {
   await requirePageAccess('/admin/stock-in')
 
   const { id } = await params
+  let stockIn
 
-  // 获取入库单详情
   try {
-    const stockIn = await stockInService.findById(id)
-    return <StockInDetailClient data={stockIn} />
-  } catch (error) {
+    stockIn = await stockInService.findById(id)
+  } catch {
     notFound()
   }
+
+  return <StockInDetailClient data={stockIn} />
 }

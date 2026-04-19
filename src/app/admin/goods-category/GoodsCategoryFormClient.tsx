@@ -61,7 +61,7 @@ export default function GoodsCategoryFormClient({
           message.error(result.message || '操作失败')
         }
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败，请重试')
     } finally {
       setLoading(false)

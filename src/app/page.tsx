@@ -37,13 +37,7 @@ async function getPlatformPreference(): Promise<'admin' | 'mobile' | null> {
   return null
 }
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
-  const params = await searchParams
-
+export default async function HomePage() {
   const headersList = await headers()
   const isMobileDevice = detectMobileDevice(headersList)
 
@@ -103,7 +97,6 @@ export default async function HomePage({
         {/* Auto-redirect script */}
         <AutoRedirect
           targetPlatform={platformPreference || defaultPlatform}
-          isMobileDevice={isMobileDevice}
         />
       </div>
     </main>
@@ -111,16 +104,19 @@ export default async function HomePage({
 }
 
 // 客户端自动跳转组件
-function AutoRedirect({ isMobileDevice }: { isMobileDevice: boolean }) {
+function AutoRedirect({
+  targetPlatform,
+}: {
+  targetPlatform: 'admin' | 'mobile'
+}) {
   return (
     <script
       dangerouslySetInnerHTML={{
         __html: `
           (function() {
             var pref = document.cookie.match(/erp_platform_preference=([^;]+)/);
-            var target = pref && pref[1] === '/admin' ? '/admin' : '/mobile';
             // If user has a preference cookie, respect it; otherwise use device detection
-            var finalTarget = (pref && pref[1]) || (${isMobileDevice} ? '/mobile' : '/admin');
+            var finalTarget = (pref && pref[1]) || '/${targetPlatform}';
             setTimeout(function() {
               window.location.href = finalTarget;
             }, 3000);

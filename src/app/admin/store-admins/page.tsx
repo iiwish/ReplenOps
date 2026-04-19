@@ -44,7 +44,7 @@ export default async function StoreAdminsPage() {
       )
 
       return {
-        storeId: store.id,
+        storeId: String(store.id),
         storeCode: store.code,
         storeName: store.name,
         isActive: store.isActive,

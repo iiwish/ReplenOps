@@ -8,7 +8,7 @@ import type { InventoryQueryResult } from '@/services/inventory-query.service'
 
 interface InventoryQueryListClientProps {
   initialData: InventoryQueryResult
-  warehouses: Array<{ id: string; code: string; name: string }>
+  warehouses: Array<{ id: number; code: string; name: string }>
   categories: Array<{ id: string; name: string }>
 }
 

@@ -18,6 +18,13 @@ const userUpdateSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth()
+    const { isAdmin, isStoreAdmin } = getUserRoleInfo(user.roles)
+
+    if (!isAdmin && !isStoreAdmin) {
+      return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
+    }
+
     const { search, skip, take } = Object.fromEntries(request.nextUrl.searchParams.entries())
 
     const skipNum = parseInt(skip || '0')

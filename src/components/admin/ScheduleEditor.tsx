@@ -106,12 +106,20 @@ export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: 
             <input
               type="time"
               value={s.startTime}
-              onChange={(e) =>
-                setSchedules((prev) => ({
-                  ...prev,
-                  [day.value]: { ...prev[day.value], startTime: e.target.value },
-                }))
-              }
+              onChange={(e) => {
+                const nextStartTime = e.target.value
+                setSchedules((prev) => {
+                  const current = prev[day.value]
+                  if (!current) {
+                    return prev
+                  }
+
+                  return {
+                    ...prev,
+                    [day.value]: { ...current, startTime: nextStartTime },
+                  }
+                })
+              }}
               disabled={!s.isActive}
               className="h-9 px-3 rounded-md border bg-background text-sm disabled:opacity-50"
             />
@@ -119,12 +127,20 @@ export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: 
             <input
               type="time"
               value={s.endTime}
-              onChange={(e) =>
-                setSchedules((prev) => ({
-                  ...prev,
-                  [day.value]: { ...prev[day.value], endTime: e.target.value },
-                }))
-              }
+              onChange={(e) => {
+                const nextEndTime = e.target.value
+                setSchedules((prev) => {
+                  const current = prev[day.value]
+                  if (!current) {
+                    return prev
+                  }
+
+                  return {
+                    ...prev,
+                    [day.value]: { ...current, endTime: nextEndTime },
+                  }
+                })
+              }}
               disabled={!s.isActive}
               className="h-9 px-3 rounded-md border bg-background text-sm disabled:opacity-50"
             />
@@ -133,22 +149,25 @@ export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: 
               <input
                 type="checkbox"
                 checked={s.isActive}
-                onChange={(e) =>
-                  setSchedules((prev) => ({
-                    ...prev,
-                    [day.value]: {
-                      ...prev[day.value],
-                      isActive: e.target.checked,
-                      // Default times when enabling
-                      startTime: e.target.checked && prev[day.value].startTime === '00:00'
-                        ? '07:30'
-                        : prev[day.value].startTime,
-                      endTime: e.target.checked && prev[day.value].endTime === '00:00'
-                        ? '18:30'
-                        : prev[day.value].endTime,
-                    },
-                  }))
-                }
+                onChange={(e) => {
+                  const isActive = e.target.checked
+                  setSchedules((prev) => {
+                    const current = prev[day.value]
+                    if (!current) {
+                      return prev
+                    }
+
+                    return {
+                      ...prev,
+                      [day.value]: {
+                        ...current,
+                        isActive,
+                        startTime: isActive && current.startTime === '00:00' ? '07:30' : current.startTime,
+                        endTime: isActive && current.endTime === '00:00' ? '18:30' : current.endTime,
+                      },
+                    }
+                  })
+                }}
                 className="h-4 w-4 rounded border-gray-400"
               />
             </div>

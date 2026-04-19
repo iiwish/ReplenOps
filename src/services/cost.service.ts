@@ -69,12 +69,12 @@ export class CostService {
 
     // 仓库筛选
     if (warehouseId) {
-      where.warehouseId = warehouseId
+      where.warehouseId = Number.parseInt(warehouseId, 10)
     }
 
     // 商品筛选
     if (goodsId) {
-      where.goodsId = goodsId
+      where.goodsId = Number.parseInt(goodsId, 10)
     }
 
     // 日期范围筛选
@@ -136,10 +136,10 @@ export class CostService {
         beforeCost > 0 ? (costChange / beforeCost) * 100 : 0
 
       return {
-        id: item.id,
-        warehouseId: item.warehouseId,
+        id: String(item.id),
+        warehouseId: String(item.warehouseId),
         warehouseName: item.warehouse.name,
-        goodsId: item.goodsId,
+        goodsId: String(item.goodsId),
         goodsCode: item.goods.code,
         goodsName: item.goods.name,
         goodsUnit: item.goods.unit,
@@ -183,8 +183,8 @@ export class CostService {
 
     const history = await prisma.costHistory.findMany({
       where: {
-        warehouseId,
-        goodsId,
+        warehouseId: Number.parseInt(warehouseId, 10),
+        goodsId: Number.parseInt(goodsId, 10),
         createdAt: {
           gte: startDate,
         },
@@ -214,8 +214,8 @@ export class CostService {
   ): Promise<CostHistoryListItem | null> {
     const latest = await prisma.costHistory.findFirst({
       where: {
-        warehouseId,
-        goodsId,
+        warehouseId: Number.parseInt(warehouseId, 10),
+        goodsId: Number.parseInt(goodsId, 10),
       },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -256,10 +256,10 @@ export class CostService {
     const costChangePercent = beforeCost > 0 ? (costChange / beforeCost) * 100 : 0
 
     return {
-      id: latest.id,
-      warehouseId: latest.warehouseId,
+      id: String(latest.id),
+      warehouseId: String(latest.warehouseId),
       warehouseName: latest.warehouse.name,
-      goodsId: latest.goodsId,
+      goodsId: String(latest.goodsId),
       goodsCode: latest.goods.code,
       goodsName: latest.goods.name,
       goodsUnit: latest.goods.unit,

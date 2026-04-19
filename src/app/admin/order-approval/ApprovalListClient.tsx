@@ -103,7 +103,7 @@ export function ApprovalListClient() {
           } else {
             message.error(res.message)
           }
-        } catch (error) {
+        } catch {
           hide()
           message.error('批量审批失败')
         }

@@ -75,6 +75,7 @@ export interface InventoryReportData {
 export class ReportService {
   async getSalesReport(params: SalesReportParams): Promise<SalesReportData> {
     const { startDate, endDate, storeIds, categoryId } = params
+    const storeIdInts = storeIds?.map((storeId) => Number.parseInt(storeId, 10))
 
     const whereClause: any = {
       createdAt: { gte: startDate, lte: endDate },
@@ -82,8 +83,8 @@ export class ReportService {
       isDeleted: false,
     }
 
-    if (storeIds && storeIds.length > 0) {
-      whereClause.storeId = { in: storeIds }
+    if (storeIdInts && storeIdInts.length > 0) {
+      whereClause.storeId = { in: storeIdInts }
     }
 
     const dailySales = await prisma.$queryRaw<
@@ -102,7 +103,7 @@ export class ReportService {
         AND created_at <= ${endDate}
         AND status = 'COMPLETED'
         AND is_deleted = false
-        ${storeIds && storeIds.length > 0 ? prisma.$queryRaw`AND store_id = ANY(${storeIds})` : prisma.$queryRaw``}
+        ${storeIdInts && storeIdInts.length > 0 ? prisma.$queryRaw`AND store_id = ANY(${storeIdInts})` : prisma.$queryRaw``}
       GROUP BY DATE(created_at)
       ORDER BY date
     `
@@ -116,14 +117,14 @@ export class ReportService {
     })
 
     const stores = await prisma.store.findMany({
-      where: storeIds && storeIds.length > 0 ? { id: { in: storeIds } } : undefined,
+      where: storeIdInts && storeIdInts.length > 0 ? { id: { in: storeIdInts } } : undefined,
       select: { id: true, name: true },
     })
 
     const storeMap = new Map(stores.map((s) => [s.id, s.name]))
 
     const storeSalesData = storeSales.map((s) => ({
-      storeId: s.storeId,
+      storeId: String(s.storeId),
       storeName: storeMap.get(s.storeId) ?? 'Unknown',
       orderCount: s._count.id,
       totalAmount: Number(s._sum.totalAmount ?? 0),
@@ -133,7 +134,7 @@ export class ReportService {
 
     if (categoryId) {
       const goodsIds = await prisma.goods.findMany({
-        where: { categoryId },
+        where: { categoryId: Number.parseInt(categoryId, 10) },
         select: { id: true },
       })
       const orderItems = await prisma.orderItem.findMany({
@@ -168,7 +169,7 @@ export class ReportService {
     const goodsSalesData = goodsSales.map((g) => {
       const goodsInfo = goodsMap.get(g.goodsId)
       return {
-        goodsId: g.goodsId,
+        goodsId: String(g.goodsId),
         goodsCode: goodsInfo?.code ?? 'Unknown',
         goodsName: goodsInfo?.name ?? 'Unknown',
         quantity: Number(g._sum.quantity ?? 0),
@@ -187,7 +188,7 @@ export class ReportService {
       .forEach((d) => {
         if (d.date !== null && d.date !== undefined) {
           dailySalesResult.push({
-            date: d.date.toISOString().split('T')[0],
+            date: d.date.toISOString().split('T')[0] ?? '',
             orderCount: Number(d.order_count),
             totalAmount: Number(d.total_amount),
           })
@@ -203,14 +204,15 @@ export class ReportService {
 
   async getProfitReport(params: ProfitReportParams): Promise<ProfitReportData> {
     const { startDate, endDate, storeId } = params
+    const storeIdInt = storeId ? Number.parseInt(storeId, 10) : undefined
 
     const whereClause: any = {
       completedAt: { gte: startDate, lte: endDate },
       status: 'COMPLETED',
     }
 
-    if (storeId) {
-      whereClause.storeId = storeId
+    if (storeIdInt !== undefined) {
+      whereClause.storeId = storeIdInt
     }
 
     const stockOuts = await prisma.stockOut.findMany({
@@ -231,7 +233,7 @@ export class ReportService {
       stockOuts.map((so) => [
         so.id,
         {
-          id: so.id,
+          id: String(so.id),
           orderCode: so.order?.code ?? 'N/A',
           storeName: so.order?.store?.name ?? 'Unknown',
           completedAt: so.completedAt ?? new Date(),
@@ -284,7 +286,7 @@ export class ReportService {
     })
 
     const inventoryData = inventory.map((inv) => ({
-      id: inv.id,
+      id: String(inv.id),
       goodsCode: inv.goods.code,
       goodsName: inv.goods.name,
       categoryName: inv.goods.category.name,

@@ -1,9 +1,6 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -26,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body className={inter.className}>
+      <body>
         <AntdRegistry hashPriority="low">{children}</AntdRegistry>
       </body>
     </html>

@@ -13,5 +13,12 @@ export default async function InventoryAdjustmentPage() {
   // 获取仓库列表
   const warehouses = await stockInService.getActiveWarehouses()
 
-  return <InventoryAdjustmentClient warehouses={warehouses} />
+  return (
+    <InventoryAdjustmentClient
+      warehouses={warehouses.map((warehouse) => ({
+        id: String(warehouse.id),
+        name: warehouse.name,
+      }))}
+    />
+  )
 }

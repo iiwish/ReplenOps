@@ -41,5 +41,13 @@ export default async function StockInPage({
   // 获取仓库列表（用于筛选）
   const warehouses = await stockInService.getActiveWarehouses()
 
-  return <StockInListClient initialData={result} warehouses={warehouses} />
+  return (
+    <StockInListClient
+      initialData={result}
+      warehouses={warehouses.map((warehouse) => ({
+        ...warehouse,
+        id: String(warehouse.id),
+      }))}
+    />
+  )
 }

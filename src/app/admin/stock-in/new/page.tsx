@@ -11,7 +11,13 @@ export default async function NewStockInPage() {
   return (
     <div>
       <h2 style={{ marginBottom: 24 }}>新建入库单</h2>
-      <StockInFormClient mode="create" warehouses={warehouses} />
+      <StockInFormClient
+        mode="create"
+        warehouses={warehouses.map((warehouse) => ({
+          ...warehouse,
+          id: String(warehouse.id),
+        }))}
+      />
     </div>
   )
 }

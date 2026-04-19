@@ -34,5 +34,5 @@ export default async function CartConfirmPage() {
     redirect('/mobile/home')
   }
 
-  return <CartConfirmClient storeId={storeAdmin.storeId} />
+  return <CartConfirmClient storeId={String(storeAdmin.storeId)} />
 }

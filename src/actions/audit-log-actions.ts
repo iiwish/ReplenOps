@@ -28,7 +28,7 @@ export async function listAuditLogs(input: ListAuditLogsInput) {
       pageSize: input.pageSize,
       actions: input.actions,
       operatorId,
-      orderId: input.orderId,
+      orderId: input.orderId ? Number.parseInt(input.orderId, 10) : undefined,
       startDate,
       endDate,
     })
@@ -111,7 +111,7 @@ export async function exportAuditLogs(input: ListAuditLogsInput) {
       pageSize: input.pageSize,
       actions: input.actions,
       operatorId: input.operatorId,
-      orderId: input.orderId,
+      orderId: input.orderId ? Number.parseInt(input.orderId, 10) : undefined,
       startDate,
       endDate,
     })

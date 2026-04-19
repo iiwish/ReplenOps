@@ -88,7 +88,7 @@ export default function StockInFormClient({
         message.error(result.message || '搜索商品失败')
         setGoodsOptions([])
       }
-    } catch (error) {
+    } catch {
       message.error('搜索商品失败')
       setGoodsOptions([])
     } finally {
@@ -261,7 +261,7 @@ export default function StockInFormClient({
       } else {
         message.error(result.message || '操作失败')
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败，请重试')
     } finally {
       setLoading(false)

@@ -2,14 +2,16 @@ import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
 // Make jest globals available for tests that use jest.* syntax
-global.jest = {
+Object.assign(globalThis, {
+  jest: {
   mock: vi.mock,
   fn: vi.fn,
   spyOn: vi.spyOn,
   clearAllMocks: () => {},
   resetAllMocks: () => {},
   restoreAllMocks: () => {},
-}
+  },
+})
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
@@ -29,24 +31,26 @@ vi.mock('next/cache', () => ({
 }))
 
 // Mock @prisma/client
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    $transaction: vi.fn((fn) => fn(prisma)),
-    order: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn()
-    },
-    goods: {
-      findMany: vi.fn(),
-      findUnique: vi.fn()
-    },
-    inventory: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn()
-    }
+const prismaMock = {
+  $transaction: vi.fn(async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock)),
+  order: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn()
+  },
+  goods: {
+    findMany: vi.fn(),
+    findUnique: vi.fn()
+  },
+  inventory: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn()
   }
+}
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: prismaMock
 }))

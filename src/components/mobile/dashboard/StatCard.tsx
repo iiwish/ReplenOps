@@ -16,8 +16,9 @@ export function StatCard({ icon: Icon, title, value, subtitle, color = 'blue' }:
     orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
     red: { bg: 'bg-red-50', text: 'text-red-600' },
   }
+  const defaultColors = { bg: 'bg-blue-50', text: 'text-blue-600' }
 
-  const colors = colorMap[color] ?? colorMap.blue
+  const colors = colorMap[color] || defaultColors
 
   return (
     <Card className="flex flex-col items-center p-4">

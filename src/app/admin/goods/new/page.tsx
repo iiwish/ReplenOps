@@ -11,7 +11,13 @@ export default async function NewGoodsPage() {
   return (
     <div>
       <h2 style={{ marginBottom: 24 }}>新建商品</h2>
-      <GoodsFormClient mode="create" categories={categories} />
+      <GoodsFormClient
+        mode="create"
+        categories={categories.map((category) => ({
+          ...category,
+          id: String(category.id),
+        }))}
+      />
     </div>
   )
 }

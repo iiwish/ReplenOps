@@ -4,28 +4,11 @@ import { useState, useEffect } from 'react'
 import {
   Card,
   Statistic,
-  Table,
-  Form,
-  Select,
-  DatePicker,
-  Button,
-  Space,
-  Tag,
   message,
-  Badge,
   Row,
   Col,
 } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
-import {
-  getTrackingSummary,
-  listTracking,
-  getAbnormalTrackings,
-} from '@/actions/container-tracking-query-actions'
-import { storeService } from '@/services/store.service'
-import { containerService } from '@/services/container.service'
-import type { StoreListItem } from '@/services/store.service'
+import { getTrackingSummary } from '@/actions/container-tracking-query-actions'
 
 export interface TrackingItem {
   id: string
@@ -68,8 +51,8 @@ export function TrackingSummary({
     setLoading(true)
     try {
       const result = await getTrackingSummary({ storeId, containerId })
-      if (result.success && result.data) {
-        setSummary(result.data)
+      if (result.success && result.data && typeof result.data === 'object') {
+        setSummary(result.data as SummaryData)
       } else {
         message.error(result.message || '加载汇总统计失败')
       }

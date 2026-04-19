@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Table, Button, Tag, Badge } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { listTracking } from '@/actions/container-tracking-query-actions'
 import type { TrackingItem } from './TrackingSummary'
 
@@ -10,6 +12,18 @@ interface TrackingTableProps {
   storeId?: string
   containerId?: string
   hasUnreturned?: boolean
+}
+
+interface TrackingTableResult {
+  data: TrackingItem[]
+  total: number
+}
+
+const WARNING_BADGE_CONFIG: Record<TrackingItem['warningLevel'], { status: 'success' | 'processing' | 'warning' | 'error'; text: string }> = {
+  danger: { status: 'error', text: '严重' },
+  warning: { status: 'warning', text: '警告' },
+  info: { status: 'processing', text: '注意' },
+  none: { status: 'success', text: '正常' },
 }
 
 export function TrackingTable({ storeId, containerId, hasUnreturned }: TrackingTableProps) {
@@ -30,9 +44,10 @@ export function TrackingTable({ storeId, containerId, hasUnreturned }: TrackingT
         pageSize: currentPageSize,
       })
 
-      if (result.success && result.data) {
-        setData(result.data.data)
-        setTotal(result.data.total)
+      if (result.success && result.data && typeof result.data === 'object') {
+        const payload = result.data as TrackingTableResult
+        setData(payload.data)
+        setTotal(payload.total)
       } else {
         console.error('加载台账列表失败:', result.message)
       }
@@ -48,14 +63,8 @@ export function TrackingTable({ storeId, containerId, hasUnreturned }: TrackingT
   }
 
   const getWarningBadge = (level: string) => {
-    const config =
-      {
-        danger: { status: 'error', text: '严重' },
-        warning: { status: 'warning', text: '警告' },
-        info: { status: 'processing', text: '注意' },
-        none: { status: 'success', text: '正常' },
-      }[level as keyof typeof config] || config.none
-    return <Badge {...config[level]} />
+    const config = WARNING_BADGE_CONFIG[level as TrackingItem['warningLevel']] || WARNING_BADGE_CONFIG.none
+    return <Badge status={config.status} text={config.text} />
   }
 
   const columns: ColumnsType<TrackingItem> = [
@@ -167,14 +176,14 @@ export function TrackingTable({ storeId, containerId, hasUnreturned }: TrackingT
           loadData(newPage, newPageSize || 20)
         },
       }}
-      title={
+      title={() => (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>包装物台账</span>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
             刷新
           </Button>
         </div>
-      }
+      )}
     />
   )
 }

@@ -131,7 +131,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       title: '取消出库单',
       content: (
         <div>
-          <p>确定要取消出库单"{record.code}"吗？</p>
+          <p>确定要取消出库单 &quot;{record.code}&quot; 吗？</p>
           <Input.TextArea
             placeholder="请填写取消原因"
             rows={4}

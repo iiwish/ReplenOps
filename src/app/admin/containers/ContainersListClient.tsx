@@ -38,7 +38,7 @@ export default function ContainersListClient() {
       if (result.success && result.data) {
         setContainers(result.data as Container[])
       }
-    } catch (error) {
+    } catch {
       message.error('加载失败')
     } finally {
       setLoading(false)
@@ -74,7 +74,7 @@ export default function ContainersListClient() {
             message.success('删除成功')
             fetchContainers()
           }
-        } catch (error) {
+        } catch {
           message.error('删除失败')
         }
       },
@@ -99,7 +99,7 @@ export default function ContainersListClient() {
           fetchContainers()
         }
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败')
     }
   }

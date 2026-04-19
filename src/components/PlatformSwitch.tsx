@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 interface PlatformSwitchProps {
   hasAdmin: boolean
@@ -14,8 +13,6 @@ export default function PlatformSwitch({
   hasMobile,
   currentPlatform,
 }: PlatformSwitchProps) {
-  const router = useRouter()
-  const pathname = usePathname()
   const [isSwitching, setIsSwitching] = useState(false)
 
   // Platform labels and icons
@@ -54,7 +51,7 @@ export default function PlatformSwitch({
     document.cookie = `erp_platform_preference=${href}; path=/; max-age=${60 * 60 * 24 * 30}`
     // Small delay for visual feedback
     await new Promise((r) => setTimeout(r, 150))
-    router.push(href)
+    window.location.href = href
   }
 
   return (

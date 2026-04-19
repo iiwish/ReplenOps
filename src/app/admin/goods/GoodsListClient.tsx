@@ -86,7 +86,7 @@ export default function GoodsListClient({
           } else {
             message.error(result.message || '删除失败')
           }
-        } catch (error) {
+        } catch {
           message.error('删除失败，请重试')
         } finally {
           setLoading(false)
@@ -106,7 +106,7 @@ export default function GoodsListClient({
       } else {
         message.error(result.message || '操作失败')
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败，请重试')
     } finally {
       setLoading(false)

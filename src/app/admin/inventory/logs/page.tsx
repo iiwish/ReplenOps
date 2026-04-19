@@ -47,14 +47,16 @@ export default async function InventoryLogsPage({
   // 获取筛选数据
   const warehouses = await stockInService.getActiveWarehouses()
 
-  // 注意：项目使用 Casdoor 进行用户管理，操作人列表暂时为空
-  // 如需筛选操作人，可以通过 Casdoor API 获取用户列表
+  // 当前操作人筛选暂未接入用户列表查询
   const operators: Array<{ id: string; username: string }> = []
 
   return (
     <InventoryLogListClient
       initialData={logsResult}
-      warehouses={warehouses}
+      warehouses={warehouses.map((warehouse) => ({
+        id: String(warehouse.id),
+        name: warehouse.name,
+      }))}
       operators={operators}
     />
   )

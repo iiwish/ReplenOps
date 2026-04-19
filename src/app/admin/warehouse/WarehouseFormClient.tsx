@@ -15,7 +15,7 @@ interface WarehouseFormData {
 
 interface WarehouseFormClientProps {
   mode: 'create' | 'edit'
-  initialValues?: WarehouseFormData & { id: string }
+  initialValues?: WarehouseFormData & { id: number }
 }
 
 export default function WarehouseFormClient({ mode, initialValues }: WarehouseFormClientProps) {

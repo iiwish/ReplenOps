@@ -32,5 +32,13 @@ export default async function GoodsPage({
   // 获取分类列表（用于筛选）
   const categories = await goodsService.getActiveCategories()
 
-  return <GoodsListClient initialData={result} categories={categories} />
+  return (
+    <GoodsListClient
+      initialData={result}
+      categories={categories.map((category) => ({
+        ...category,
+        id: String(category.id),
+      }))}
+    />
+  )
 }

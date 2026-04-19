@@ -6,7 +6,7 @@ export interface ListAuditLogsParams {
   pageSize?: number
   actions?: string[]
   operatorId?: string
-  orderId?: string
+  orderId?: number
   startDate?: Date
   endDate?: Date
 }
@@ -104,12 +104,12 @@ export class AuditLogService {
     ])
 
     const items: AuditLogListItem[] = logs.map((log) => ({
-      id: log.id,
+      id: String(log.id),
       action: log.action,
       reason: log.reason || undefined,
       operatedBy: log.operatedBy,
       operatorIp: log.operatorIp || undefined,
-      orderId: log.orderId || undefined,
+      orderId: log.orderId !== null ? String(log.orderId) : undefined,
       orderCode: log.order?.code || undefined,
       orderStore: log.order?.store?.name || undefined,
       createdAt: log.createdAt,
@@ -125,8 +125,14 @@ export class AuditLogService {
   }
 
   async getById(id: string): Promise<AuditLogDetail> {
+    const numericId = Number.parseInt(id, 10)
+
+    if (Number.isNaN(numericId)) {
+      throw new Error('审计日志ID无效')
+    }
+
     const log = await prisma.approvalLog.findUnique({
-      where: { id },
+      where: { id: numericId },
       include: {
         order: {
           select: {
@@ -148,12 +154,12 @@ export class AuditLogService {
     }
 
     return {
-      id: log.id,
+      id: String(log.id),
       action: log.action,
       reason: log.reason || undefined,
       operatedBy: log.operatedBy,
       operatorIp: log.operatorIp || undefined,
-      orderId: log.orderId || undefined,
+      orderId: log.orderId !== null ? String(log.orderId) : undefined,
       orderCode: log.order?.code || undefined,
       orderStore: log.order?.store?.name || undefined,
       createdAt: log.createdAt,
@@ -161,7 +167,7 @@ export class AuditLogService {
   }
 
   async create(data: {
-    orderId?: string
+    orderId?: number
     action: string
     operatedBy: string
     operatorIp?: string

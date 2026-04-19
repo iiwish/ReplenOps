@@ -314,7 +314,7 @@ export async function checkStoreCode(
       success: true,
       data: { available },
     }
-  } catch (error) {
+  } catch {
     return {
       success: false,
       message: '检查失败，请重试',

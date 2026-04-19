@@ -39,10 +39,23 @@ export default function StoreAdminsClient({
   const loadUsers = async () => {
     setLoadingUsers(true)
     try {
-      const response = await fetch('/api/casdoor/users')
+      const response = await fetch('/api/users?take=100')
       const result = await response.json()
-      if (result.success && result.data) {
-        setUsers(result.data)
+      if (result.success && Array.isArray(result.users)) {
+        const availableUsers = result.users.map((user: {
+          id: string
+          username: string
+          name: string | null
+          email: string | null
+          avatar: string | null
+        }): SimpleUserInfo => ({
+          id: user.id,
+          name: user.name || user.username,
+          displayName: user.name || user.username,
+          email: user.email || '',
+          avatar: user.avatar || undefined,
+        }))
+        setUsers(availableUsers)
       } else {
         message.error('加载用户列表失败')
       }
@@ -79,7 +92,7 @@ export default function StoreAdminsClient({
           } else {
             message.error(result.message || '移除失败')
           }
-        } catch (error) {
+        } catch {
           message.error('移除失败，请重试')
         } finally {
           setLoading(false)
@@ -112,7 +125,7 @@ export default function StoreAdminsClient({
       } else {
         message.error(result.message || '添加失败')
       }
-    } catch (error) {
+    } catch {
       message.error('添加失败，请重试')
     } finally {
       setLoading(false)

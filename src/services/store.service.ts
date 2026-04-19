@@ -124,7 +124,7 @@ export class StoreService {
 
     // 转换数据，添加 adminCount 字段
     const transformedData: StoreListItem[] = data.map((item) => ({
-      id: item.id,
+      id: String(item.id),
       code: item.code,
       name: item.name,
       address: item.address,
@@ -149,8 +149,10 @@ export class StoreService {
    * 根据 ID 获取门店详情
    */
   async findById(id: string): Promise<StoreDetail> {
+    const storeId = Number.parseInt(id, 10)
+
     const store = await prisma.store.findUnique({
-      where: { id },
+      where: { id: storeId },
       select: {
         id: true,
         code: true,
@@ -170,8 +172,11 @@ export class StoreService {
     }
 
     // 返回时排除 isDeleted 字段
-    const { isDeleted, ...result } = store
-    return result
+    const { isDeleted: _isDeleted, ...result } = store
+    return {
+      ...result,
+      id: String(result.id),
+    }
   }
 
   /**
@@ -213,16 +218,21 @@ export class StoreService {
       },
     })
 
-    return store
+    return {
+      ...store,
+      id: String(store.id),
+    }
   }
 
   /**
    * 更新门店
    */
   async update(id: string, data: UpdateStoreDto): Promise<StoreDetail> {
+    const storeId = Number.parseInt(id, 10)
+
     // 检查门店是否存在
     const existing = await prisma.store.findUnique({
-      where: { id },
+      where: { id: storeId },
     })
 
     if (!existing || existing.isDeleted) {
@@ -231,7 +241,7 @@ export class StoreService {
 
     // 更新门店
     const store = await prisma.store.update({
-      where: { id },
+      where: { id: storeId },
       data: {
         name: data.name,
         address: data.address,
@@ -251,16 +261,21 @@ export class StoreService {
       },
     })
 
-    return store
+    return {
+      ...store,
+      id: String(store.id),
+    }
   }
 
   /**
    * 删除门店（软删除）
    */
   async delete(id: string): Promise<{ success: boolean }> {
+    const storeId = Number.parseInt(id, 10)
+
     // 检查门店是否存在
     const existing = await prisma.store.findUnique({
-      where: { id },
+      where: { id: storeId },
     })
 
     if (!existing || existing.isDeleted) {
@@ -269,7 +284,7 @@ export class StoreService {
 
     // 检查是否有关联的订单
     const orderCount = await prisma.order.count({
-      where: { storeId: id },
+      where: { storeId },
     })
 
     if (orderCount > 0) {
@@ -278,7 +293,7 @@ export class StoreService {
 
     // 软删除
     await prisma.store.update({
-      where: { id },
+      where: { id: storeId },
       data: { isDeleted: true },
     })
 
@@ -289,9 +304,11 @@ export class StoreService {
    * 切换门店状态（启用/禁用）
    */
   async toggleStatus(id: string): Promise<StoreDetail> {
+    const storeId = Number.parseInt(id, 10)
+
     // 检查门店是否存在
     const existing = await prisma.store.findUnique({
-      where: { id },
+      where: { id: storeId },
     })
 
     if (!existing || existing.isDeleted) {
@@ -300,7 +317,7 @@ export class StoreService {
 
     // 切换状态
     const store = await prisma.store.update({
-      where: { id },
+      where: { id: storeId },
       data: { isActive: !existing.isActive },
       select: {
         id: true,
@@ -315,7 +332,10 @@ export class StoreService {
       },
     })
 
-    return store
+    return {
+      ...store,
+      id: String(store.id),
+    }
   }
 
   /**
@@ -328,7 +348,7 @@ export class StoreService {
     }
 
     if (excludeId) {
-      where.id = { not: excludeId }
+      where.id = { not: Number.parseInt(excludeId, 10) }
     }
 
     const count = await prisma.store.count({ where })
@@ -339,9 +359,11 @@ export class StoreService {
    * 获取门店的管理员列表
    */
   async listAdmins(storeId: string): Promise<StoreAdminInfo[]> {
+    const storeIdInt = Number.parseInt(storeId, 10)
+
     // 检查门店是否存在
     const store = await prisma.store.findUnique({
-      where: { id: storeId },
+      where: { id: storeIdInt },
     })
 
     if (!store || store.isDeleted) {
@@ -349,7 +371,7 @@ export class StoreService {
     }
 
     const admins = await prisma.storeAdmin.findMany({
-      where: { storeId },
+      where: { storeId: storeIdInt },
       select: {
         id: true,
         userId: true,
@@ -364,6 +386,8 @@ export class StoreService {
         const user = await userService.findById(admin.userId)
         return {
           ...admin,
+          id: String(admin.id),
+          storeId: String(admin.storeId),
           user: user
             ? {
                 displayName: user.displayName || user.name || '',
@@ -382,9 +406,11 @@ export class StoreService {
    * 添加门店管理员
    */
   async addAdmin(storeId: string, userId: string): Promise<StoreAdminInfo> {
+    const storeIdInt = Number.parseInt(storeId, 10)
+
     // 检查门店是否存在
     const store = await prisma.store.findUnique({
-      where: { id: storeId },
+      where: { id: storeIdInt },
     })
 
     if (!store || store.isDeleted) {
@@ -396,7 +422,7 @@ export class StoreService {
       where: {
         userId_storeId: {
           userId,
-          storeId,
+          storeId: storeIdInt,
         },
       },
     })
@@ -409,7 +435,7 @@ export class StoreService {
     const admin = await prisma.storeAdmin.create({
       data: {
         userId,
-        storeId,
+        storeId: storeIdInt,
       },
       select: {
         id: true,
@@ -419,16 +445,22 @@ export class StoreService {
       },
     })
 
-    return admin
+    return {
+      ...admin,
+      id: String(admin.id),
+      storeId: String(admin.storeId),
+    }
   }
 
   /**
    * 移除门店管理员
    */
   async removeAdmin(storeId: string, userId: string): Promise<{ success: boolean }> {
+    const storeIdInt = Number.parseInt(storeId, 10)
+
     // 检查门店是否存在
     const store = await prisma.store.findUnique({
-      where: { id: storeId },
+      where: { id: storeIdInt },
     })
 
     if (!store || store.isDeleted) {
@@ -440,7 +472,7 @@ export class StoreService {
       where: {
         userId_storeId: {
           userId,
-          storeId,
+          storeId: storeIdInt,
         },
       },
     })
@@ -454,7 +486,7 @@ export class StoreService {
       where: {
         userId_storeId: {
           userId,
-          storeId,
+          storeId: storeIdInt,
         },
       },
     })
@@ -493,7 +525,7 @@ export class StoreService {
     const stores = storeAdmins
       .filter((sa) => sa.store.isActive && !sa.store.isDeleted)
       .map((sa) => ({
-        id: sa.store.id,
+        id: String(sa.store.id),
         code: sa.store.code,
         name: sa.store.name,
       }))

@@ -70,7 +70,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
       if (result.success && result.data) {
         setGoodsOptions(result.data as GoodsOption[])
       }
-    } catch (error) {
+    } catch {
       message.error('搜索商品失败')
     } finally {
       setSearchingGoods(false)
@@ -106,7 +106,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
         message.error(result.message || '未找到库存记录')
         form.setFieldValue('goodsId', undefined)
       }
-    } catch (error) {
+    } catch {
       message.error('加载库存信息失败')
       form.setFieldValue('goodsId', undefined)
     } finally {
@@ -157,7 +157,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
           message.error(result.message || '库存调整失败')
         }
       }
-    } catch (error) {
+    } catch {
       message.error('库存调整失败')
     } finally {
       setLoading(false)

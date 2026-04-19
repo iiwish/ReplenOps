@@ -6,7 +6,6 @@ import {
   SettingOutlined,
   ShopOutlined,
   ShoppingCartOutlined,
-  AppstoreOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 

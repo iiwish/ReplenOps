@@ -186,7 +186,7 @@ export default function ContainerTrackingPage() {
         setCurrentLogs(result.data as LogItem[])
         setLogModalVisible(true)
       }
-    } catch (error) {
+    } catch {
       message.error('加载日志失败')
     } finally {
       setLoading(false)
@@ -213,7 +213,7 @@ export default function ContainerTrackingPage() {
         setReturnModalVisible(false)
         fetchData()
       }
-    } catch (error) {
+    } catch {
       message.error('归还失败')
     } finally {
       setLoading(false)
@@ -227,7 +227,7 @@ export default function ContainerTrackingPage() {
       if (result.success && result.data) {
         setTrackingData(result.data as TrackingItem[])
       }
-    } catch (error) {
+    } catch {
       message.error('加载失败')
     } finally {
       setLoading(false)

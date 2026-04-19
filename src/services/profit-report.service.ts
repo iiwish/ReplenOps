@@ -163,7 +163,7 @@ class ProfitReportService {
       },
     })
 
-    const salesByWarehouse = new Map<string, number>()
+    const salesByWarehouse = new Map<number, number>()
     stockOutsWithOrders.forEach((so) => {
       const current = salesByWarehouse.get(so.warehouseId) || 0
       salesByWarehouse.set(so.warehouseId, current + (so.order?.totalAmount?.toNumber() || 0))
@@ -178,7 +178,7 @@ class ProfitReportService {
         const profitRate = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0
 
         return {
-          warehouseId: item.warehouseId,
+          warehouseId: String(item.warehouseId),
           warehouseName: warehouse?.name || '未知仓库',
           totalSales,
           totalCost,
@@ -203,10 +203,10 @@ class ProfitReportService {
     // 如果按分类筛选，先获取分类下的所有商品
     if (params.categoryId) {
       const categoryGoods = await prisma.goods.findMany({
-        where: { categoryId: params.categoryId },
+        where: { categoryId: Number.parseInt(params.categoryId, 10) },
         select: { id: true },
       })
-      params.goodsIds = categoryGoods.map((g) => g.id)
+      params.goodsIds = categoryGoods.map((g) => String(g.id))
     }
 
     // 查询出库单明细
@@ -256,7 +256,7 @@ class ProfitReportService {
       },
     })
 
-    const salesCostByGoods = new Map<string, { sales: number; cost: number; profit: number }>()
+    const salesCostByGoods = new Map<number, { sales: number; cost: number; profit: number }>()
     items.forEach((item) => {
       const existing = salesCostByGoods.get(item.goodsId) || {
         sales: 0,
@@ -285,7 +285,7 @@ class ProfitReportService {
         const profitRate = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0
 
         return {
-          goodsId: item.goodsId,
+          goodsId: String(item.goodsId),
           goodsCode: goods?.code || '',
           goodsName: goods?.name || '',
           goodsSpec: goods?.spec || null,
@@ -337,7 +337,7 @@ class ProfitReportService {
       select: { id: true, categoryId: true },
     })
 
-    const categoryGoodsMap = new Map<string, string[]>()
+    const categoryGoodsMap = new Map<number, number[]>()
     goods.forEach((g) => {
       const existing = categoryGoodsMap.get(g.categoryId) || []
       existing.push(g.id)
@@ -362,10 +362,10 @@ class ProfitReportService {
 
     // 按分类汇总
     const categoryMap = new Map<
-      string,
+      number,
       { sales: number; cost: number; profit: number; orderCount: number }
     >()
-    const totalSalesMap = new Map<string, number>()
+    const totalSalesMap = new Map<number, number>()
 
     items.forEach((item) => {
       const goodsInfo = goods.find((g) => g.id === item.goodsId)
@@ -413,7 +413,7 @@ class ProfitReportService {
         const salesPercentage = totalSales > 0 ? (data.sales / totalSales) * 100 : 0
 
         return {
-          categoryId,
+          categoryId: String(categoryId),
           categoryName: categoryNameMap.get(categoryId) || '未知分类',
           totalSales: data.sales,
           totalCost: data.cost,
@@ -519,14 +519,14 @@ class ProfitReportService {
 
     if (params.storeId) {
       where.order = {
-        storeId: params.storeId,
+        storeId: Number.parseInt(params.storeId, 10),
       }
     }
 
     if (params.goodsId) {
       where.items = {
         some: {
-          goodsId: params.goodsId,
+          goodsId: Number.parseInt(params.goodsId, 10),
         },
       }
     }
@@ -535,7 +535,7 @@ class ProfitReportService {
       where.items = {
         some: {
           goodsId: {
-            in: params.goodsIds,
+            in: params.goodsIds.map((goodsId) => Number.parseInt(goodsId, 10)),
           },
         },
       }

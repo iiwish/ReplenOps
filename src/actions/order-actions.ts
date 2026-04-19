@@ -97,7 +97,7 @@ export async function createOrder(data: {
     return {
       success: true,
       message: '订单创建成功',
-      data: { id: order.id, code: order.code } as { id: string; code: string },
+      data: { id: String(order.id), code: order.code },
     }
   } catch (error) {
     console.error('创建订单失败:', error)

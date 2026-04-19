@@ -59,7 +59,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
           } else {
             message.error(result.message || '出库失败')
           }
-        } catch (error) {
+        } catch {
           message.error('出库失败，请重试')
         } finally {
           setLoading(false)
@@ -74,7 +74,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
       title: '取消出库单',
       content: (
         <div>
-          <p>确定要取消出库单"{stockOut.code}"吗？</p>
+          <p>确定要取消出库单 &quot;{stockOut.code}&quot; 吗？</p>
           <Input.TextArea
             placeholder="请填写取消原因"
             rows={4}
@@ -101,7 +101,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
           } else {
             message.error(result.message || '取消失败')
           }
-        } catch (error) {
+        } catch {
           message.error('取消失败，请重试')
         } finally {
           setLoading(false)

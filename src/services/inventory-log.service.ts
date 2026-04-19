@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { InventoryChangeType, Prisma } from '@prisma/client'
 
 // 列表参数接口
 export interface ListInventoryLogParams {
@@ -44,6 +44,57 @@ export interface PaginatedInventoryLogResult {
 }
 
 export class InventoryLogService {
+  private parseChangeTypes(changeTypes: string[]): InventoryChangeType[] {
+    return changeTypes.filter((changeType): changeType is InventoryChangeType =>
+      Object.values(InventoryChangeType).includes(changeType as InventoryChangeType)
+    )
+  }
+
+  private toInventoryLogDetailItem(item: {
+    id: number
+    changeType: InventoryChangeType
+    quantity: Prisma.Decimal | number
+    beforeQty: Prisma.Decimal | number
+    afterQty: Prisma.Decimal | number
+    referenceType: string | null
+    referenceId: string | null
+    remark: string | null
+    operatedBy: string
+    createdAt: Date
+    inventory: {
+      warehouseId: number
+      goodsId: number
+      warehouse: {
+        name: string
+      }
+      goods: {
+        code: string
+        name: string
+        unit: string
+      }
+    }
+  }): InventoryLogDetailItem {
+    return {
+      id: String(item.id),
+      warehouseId: String(item.inventory.warehouseId),
+      warehouseName: item.inventory.warehouse.name,
+      goodsId: String(item.inventory.goodsId),
+      goodsCode: item.inventory.goods.code,
+      goodsName: item.inventory.goods.name,
+      goodsUnit: item.inventory.goods.unit,
+      changeType: item.changeType,
+      quantity: Number(item.quantity),
+      beforeQty: Number(item.beforeQty),
+      afterQty: Number(item.afterQty),
+      referenceType: item.referenceType,
+      referenceId: item.referenceId,
+      remark: item.remark,
+      operatorId: item.operatedBy,
+      operatorName: item.operatedBy,
+      createdAt: item.createdAt,
+    }
+  }
+
   /**
    * 获取库存日志列表（分页）
    */
@@ -68,11 +119,11 @@ export class InventoryLogService {
     const inventoryWhere: Prisma.InventoryWhereInput = {}
 
     if (warehouseId) {
-      inventoryWhere.warehouseId = warehouseId
+      inventoryWhere.warehouseId = Number.parseInt(warehouseId, 10)
     }
 
     if (goodsId) {
-      inventoryWhere.goodsId = goodsId
+      inventoryWhere.goodsId = Number.parseInt(goodsId, 10)
     }
 
     if (Object.keys(inventoryWhere).length > 0) {
@@ -81,8 +132,12 @@ export class InventoryLogService {
 
     // 变动类型筛选（多选）
     if (changeTypes && changeTypes.length > 0) {
+      const normalizedChangeTypes = this.parseChangeTypes(changeTypes)
+
+      if (normalizedChangeTypes.length > 0) {
       where.changeType = {
-        in: changeTypes as any[],
+          in: normalizedChangeTypes,
+        }
       }
     }
 
@@ -147,27 +202,11 @@ export class InventoryLogService {
     })
 
     // 转换数据格式
-    // 注意：项目使用 Casdoor 进行用户管理，operatedBy 存储的是 Casdoor User ID
-    // 这里直接使用 userId，前端可以通过 Casdoor API 获取用户名
-    const formattedData: InventoryLogDetailItem[] = data.map((item) => ({
-      id: item.id,
-      warehouseId: item.inventory.warehouseId,
-      warehouseName: item.inventory.warehouse.name,
-      goodsId: item.inventory.goodsId,
-      goodsCode: item.inventory.goods.code,
-      goodsName: item.inventory.goods.name,
-      goodsUnit: item.inventory.goods.unit,
-      changeType: item.changeType,
-      quantity: Number(item.quantity),
-      beforeQty: Number(item.beforeQty),
-      afterQty: Number(item.afterQty),
-      referenceType: item.referenceType,
-      referenceId: item.referenceId,
-      remark: item.remark,
-      operatorId: item.operatedBy,
-      operatorName: item.operatedBy, // 直接使用 userId，前端可以显示或通过 Casdoor 获取
-      createdAt: item.createdAt,
-    }))
+    // 注意：operatedBy 当前存储的是本地用户 ID
+    // 这里直接返回 userId，前端可按需再查询用户展示名
+    const formattedData: InventoryLogDetailItem[] = data.map((item) =>
+      this.toInventoryLogDetailItem(item)
+    )
 
     return {
       data: formattedData,
@@ -224,26 +263,8 @@ export class InventoryLogService {
     })
 
     // 转换数据格式
-    // 注意：项目使用 Casdoor 进行用户管理，operatedBy 存储的是 Casdoor User ID
-    return data.map((item) => ({
-      id: item.id,
-      warehouseId: item.inventory.warehouseId,
-      warehouseName: item.inventory.warehouse.name,
-      goodsId: item.inventory.goodsId,
-      goodsCode: item.inventory.goods.code,
-      goodsName: item.inventory.goods.name,
-      goodsUnit: item.inventory.goods.unit,
-      changeType: item.changeType,
-      quantity: Number(item.quantity),
-      beforeQty: Number(item.beforeQty),
-      afterQty: Number(item.afterQty),
-      referenceType: item.referenceType,
-      referenceId: item.referenceId,
-      remark: item.remark,
-      operatorId: item.operatedBy,
-      operatorName: item.operatedBy, // 直接使用 userId
-      createdAt: item.createdAt,
-    }))
+    // 注意：operatedBy 当前存储的是本地用户 ID
+    return data.map((item) => this.toInventoryLogDetailItem(item))
   }
 }
 

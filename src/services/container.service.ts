@@ -25,8 +25,10 @@ class ContainerService {
   }
 
   async findById(id: string) {
-    return await prisma.container.findUnique({
-      where: { id, isDeleted: false },
+    const numericId = Number.parseInt(id, 10)
+
+    return await prisma.container.findFirst({
+      where: { id: numericId, isDeleted: false },
     })
   }
 
@@ -48,8 +50,10 @@ class ContainerService {
       throw new Error('包装物不存在')
     }
 
+    const numericId = Number.parseInt(id, 10)
+
     return await prisma.container.update({
-      where: { id },
+      where: { id: numericId },
       data: {
         name: data.name,
         unit: data.unit,
@@ -66,8 +70,10 @@ class ContainerService {
       throw new Error('包装物不存在')
     }
 
+    const numericId = Number.parseInt(id, 10)
+
     await prisma.container.update({
-      where: { id },
+      where: { id: numericId },
       data: { isDeleted: true },
     })
   }

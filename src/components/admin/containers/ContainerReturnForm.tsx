@@ -75,7 +75,7 @@ interface StoreListItem {
   name: string
 }
 
-export function ContainerReturnForm({ storeId, onSuccess }: ContainerReturnFormProps) {
+export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
   const [form] = Form.useForm()
   const [isPending, startTransition] = useTransition()
   const [stores, setStores] = useState<StoreListItem[]>([])
@@ -105,8 +105,8 @@ export function ContainerReturnForm({ storeId, onSuccess }: ContainerReturnFormP
   const loadReturnableContainers = async (storeId: string) => {
     try {
       const result = await getReturnableContainers({ storeId })
-      if (result.success && result.data) {
-        setContainers(result.data)
+      if (result.success && Array.isArray(result.data)) {
+        setContainers(result.data as Container[])
       } else {
         message.error(result.message || '加载包装物失败')
       }
@@ -151,7 +151,12 @@ export function ContainerReturnForm({ storeId, onSuccess }: ContainerReturnFormP
 
   const handleQuantityChange = (index: number, value: number | null) => {
     const newItems = [...items]
-    newItems[index].quantity = value || 0
+    const targetItem = newItems[index]
+    if (!targetItem) {
+      return
+    }
+
+    targetItem.quantity = value || 0
     setItems(newItems)
   }
 

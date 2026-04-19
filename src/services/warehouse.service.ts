@@ -28,7 +28,7 @@ export interface UpdateWarehouseDto {
 // 列表返回数据接口
 export interface PaginatedWarehouseResult {
   data: Array<{
-    id: string
+    id: number
     code: string
     name: string
     address: string | null
@@ -98,7 +98,7 @@ export class WarehouseService {
   /**
    * 根据 ID 获取仓库详情
    */
-  async findById(id: string) {
+  async findById(id: number) {
     const warehouse = await prisma.warehouse.findUnique({
       where: { id },
       select: {
@@ -120,7 +120,7 @@ export class WarehouseService {
     }
 
     // 返回时排除 isDeleted 字段
-    const { isDeleted, ...result } = warehouse
+    const { isDeleted: _isDeleted, ...result } = warehouse
     return result
   }
 
@@ -169,7 +169,7 @@ export class WarehouseService {
   /**
    * 更新仓库
    */
-  async update(id: string, data: UpdateWarehouseDto) {
+  async update(id: number, data: UpdateWarehouseDto) {
     // 检查仓库是否存在
     const existing = await prisma.warehouse.findUnique({
       where: { id },
@@ -207,7 +207,7 @@ export class WarehouseService {
   /**
    * 删除仓库（软删除）
    */
-  async delete(id: string) {
+  async delete(id: number) {
     // 检查仓库是否存在
     const existing = await prisma.warehouse.findUnique({
       where: { id },
@@ -241,7 +241,7 @@ export class WarehouseService {
   /**
    * 切换仓库状态（启用/禁用）
    */
-  async toggleStatus(id: string) {
+  async toggleStatus(id: number) {
     // 检查仓库是否存在
     const existing = await prisma.warehouse.findUnique({
       where: { id },
@@ -274,7 +274,7 @@ export class WarehouseService {
   /**
    * 检查编码是否可用
    */
-  async isCodeAvailable(code: string, excludeId?: string): Promise<boolean> {
+  async isCodeAvailable(code: string, excludeId?: number): Promise<boolean> {
     const where: Prisma.WarehouseWhereInput = {
       code,
       isDeleted: false,
@@ -291,7 +291,7 @@ export class WarehouseService {
   /**
    * 获取所有仓库（用于下拉选择）
    */
-  async listAll(): Promise<Array<{ id: string; code: string; name: string }>> {
+  async listAll(): Promise<Array<{ id: number; code: string; name: string }>> {
     const warehouses = await prisma.warehouse.findMany({
       where: {
         isActive: true,

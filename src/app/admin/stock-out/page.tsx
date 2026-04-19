@@ -39,5 +39,13 @@ export default async function StockOutPage({
 
   const warehouses = await stockInService.getActiveWarehouses()
 
-  return <StockOutListClient initialData={result} warehouses={warehouses} />
+  return (
+    <StockOutListClient
+      initialData={result}
+      warehouses={warehouses.map((warehouse) => ({
+        ...warehouse,
+        id: String(warehouse.id),
+      }))}
+    />
+  )
 }

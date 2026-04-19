@@ -25,6 +25,9 @@ export interface TodoList {
 
 export class DashboardService {
   async getTodayStats(storeId?: string): Promise<TodayStats> {
+    const normalizedStoreId =
+      storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -40,14 +43,14 @@ export class DashboardService {
     ] = await Promise.all([
       prisma.order.count({
         where: {
-          ...(storeId && { storeId }),
+          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
           createdAt: { gte: today, lt: tomorrow },
           isDeleted: false,
         },
       }),
       prisma.order.aggregate({
         where: {
-          ...(storeId && { storeId }),
+          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
           createdAt: { gte: today, lt: tomorrow },
           status: 'COMPLETED',
           isDeleted: false,
@@ -56,7 +59,7 @@ export class DashboardService {
       }),
       prisma.order.count({
         where: {
-          ...(storeId && { storeId }),
+          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
           status: { in: ['PENDING', 'APPROVED'] },
           isDeleted: false,
         },
@@ -75,7 +78,7 @@ export class DashboardService {
       }),
       prisma.containerTracking.findMany({
         where: {
-          ...(storeId && { storeId }),
+          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
           currentBorrowed: { gt: 0 },
         },
       }),
@@ -100,9 +103,12 @@ export class DashboardService {
   }
 
   async getTodoList(storeId?: string): Promise<TodoList> {
+    const normalizedStoreId =
+      storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
+
     const pendingOrders = await prisma.order.count({
       where: {
-        ...(storeId && { storeId }),
+        ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
         status: { in: ['PENDING', 'APPROVED'] },
         isDeleted: false,
       },
@@ -110,7 +116,7 @@ export class DashboardService {
 
     const containerTrackings = await prisma.containerTracking.findMany({
       where: {
-        ...(storeId && { storeId }),
+        ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
         currentBorrowed: { gt: 0 },
       },
       include: {
@@ -170,6 +176,9 @@ export class DashboardService {
       count: number
     }>
   > {
+    const normalizedStoreId =
+      storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
+
     const endDate = new Date()
     endDate.setHours(23, 59, 59, 999)
 
@@ -182,7 +191,7 @@ export class DashboardService {
         createdAt: { gte: startDate, lte: endDate },
         status: 'COMPLETED',
         isDeleted: false,
-        ...(storeId && { storeId }),
+        ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
       },
       select: {
         createdAt: true,

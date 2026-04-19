@@ -11,30 +11,34 @@ export default async function EditGoodsPage({ params }: EditGoodsPageProps) {
   await requirePageAccess('/admin/goods')
 
   const { id } = await params
+  let goods
 
   try {
-    // 获取商品详情
-    const goods = await goodsService.findById(id)
-
-    // 获取分类列表
-    const categories = await goodsService.getActiveCategories()
-
-    return (
-      <div>
-        <h2 style={{ marginBottom: 24 }}>编辑商品</h2>
-        <GoodsFormClient
-          mode="edit"
-          initialValues={{
-            ...goods,
-            spec: goods.spec || undefined,
-            imageUrl: goods.imageUrl || undefined,
-            description: goods.description || undefined,
-          }}
-          categories={categories}
-        />
-      </div>
-    )
-  } catch (error) {
+    goods = await goodsService.findById(id)
+  } catch {
     notFound()
   }
+
+  const categories = await goodsService.getActiveCategories()
+
+  return (
+    <div>
+      <h2 style={{ marginBottom: 24 }}>编辑商品</h2>
+      <GoodsFormClient
+        mode="edit"
+        initialValues={{
+          ...goods,
+          id: String(goods.id),
+          categoryId: String(goods.categoryId),
+          spec: goods.spec || undefined,
+          imageUrl: goods.imageUrl || undefined,
+          description: goods.description || undefined,
+        }}
+        categories={categories.map((category) => ({
+          ...category,
+          id: String(category.id),
+        }))}
+      />
+    </div>
+  )
 }

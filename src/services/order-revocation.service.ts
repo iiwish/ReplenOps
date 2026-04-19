@@ -29,9 +29,11 @@ export class OrderRevocationService {
     operatorId: string,
     operatorIp: string
   ): Promise<{ success: boolean; message: string }> {
+    const orderIdInt = Number.parseInt(orderId, 10)
+
     return await prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({
-        where: { id: orderId, isDeleted: false },
+      const order = await tx.order.findFirst({
+        where: { id: orderIdInt, isDeleted: false },
         include: {
           store: {
             select: { id: true, name: true },
@@ -47,8 +49,8 @@ export class OrderRevocationService {
         throw new Error('只能撤销已完成的订单')
       }
 
-      const stockOut = await tx.stockOut.findUnique({
-        where: { orderId, isDeleted: false },
+      const stockOut = await tx.stockOut.findFirst({
+        where: { orderId: orderIdInt, isDeleted: false },
         include: {
           items: true,
         },
@@ -63,7 +65,7 @@ export class OrderRevocationService {
       }
 
       await tx.order.update({
-        where: { id: orderId },
+        where: { id: orderIdInt },
         data: {
           status: 'CANCELLED',
           revokedBy: operatorId,
@@ -114,7 +116,7 @@ export class OrderRevocationService {
             beforeQty: inventory.quantity.toNumber(),
             afterQty: inventory.quantity.toNumber() + restoreQty,
             referenceType: 'order_revoke',
-            referenceId: orderId,
+            referenceId: String(orderIdInt),
             remark: `订单撤销回滚-订单号：${order.code}`,
             operatedBy: operatorId,
           },
@@ -123,7 +125,7 @@ export class OrderRevocationService {
 
       const containerLogs = await tx.containerLog.findMany({
         where: {
-          orderId,
+          orderId: orderIdInt,
           opType: 'BORROW',
         },
       })
@@ -147,7 +149,7 @@ export class OrderRevocationService {
           await tx.containerLog.create({
             data: {
               containerTrackingId: log.containerTrackingId,
-              orderId,
+              orderId: orderIdInt,
               opType: 'RETURN',
               quantity: returnQty,
               beforeBorrowed: tracking.currentBorrowed.toNumber(),
@@ -162,7 +164,7 @@ export class OrderRevocationService {
 
       await tx.approvalLog.create({
         data: {
-          orderId,
+          orderId: orderIdInt,
           action: 'revoke',
           reason,
           operatedBy: operatorId,
@@ -202,8 +204,10 @@ export class OrderRevocationService {
     canRevoke: boolean
     message?: string
   }> {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId, isDeleted: false },
+    const orderIdInt = Number.parseInt(orderId, 10)
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderIdInt, isDeleted: false },
     })
 
     if (!order) {
@@ -229,8 +233,8 @@ export class OrderRevocationService {
       }
     }
 
-    const stockOut = await prisma.stockOut.findUnique({
-      where: { orderId, isDeleted: false },
+    const stockOut = await prisma.stockOut.findFirst({
+      where: { orderId: orderIdInt, isDeleted: false },
       include: {
         items: true,
       },
@@ -248,14 +252,14 @@ export class OrderRevocationService {
 
     const items =
       stockOut?.items.map((item) => ({
-        goodsId: item.goodsId,
+        goodsId: String(item.goodsId),
         goodsName: goodsMap.get(item.goodsId) || '未知商品',
         quantity: item.quantity.toNumber(),
       })) || []
 
     const containerLogs = await prisma.containerLog.findMany({
       where: {
-        orderId,
+        orderId: orderIdInt,
         opType: 'BORROW',
       },
       include: {
@@ -270,7 +274,7 @@ export class OrderRevocationService {
     })
 
     const containers = containerLogs.map((log) => ({
-      containerId: log.tracking!.container.id,
+      containerId: String(log.tracking!.container.id),
       containerName: log.tracking!.container.name,
       quantity: log.quantity.toNumber(),
     }))
@@ -293,8 +297,10 @@ export class OrderRevocationService {
    * @returns 是否可以撤销
    */
   async canRevokeOrder(orderId: string): Promise<boolean> {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId, isDeleted: false },
+    const orderIdInt = Number.parseInt(orderId, 10)
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderIdInt, isDeleted: false },
       select: { status: true },
     })
 

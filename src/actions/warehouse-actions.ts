@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { warehouseService } from '@/services/warehouse.service'
 
@@ -67,7 +66,6 @@ export async function createWarehouse(formData: FormData): Promise<ActionRespons
       data: warehouse,
     }
   } catch (error) {
-  } catch (error) {
     // 处理 Zod 验证错误
     if (error instanceof z.ZodError) {
       return {
@@ -95,7 +93,7 @@ export async function createWarehouse(formData: FormData): Promise<ActionRespons
 /**
  * 更新仓库
  */
-export async function updateWarehouse(id: string, formData: FormData): Promise<ActionResponse> {
+export async function updateWarehouse(id: number, formData: FormData): Promise<ActionResponse> {
   try {
     // 从 FormData 提取数据
     const rawData = {
@@ -148,7 +146,7 @@ export async function updateWarehouse(id: string, formData: FormData): Promise<A
 /**
  * 删除仓库（软删除）
  */
-export async function deleteWarehouse(id: string): Promise<ActionResponse> {
+export async function deleteWarehouse(id: number): Promise<ActionResponse> {
   try {
     await warehouseService.delete(id)
 
@@ -177,7 +175,7 @@ export async function deleteWarehouse(id: string): Promise<ActionResponse> {
 /**
  * 切换仓库状态（启用/禁用）
  */
-export async function toggleWarehouseStatus(id: string): Promise<ActionResponse> {
+export async function toggleWarehouseStatus(id: number): Promise<ActionResponse> {
   try {
     const warehouse = await warehouseService.toggleStatus(id)
 

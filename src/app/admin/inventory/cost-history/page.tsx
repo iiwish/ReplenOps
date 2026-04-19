@@ -46,7 +46,10 @@ export default async function CostHistoryPage({
   return (
     <CostHistoryListClient
       initialData={costHistoryResult}
-      warehouses={warehouses}
+      warehouses={warehouses.map((warehouse) => ({
+        id: String(warehouse.id),
+        name: warehouse.name,
+      }))}
     />
   )
 }

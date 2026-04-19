@@ -41,7 +41,66 @@ export interface PaginatedGoodsCategoryResult {
   totalPages: number
 }
 
+interface GoodsCategoryRecord {
+  id: string
+  code: string
+  name: string
+  sortOrder: number
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+interface GoodsCategoryListRecord extends GoodsCategoryRecord {
+  _count: {
+    goods: number
+  }
+}
+
 export class GoodsCategoryService {
+  private parseCategoryId(id: string): number {
+    const parsedId = Number.parseInt(id, 10)
+
+    if (Number.isNaN(parsedId)) {
+      throw new Error('商品分类ID无效')
+    }
+
+    return parsedId
+  }
+
+  private toGoodsCategoryRecord(category: {
+    id: number
+    code: string
+    name: string
+    sortOrder: number
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+  }): GoodsCategoryRecord {
+    return {
+      ...category,
+      id: String(category.id),
+    }
+  }
+
+  private toGoodsCategoryListRecord(category: {
+    id: number
+    code: string
+    name: string
+    sortOrder: number
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: {
+      goods: number
+    }
+  }): GoodsCategoryListRecord {
+    return {
+      ...this.toGoodsCategoryRecord(category),
+      _count: category._count,
+    }
+  }
+
   /**
    * 获取商品分类列表（分页）
    */
@@ -85,7 +144,7 @@ export class GoodsCategoryService {
     })
 
     return {
-      data,
+      data: data.map((category) => this.toGoodsCategoryListRecord(category)),
       total,
       page,
       pageSize,
@@ -97,8 +156,10 @@ export class GoodsCategoryService {
    * 根据 ID 获取商品分类详情
    */
   async findById(id: string) {
+    const categoryId = this.parseCategoryId(id)
+
     const category = await prisma.goodsCategory.findUnique({
-      where: { id },
+      where: { id: categoryId },
       select: {
         id: true,
         code: true,
@@ -116,8 +177,8 @@ export class GoodsCategoryService {
     }
 
     // 返回时排除 isDeleted 字段
-    const { isDeleted, ...result } = category
-    return result
+    const { isDeleted: _isDeleted, ...result } = category
+    return this.toGoodsCategoryRecord(result)
   }
 
   /**
@@ -155,16 +216,18 @@ export class GoodsCategoryService {
       },
     })
 
-    return category
+    return this.toGoodsCategoryRecord(category)
   }
 
   /**
    * 更新商品分类
    */
   async update(id: string, data: UpdateGoodsCategoryDto) {
+    const categoryId = this.parseCategoryId(id)
+
     // 检查分类是否存在
     const existing = await prisma.goodsCategory.findUnique({
-      where: { id },
+      where: { id: categoryId },
     })
 
     if (!existing || existing.isDeleted) {
@@ -173,7 +236,7 @@ export class GoodsCategoryService {
 
     // 更新商品分类
     const category = await prisma.goodsCategory.update({
-      where: { id },
+      where: { id: categoryId },
       data: {
         name: data.name,
         sortOrder: data.sortOrder ?? existing.sortOrder,
@@ -189,16 +252,18 @@ export class GoodsCategoryService {
       },
     })
 
-    return category
+    return this.toGoodsCategoryRecord(category)
   }
 
   /**
    * 删除商品分类（软删除）
    */
   async delete(id: string) {
+    const categoryId = this.parseCategoryId(id)
+
     // 检查分类是否存在
     const existing = await prisma.goodsCategory.findUnique({
-      where: { id },
+      where: { id: categoryId },
       include: {
         _count: {
           select: { goods: true },
@@ -217,7 +282,7 @@ export class GoodsCategoryService {
 
     // 软删除
     await prisma.goodsCategory.update({
-      where: { id },
+      where: { id: categoryId },
       data: { isDeleted: true },
     })
 
@@ -228,9 +293,11 @@ export class GoodsCategoryService {
    * 切换分类状态（启用/禁用）
    */
   async toggleStatus(id: string) {
+    const categoryId = this.parseCategoryId(id)
+
     // 检查分类是否存在
     const existing = await prisma.goodsCategory.findUnique({
-      where: { id },
+      where: { id: categoryId },
     })
 
     if (!existing || existing.isDeleted) {
@@ -239,7 +306,7 @@ export class GoodsCategoryService {
 
     // 切换状态
     const category = await prisma.goodsCategory.update({
-      where: { id },
+      where: { id: categoryId },
       data: { isActive: !existing.isActive },
       select: {
         id: true,
@@ -252,7 +319,7 @@ export class GoodsCategoryService {
       },
     })
 
-    return category
+    return this.toGoodsCategoryRecord(category)
   }
 
   /**
@@ -262,7 +329,7 @@ export class GoodsCategoryService {
     // 批量更新排序
     const updatePromises = orders.map((item) =>
       prisma.goodsCategory.update({
-        where: { id: item.id },
+        where: { id: this.parseCategoryId(item.id) },
         data: { sortOrder: item.sortOrder },
       })
     )
@@ -281,7 +348,7 @@ export class GoodsCategoryService {
     }
 
     if (excludeId) {
-      where.id = { not: excludeId }
+      where.id = { not: this.parseCategoryId(excludeId) }
     }
 
     const count = await prisma.goodsCategory.count({ where })
@@ -306,7 +373,10 @@ export class GoodsCategoryService {
       },
     })
 
-    return categories
+    return categories.map((category) => ({
+      id: String(category.id),
+      name: category.name,
+    }))
   }
 }
 

@@ -41,11 +41,11 @@ class ContainerTrackingService {
     const where: Prisma.ContainerTrackingWhereInput = {}
 
     if (params?.storeId) {
-      where.storeId = params.storeId
+      where.storeId = Number.parseInt(params.storeId, 10)
     }
 
     if (params?.containerId) {
-      where.containerId = params.containerId
+      where.containerId = Number.parseInt(params.containerId, 10)
     }
 
     const trackings = await prisma.containerTracking.findMany({
@@ -62,10 +62,10 @@ class ContainerTrackingService {
     })
 
     return trackings.map((t) => ({
-      id: t.id,
-      storeId: t.storeId,
+      id: String(t.id),
+      storeId: String(t.storeId),
       storeName: t.store.name,
-      containerId: t.containerId,
+      containerId: String(t.containerId),
       containerName: t.container.name,
       containerCode: t.container.code,
       containerUnit: t.container.unit,
@@ -79,8 +79,10 @@ class ContainerTrackingService {
   }
 
   async getLogs(trackingId: string): Promise<ContainerLogItem[]> {
+    const trackingIdNumber = Number.parseInt(trackingId, 10)
+
     const logs = await prisma.containerLog.findMany({
-      where: { containerTrackingId: trackingId },
+      where: { containerTrackingId: trackingIdNumber },
       include: {
         order: {
           select: { id: true, code: true },
@@ -90,9 +92,9 @@ class ContainerTrackingService {
     })
 
     return logs.map((log) => ({
-      id: log.id,
-      containerTrackingId: log.containerTrackingId,
-      orderId: log.orderId,
+      id: String(log.id),
+      containerTrackingId: String(log.containerTrackingId),
+      orderId: log.orderId !== null ? String(log.orderId) : null,
       orderCode: log.order?.code || null,
       opType: log.opType,
       quantity: log.quantity.toNumber(),
@@ -110,9 +112,10 @@ class ContainerTrackingService {
     tx?: Prisma.TransactionClient
   ): Promise<void> {
     const prismaClient = tx || prisma
+    const stockOutIdNumber = Number.parseInt(stockOutId, 10)
 
     const stockOut = await prismaClient.stockOut.findUnique({
-      where: { id: stockOutId, isDeleted: false },
+      where: { id: stockOutIdNumber, isDeleted: false },
       include: {
         items: true,
         order: true,
@@ -141,7 +144,7 @@ class ContainerTrackingService {
 
     const goodsMap = new Map(goods.map((g) => [g.id, g]))
 
-    const containerMap = new Map<string, number>()
+    const containerMap = new Map<number, number>()
 
     for (const item of stockOut.items) {
       const goodsInfo = goodsMap.get(item.goodsId)
@@ -200,8 +203,9 @@ class ContainerTrackingService {
 
   async returnContainers(trackingId: string, quantity: number, userId: string): Promise<void> {
     return await prisma.$transaction(async (tx) => {
+      const trackingIdNumber = Number.parseInt(trackingId, 10)
       const tracking = await tx.containerTracking.findUnique({
-        where: { id: trackingId },
+        where: { id: trackingIdNumber },
         include: {
           container: {
             select: { id: true, name: true },
@@ -219,8 +223,8 @@ class ContainerTrackingService {
 
       const beforeBorrowed = tracking.currentBorrowed.toNumber()
 
-      await tx.containerTracking.update({
-        where: { id: trackingId },
+        await tx.containerTracking.update({
+          where: { id: trackingIdNumber },
         data: {
           totalReturned: { increment: quantity },
           currentBorrowed: { decrement: quantity },
@@ -228,9 +232,9 @@ class ContainerTrackingService {
         },
       })
 
-      await tx.containerLog.create({
-        data: {
-          containerTrackingId: trackingId,
+        await tx.containerLog.create({
+          data: {
+            containerTrackingId: trackingIdNumber,
           opType: 'RETURN',
           quantity,
           beforeBorrowed,
@@ -263,11 +267,13 @@ class ContainerTrackingService {
       const results = []
 
       for (const item of data.items) {
+        const storeId = Number.parseInt(data.storeId, 10)
+        const containerId = Number.parseInt(item.containerId, 10)
         const tracking = await tx.containerTracking.findUnique({
           where: {
             storeId_containerId: {
-              storeId: data.storeId,
-              containerId: item.containerId,
+              storeId,
+              containerId,
             },
           },
           include: {
@@ -342,15 +348,15 @@ class ContainerTrackingService {
       opType: 'RETURN',
     }
 
-    if (filters.storeId || filters.containerId) {
-      where.tracking = {}
-      if (filters.storeId) {
-        where.tracking.storeId = filters.storeId
+      if (filters.storeId || filters.containerId) {
+        where.tracking = {}
+        if (filters.storeId) {
+          where.tracking.storeId = Number.parseInt(filters.storeId, 10)
+        }
+        if (filters.containerId) {
+          where.tracking.containerId = Number.parseInt(filters.containerId, 10)
+        }
       }
-      if (filters.containerId) {
-        where.tracking.containerId = filters.containerId
-      }
-    }
 
     if (filters.dateFrom || filters.dateTo) {
       where.operatedAt = {}
@@ -389,9 +395,9 @@ class ContainerTrackingService {
 
     return {
       data: logs.map((log) => ({
-        id: log.id,
-        containerTrackingId: log.containerTrackingId,
-        orderId: log.orderId,
+        id: String(log.id),
+        containerTrackingId: String(log.containerTrackingId),
+        orderId: log.orderId !== null ? String(log.orderId) : null,
         orderCode: log.order?.code || null,
         opType: log.opType,
         quantity: log.quantity.toNumber(),
@@ -418,7 +424,7 @@ class ContainerTrackingService {
   > {
     const trackings = await prisma.containerTracking.findMany({
       where: {
-        storeId,
+        storeId: Number.parseInt(storeId, 10),
         currentBorrowed: { gt: 0 },
       },
       include: {
@@ -434,8 +440,8 @@ class ContainerTrackingService {
     })
 
     return trackings.map((t) => ({
-      trackingId: t.id,
-      containerId: t.container.id,
+      trackingId: String(t.id),
+      containerId: String(t.container.id),
       containerName: t.container.name,
       currentBorrowed: t.currentBorrowed.toNumber(),
       deposit: t.container.deposit.toNumber(),
@@ -450,10 +456,10 @@ class ContainerTrackingService {
   }> {
     const where: Prisma.ContainerTrackingWhereInput = {}
     if (params?.storeId) {
-      where.storeId = params.storeId
+      where.storeId = Number.parseInt(params.storeId, 10)
     }
     if (params?.containerId) {
-      where.containerId = params.containerId
+      where.containerId = Number.parseInt(params.containerId, 10)
     }
 
     const trackings = await prisma.containerTracking.findMany({
@@ -524,10 +530,10 @@ class ContainerTrackingService {
   }> {
     const where: Prisma.ContainerTrackingWhereInput = {}
     if (params.storeId) {
-      where.storeId = params.storeId
+      where.storeId = Number.parseInt(params.storeId, 10)
     }
     if (params.containerId) {
-      where.containerId = params.containerId
+      where.containerId = Number.parseInt(params.containerId, 10)
     }
     if (params.hasUnreturned) {
       where.currentBorrowed = { gt: 0 }
@@ -582,10 +588,10 @@ class ContainerTrackingService {
       )
 
       return {
-        id: t.id,
-        storeId: t.storeId,
+        id: String(t.id),
+        storeId: String(t.storeId),
         storeName: t.store.name,
-        containerId: t.containerId,
+        containerId: String(t.containerId),
         containerName: t.container.name,
         containerCode: t.container.code,
         containerUnit: t.container.unit,
@@ -660,10 +666,10 @@ class ContainerTrackingService {
         return daysUnreturned >= days
       })
       .map((t) => ({
-        id: t.id,
-        storeId: t.storeId,
+        id: String(t.id),
+        storeId: String(t.storeId),
         storeName: t.store.name,
-        containerId: t.containerId,
+        containerId: String(t.containerId),
         containerName: t.container.name,
         currentBorrowed: t.currentBorrowed.toNumber(),
         depositAmount: t.currentBorrowed.toNumber() * t.container.deposit.toNumber(),

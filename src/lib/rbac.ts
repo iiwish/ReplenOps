@@ -47,7 +47,7 @@ export type RouteType = 'admin' | 'mobile' | 'public'
 /**
  * 公开路由（不需要认证）
  */
-export const PUBLIC_ROUTES = ['/login', '/api/auth', '/']
+export const PUBLIC_ROUTES = ['/login', '/api/auth', '/api/health', '/']
 
 /**
  * 路由前缀映射

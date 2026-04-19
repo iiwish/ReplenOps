@@ -150,7 +150,7 @@ export default function StockInListClient({
       title: '拒绝审批',
       content: (
         <div>
-          <p>确定要拒绝入库单"{record.code}"吗？</p>
+          <p>确定要拒绝入库单 &quot;{record.code}&quot; 吗？</p>
           <Input.TextArea
             placeholder="请填写拒绝原因"
             rows={4}
@@ -175,7 +175,7 @@ export default function StockInListClient({
           } else {
             message.error(result.message || '操作失败')
           }
-        } catch (error) {
+        } catch {
           message.error('操作失败，请重试')
         } finally {
           setLoading(false)
@@ -188,7 +188,7 @@ export default function StockInListClient({
   const handleComplete = (record: StockInRecord) => {
     Modal.confirm({
       title: '确认入库',
-      content: `确定要将入库单"${record.code}"确认入库吗？入库后将更新库存数量。`,
+      content: `确定要将入库单 "${record.code}" 确认入库吗？入库后将更新库存数量。`,
       okText: '确认入库',
       cancelText: '取消',
       onOk: async () => {
@@ -201,7 +201,7 @@ export default function StockInListClient({
           } else {
             message.error(result.message || '入库失败')
           }
-        } catch (error) {
+        } catch {
           message.error('入库失败，请重试')
         } finally {
           setLoading(false)
@@ -217,7 +217,7 @@ export default function StockInListClient({
       title: '取消入库单',
       content: (
         <div>
-          <p>确定要取消入库单"{record.code}"吗？</p>
+          <p>确定要取消入库单 &quot;{record.code}&quot; 吗？</p>
           <Input.TextArea
             placeholder="请填写取消原因"
             rows={4}
@@ -242,7 +242,7 @@ export default function StockInListClient({
           } else {
             message.error(result.message || '操作失败')
           }
-        } catch (error) {
+        } catch {
           message.error('操作失败，请重试')
         } finally {
           setLoading(false)
@@ -255,7 +255,7 @@ export default function StockInListClient({
   const handleDelete = (record: StockInRecord) => {
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除入库单"${record.code}"吗？此操作不可恢复。`,
+      content: `确定要删除入库单 "${record.code}" 吗？此操作不可恢复。`,
       okText: '确认',
       okType: 'danger',
       cancelText: '取消',
@@ -269,7 +269,7 @@ export default function StockInListClient({
           } else {
             message.error(result.message || '删除失败')
           }
-        } catch (error) {
+        } catch {
           message.error('删除失败，请重试')
         } finally {
           setLoading(false)

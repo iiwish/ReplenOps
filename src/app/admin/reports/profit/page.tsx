@@ -113,7 +113,7 @@ export default function ProfitReportPage() {
       if (trendRes.success && trendRes.data) {
         setTrendData(trendRes.data as TrendData[])
       }
-    } catch (error) {
+    } catch {
       message.error('加载数据失败')
     } finally {
       setLoading(false)
