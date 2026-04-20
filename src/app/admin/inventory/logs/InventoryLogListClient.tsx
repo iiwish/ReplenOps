@@ -1,5 +1,6 @@
 'use client'
 
+import type { Route } from 'next'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -23,6 +24,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { PaginatedInventoryLogResult } from '@/services/inventory-log.service'
 import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import Link from 'next/link'
 
 const { RangePicker } = DatePicker
@@ -33,6 +35,8 @@ interface Props {
   warehouses: Array<{ id: string; name: string }>
   operators: Array<{ id: string; username: string }>
 }
+
+type InventoryLogRecord = PaginatedInventoryLogResult['data'][number]
 
 // 变动类型配置
 const CHANGE_TYPE_CONFIG = {
@@ -100,7 +104,7 @@ export default function InventoryLogListClient({
   const handleFilter = () => {
     setLoading(true)
     const query = buildQueryString()
-    router.push(`/admin/inventory/logs${query ? `?${query}` : ''}` as any)
+    router.push(`/admin/inventory/logs${query ? `?${query}` : ''}` as Route)
   }
 
   // 重置筛选
@@ -113,7 +117,7 @@ export default function InventoryLogListClient({
       operatorId: undefined,
     })
     setLoading(true)
-    router.push('/admin/inventory/logs' as any)
+    router.push('/admin/inventory/logs' as Route)
   }
 
   // 刷新
@@ -131,7 +135,7 @@ export default function InventoryLogListClient({
     if (pageSize) {
       params.set('pageSize', pageSize.toString())
     }
-    router.push(`/admin/inventory/logs?${params.toString()}` as any)
+    router.push(`/admin/inventory/logs?${params.toString()}` as Route)
   }
 
   // 渲染变动数量（带颜色）
@@ -163,7 +167,7 @@ export default function InventoryLogListClient({
     }
 
     return (
-      <Link href={`${config.routePrefix}/${referenceId}` as any}>
+      <Link href={`${config.routePrefix}/${referenceId}` as Route}>
         <Tag color="blue" style={{ cursor: 'pointer' }}>
           {config.label}
         </Tag>
@@ -172,7 +176,7 @@ export default function InventoryLogListClient({
   }
 
   // 表格列定义
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<InventoryLogRecord> = [
     {
       title: '时间',
       dataIndex: 'createdAt',
@@ -190,7 +194,7 @@ export default function InventoryLogListClient({
       title: '商品',
       key: 'goods',
       width: 200,
-      render: (_, record) => (
+      render: (_value, record) => (
         <div>
           <div>{record.goodsName}</div>
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -335,7 +339,7 @@ export default function InventoryLogListClient({
                   style={{ width: '100%' }}
                   value={filters.dateRange}
                   onChange={(dates) =>
-                    setFilters({ ...filters, dateRange: dates as any })
+                    setFilters({ ...filters, dateRange: dates as [Dayjs, Dayjs] | null })
                   }
                 />
               </div>

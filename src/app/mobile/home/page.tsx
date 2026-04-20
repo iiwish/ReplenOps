@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/mobile/dashboard/StatCard'
@@ -65,10 +65,17 @@ interface DashboardData {
   }>
 }
 
+type DashboardTodoItem = DashboardData['todos'][number]['todo']
+
+interface DashboardApiResponse {
+  stats: DashboardData['stats']
+  todoList: DashboardTodoItem[]
+}
+
 export default function HomePage() {
   const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<UserInfo | null>(null)
   const [data, setData] = useState<DashboardData>({
     stats: {
       orderCount: 0,
@@ -82,7 +89,7 @@ export default function HomePage() {
   const { selectedStoreId, availableStores, setAvailableStores, initializeStore } =
     useStoreSelectionStore()
 
-  const initializeUserStores = async () => {
+  const initializeUserStores = useCallback(async () => {
     try {
       const currentUser = await getCurrentUserClient()
 
@@ -109,18 +116,19 @@ export default function HomePage() {
     } catch (error) {
       console.error('初始化用户门店失败:', error)
     }
-  }
+  }, [initializeStore, setAvailableStores])
 
-  const loadDashboardData = async (storeId?: string) => {
+  const loadDashboardData = useCallback(async (storeId?: string) => {
     try {
       const response = await fetch(`/api/dashboard?${storeId ? `storeId=${storeId}` : ''}`)
       const result = await response.json()
 
       if (result.success && result.data) {
+        const dashboardData = result.data as DashboardApiResponse
         setData({
-          stats: result.data.stats,
-          todos: result.data.todoList.map((item: any, index: number) => ({
-            key: ['order', 'container', 'inventory'][index],
+          stats: dashboardData.stats,
+          todos: dashboardData.todoList.map((item, index: number) => ({
+            key: ['order', 'container', 'inventory'][index] ?? `todo-${index}`,
             todo: item,
           })),
         })
@@ -128,22 +136,32 @@ export default function HomePage() {
     } catch (error) {
       console.error('加载数据失败:', error)
     }
-  }
+  }, [])
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     await initializeUserStores()
     await loadDashboardData(selectedStoreId || undefined)
-  }
+  }, [initializeUserStores, loadDashboardData, selectedStoreId])
 
   useEffect(() => {
-    loadData()
-  }, [])
+    const timeoutId = window.setTimeout(() => {
+      void loadData()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadData])
 
   useEffect(() => {
     if (selectedStoreId) {
-      loadDashboardData(selectedStoreId)
+      const timeoutId = window.setTimeout(() => {
+        void loadDashboardData(selectedStoreId)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
     }
-  }, [selectedStoreId])
+
+    return undefined
+  }, [loadDashboardData, selectedStoreId])
 
   const handleRefresh = async () => {
     setRefreshing(true)

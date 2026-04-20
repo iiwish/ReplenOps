@@ -36,6 +36,13 @@ interface GoodsOption {
   unit: string
 }
 
+interface InventoryInfo {
+  quantity: number
+  availableQuantity: number
+  lockedQuantity: number
+  goodsUnit: string
+}
+
 export default function InventoryAdjustmentClient({ warehouses }: Props) {
   const router = useRouter()
   const [form] = Form.useForm()
@@ -48,12 +55,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
   const [goodsOptions, setGoodsOptions] = useState<GoodsOption[]>([])
 
   // 当前库存信息
-  const [currentInventory, setCurrentInventory] = useState<{
-    quantity: number
-    availableQuantity: number
-    lockedQuantity: number
-    goodsUnit: string
-  } | null>(null)
+  const [currentInventory, setCurrentInventory] = useState<InventoryInfo | null>(null)
 
   // 计算变动数量
   const [changeQty, setChangeQty] = useState<number | null>(null)
@@ -95,7 +97,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
     try {
       const result = await getInventoryInfo(warehouseId, goodsId)
       if (result.success && result.data) {
-        const inventory = result.data as any
+        const inventory = result.data as InventoryInfo
         setCurrentInventory({
           quantity: inventory.quantity,
           availableQuantity: inventory.availableQuantity,

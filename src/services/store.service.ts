@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import type { AuthUser } from '@/lib/auth'
 import { userService } from './user.service'
 
 // 列表参数接口
@@ -498,7 +499,7 @@ export class StoreService {
    * 获取用户可访问的所有门店
    * @param user 用户信息（必须提供）
    */
-  async getUserStores(user: any) {
+  async getUserStores(user: AuthUser) {
     if (!user) {
       throw new Error('用户信息不能为空')
     }

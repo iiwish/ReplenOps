@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Search, Package } from 'lucide-react'
 import { queryByGoodsCode } from '@/actions/inventory-query-actions'
 import { useToast } from '@/hooks/use-toast'
+import type { GoodsInventoryResult } from '@/services/inventory-query.service'
 
 export default function InventoryScanClient() {
   const [goodsCode, setGoodsCode] = useState('')
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<GoodsInventoryResult | null>(null)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
@@ -27,14 +28,14 @@ export default function InventoryScanClient() {
     try {
       const res = await queryByGoodsCode({ code: goodsCode.trim() })
       if (res.success) {
-        setResult(res.data)
+        setResult((res.data as GoodsInventoryResult) ?? null)
       } else {
         toast({
           variant: 'destructive',
           title: res.message || '查询失败',
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         variant: 'destructive',
         title: '查询出错，请重试',
@@ -95,7 +96,7 @@ export default function InventoryScanClient() {
               各仓库库存
             </h4>
 
-            {result.inventories.map((inv: any) => (
+            {result.inventories.map((inv) => (
               <Card key={inv.warehouseId}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">

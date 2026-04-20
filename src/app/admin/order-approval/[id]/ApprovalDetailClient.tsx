@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Card, Descriptions, Table, Button, Radio, Input, message, Tag, Alert, Space } from 'antd'
 import { useRouter } from 'next/navigation'
 import {
@@ -34,6 +34,8 @@ interface OrderDetail {
   canApprove: boolean
 }
 
+type OrderDetailItem = OrderDetail['items'][number]
+
 export function ApprovalDetailClient({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -43,11 +45,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
   const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const [comment, setComment] = useState('')
 
-  useEffect(() => {
-    loadData()
-  }, [orderId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getOrderDetailWithStock(orderId)
@@ -59,7 +57,11 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
   const handleSubmit = async () => {
     if (decision === 'reject' && comment.length < 5) {
@@ -114,7 +116,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
       dataIndex: 'quantity',
       key: 'quantity',
       width: 120,
-      render: (qty: number, record: any) => `${qty}${record.goodsUnit}`,
+      render: (qty: number, record: OrderDetailItem) => `${qty}${record.goodsUnit}`,
     },
     {
       title: '单价',
@@ -134,7 +136,7 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
       title: '库存状态',
       key: 'stockStatus',
       width: 150,
-      render: (_: any, record: any) => {
+      render: (_value: unknown, record: OrderDetailItem) => {
         const { stockStatus, availableStock } = record
         const color =
           stockStatus === 'sufficient' ? 'green' : stockStatus === 'tight' ? 'orange' : 'red'

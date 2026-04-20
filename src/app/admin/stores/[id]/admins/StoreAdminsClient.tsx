@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Button, Modal, Card, Space, Tag, Select, Avatar, Spin, App } from 'antd'
 import { DeleteOutlined, ArrowLeftOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
@@ -30,13 +30,7 @@ export default function StoreAdminsClient({
   const [loadingUsers, setLoadingUsers] = useState(false)
 
   // 加载用户列表
-  useEffect(() => {
-    if (addModalVisible && users.length === 0) {
-      loadUsers()
-    }
-  }, [addModalVisible])
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoadingUsers(true)
     try {
       const response = await fetch('/api/users?take=100')
@@ -65,7 +59,13 @@ export default function StoreAdminsClient({
     } finally {
       setLoadingUsers(false)
     }
-  }
+  }, [message])
+
+  useEffect(() => {
+    if (addModalVisible && users.length === 0) {
+      void loadUsers()
+    }
+  }, [addModalVisible, loadUsers, users.length])
 
   // 返回列表页
   const handleBack = () => {

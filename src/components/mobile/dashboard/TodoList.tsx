@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { Route } from 'next'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Package, ShoppingBag } from 'lucide-react'
@@ -27,7 +28,7 @@ export function TodoList({ items }: TodoListProps) {
   return (
     <Card className="space-y-3 p-4">
       {items.map(({ key, todo }) => (
-        <Link key={key} href={todo.link as any}>
+        <Link key={key} href={todo.link as Route}>
           <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-gray-50">
             <div className="flex items-center space-x-3">
               {iconMap[todo.type] || <AlertTriangle className="h-5 w-5 text-gray-600" />}

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 export interface SalesReportParams {
@@ -77,7 +78,7 @@ export class ReportService {
     const { startDate, endDate, storeIds, categoryId } = params
     const storeIdInts = storeIds?.map((storeId) => Number.parseInt(storeId, 10))
 
-    const whereClause: any = {
+    const whereClause: Prisma.OrderWhereInput = {
       createdAt: { gte: startDate, lte: endDate },
       status: 'COMPLETED',
       isDeleted: false,
@@ -130,7 +131,9 @@ export class ReportService {
       totalAmount: Number(s._sum.totalAmount ?? 0),
     }))
 
-    let goodsSalesWhere: any = { ...whereClause }
+    let goodsSalesWhere: Prisma.OrderItemWhereInput = {
+      order: whereClause,
+    }
 
     if (categoryId) {
       const goodsIds = await prisma.goods.findMany({
@@ -206,13 +209,15 @@ export class ReportService {
     const { startDate, endDate, storeId } = params
     const storeIdInt = storeId ? Number.parseInt(storeId, 10) : undefined
 
-    const whereClause: any = {
+    const whereClause: Prisma.StockOutWhereInput = {
       completedAt: { gte: startDate, lte: endDate },
       status: 'COMPLETED',
     }
 
     if (storeIdInt !== undefined) {
-      whereClause.storeId = storeIdInt
+      whereClause.order = {
+        storeId: storeIdInt,
+      }
     }
 
     const stockOuts = await prisma.stockOut.findMany({

@@ -20,6 +20,17 @@ interface OrderItem {
   remark?: string | null
 }
 
+interface ApprovalListData {
+  data: OrderItem[]
+  total: number
+}
+
+interface BatchApproveResultItem {
+  orderId: string
+  success: boolean
+  message: string
+}
+
 export function ApprovalListClient() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<OrderItem[]>([])
@@ -43,7 +54,7 @@ export function ApprovalListClient() {
     try {
       const res = await getPendingOrders({ page, pageSize, ...filters })
       if (res.success && res.data) {
-        const resultData = res.data as any
+        const resultData = res.data as ApprovalListData
         setData(resultData.data)
         setTotal(resultData.total)
       } else {
@@ -79,20 +90,21 @@ export function ApprovalListClient() {
             loadData()
 
             // 显示详细结果
-            if (res.data && Array.isArray(res.data)) {
-              const failedOrders = res.data.filter((r: any) => !r.success)
-              if (failedOrders.length > 0) {
-                Modal.info({
-                  title: '批量审批结果',
-                  content: (
-                    <div>
-                      <p>成功: {res.data.filter((r: any) => r.success).length}个</p>
-                      <p>失败: {failedOrders.length}个</p>
-                      <div className="mt-2">
-                        {failedOrders.map((item: any) => (
-                          <div key={item.orderId} className="text-red-500">
-                            {item.orderId}: {item.message}
-                          </div>
+              if (res.data && Array.isArray(res.data)) {
+                const batchResults = res.data as BatchApproveResultItem[]
+                const failedOrders = batchResults.filter((result) => !result.success)
+                if (failedOrders.length > 0) {
+                  Modal.info({
+                    title: '批量审批结果',
+                    content: (
+                      <div>
+                        <p>成功: {batchResults.filter((result) => result.success).length}个</p>
+                        <p>失败: {failedOrders.length}个</p>
+                        <div className="mt-2">
+                          {failedOrders.map((item) => (
+                            <div key={item.orderId} className="text-red-500">
+                              {item.orderId}: {item.message}
+                            </div>
                         ))}
                       </div>
                     </div>

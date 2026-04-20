@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { Route } from 'next'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ShoppingBag, Package, ClipboardList, Search } from 'lucide-react'
@@ -47,7 +48,7 @@ export function QuickActions() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         {quickActions.map((action, index) => (
-          <Link key={index} href={action.href as any}>
+          <Link key={index} href={action.href as Route}>
             <Button
               variant="outline"
               className={`flex h-24 flex-col items-center justify-center gap-2 ${action.color}`}

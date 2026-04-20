@@ -1,6 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+
+function persistPlatformPreference(target: string): void {
+  document.cookie = `erp_platform_preference=${target}; path=/; max-age=${60 * 60 * 24 * 30}`
+}
+
+function navigateToPlatform(target: string): void {
+  window.location.assign(target)
+}
 
 interface PlatformSwitchProps {
   hasAdmin: boolean
@@ -14,6 +22,20 @@ export default function PlatformSwitch({
   currentPlatform,
 }: PlatformSwitchProps) {
   const [isSwitching, setIsSwitching] = useState(false)
+  const [redirectTarget, setRedirectTarget] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!redirectTarget) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      persistPlatformPreference(redirectTarget)
+      navigateToPlatform(redirectTarget)
+    }, 150)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [redirectTarget])
 
   // Platform labels and icons
   const platforms = [
@@ -47,11 +69,7 @@ export default function PlatformSwitch({
 
   const handleSwitch = async (href: string) => {
     setIsSwitching(true)
-    // Set cookie to remember last choice for 30 days
-    document.cookie = `erp_platform_preference=${href}; path=/; max-age=${60 * 60 * 24 * 30}`
-    // Small delay for visual feedback
-    await new Promise((r) => setTimeout(r, 150))
-    window.location.href = href
+    setRedirectTarget(href)
   }
 
   return (

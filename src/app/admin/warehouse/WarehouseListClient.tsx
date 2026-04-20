@@ -66,7 +66,7 @@ export default function WarehouseListClient({
           } else {
             message.error(result.message || '删除失败')
           }
-        } catch (error) {
+        } catch {
           message.error('删除失败，请重试')
         } finally {
           setLoading(false)
@@ -86,7 +86,7 @@ export default function WarehouseListClient({
       } else {
         message.error(result.message || '操作失败')
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败，请重试')
     } finally {
       setLoading(false)
@@ -159,7 +159,7 @@ export default function WarehouseListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/warehouse/${record.id}/edit` as any)}
+            onClick={() => router.push(`/admin/warehouse/${record.id}/edit`)}
           >
             编辑
           </Button>
@@ -208,7 +208,7 @@ export default function WarehouseListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/warehouse/new' as any)}
+              onClick={() => router.push('/admin/warehouse/new')}
             >
               新增仓库
             </Button>

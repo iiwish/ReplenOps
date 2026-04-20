@@ -2,7 +2,7 @@ export interface PerformanceMetric {
   name: string
   duration: number
   timestamp: Date
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface SlowQueryLog {
@@ -10,7 +10,7 @@ export interface SlowQueryLog {
   duration: number
   threshold: number
   timestamp: Date
-  params?: any
+  params?: unknown
 }
 
 export class PerformanceMonitor {
@@ -35,7 +35,7 @@ export class PerformanceMonitor {
     }
   }
 
-  recordMetric(name: string, duration: number, metadata?: Record<string, any>): void {
+  recordMetric(name: string, duration: number, metadata?: Record<string, unknown>): void {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, [])
     }
@@ -54,7 +54,7 @@ export class PerformanceMonitor {
     }
   }
 
-  recordSlowQuery(query: string, duration: number, params?: any): void {
+  recordSlowQuery(query: string, duration: number, params?: unknown): void {
     if (duration > this.slowQueryThreshold) {
       const log: SlowQueryLog = {
         query,
@@ -85,7 +85,7 @@ export class PerformanceMonitor {
   }
 
   getMetricsSummary(): Record<string, { count: number; avg: number; max: number; min: number }> {
-    const summary: Record<string, any> = {}
+    const summary: Record<string, { count: number; avg: number; max: number; min: number }> = {}
 
     this.metrics.forEach((metrics, name) => {
       if (metrics.length === 0) return
@@ -138,8 +138,8 @@ export function measurePerformance<T>(name: string, fn: () => Promise<T> | T): P
   return Promise.reject(new Error('Invalid function passed to measurePerformance'))
 }
 
-export function reportWebVital(metric: any): void {
-  if (metric.name) {
+export function reportWebVital(metric: { name?: string; value?: number }): void {
+  if (metric.name && metric.value !== undefined) {
     console.log(`Web Vital: ${metric.name} - ${metric.value}ms`)
   }
 }

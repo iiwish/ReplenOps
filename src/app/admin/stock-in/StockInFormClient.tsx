@@ -42,6 +42,12 @@ interface StockInFormData {
   remark?: string
 }
 
+interface StockInFormValues {
+  warehouseId: string
+  remark?: string
+  submitForApproval?: boolean
+}
+
 interface StockInFormClientProps {
   mode: 'create' | 'edit'
   initialValues?: StockInFormData & { id: string }
@@ -229,7 +235,7 @@ export default function StockInFormClient({
   ]
 
   // 表单提交处理
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: StockInFormValues) => {
     if (items.length === 0) {
       message.error('请至少添加一个商品')
       return

@@ -1,5 +1,6 @@
 'use client'
 
+import type { Route } from 'next'
 import { HomeOutlined } from '@ant-design/icons'
 import { Breadcrumb } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
@@ -21,7 +22,7 @@ export default function AppBreadcrumb() {
           <a
             onClick={(e) => {
               e.preventDefault()
-              router.push('/admin/dashboard' as any)
+              router.push('/admin/dashboard')
             }}
             style={{ display: 'flex', alignItems: 'center', gap: 4 }}
           >
@@ -43,7 +44,7 @@ export default function AppBreadcrumb() {
             onClick={(e) => {
               e.preventDefault()
               if (item.path) {
-                router.push(item.path as any)
+                router.push(item.path as Route)
               }
             }}
           >

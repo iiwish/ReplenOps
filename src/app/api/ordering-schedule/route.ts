@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { orderingScheduleService } from '@/services/ordering-schedule.service'
 import { requireRoles } from '@/lib/rbac-server'
+import type { UserRole } from '@/types'
 
 const updateScheduleSchema = z.object({
   dayOfWeek: z.number().int().min(1).max(7),
@@ -14,7 +15,7 @@ const updateScheduleSchema = z.object({
 export async function PUT(request: NextRequest) {
   try {
     // 仅 SUPER_ADMIN 可修改
-    await requireRoles(['SUPER_ADMIN'] as any)
+    await requireRoles(['super_admin'] as UserRole[])
 
     const body = await request.json()
     const result = updateScheduleSchema.safeParse(body)
@@ -30,7 +31,7 @@ export async function PUT(request: NextRequest) {
     const schedule = await orderingScheduleService.updateSchedule(dayOfWeek, data)
 
     return NextResponse.json({ success: true, data: schedule })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // requireRoles 会抛出 redirect，不在此处理
     console.error('更新报货时间配置失败:', error)
     return NextResponse.json({ success: false, error: '更新配置失败' }, { status: 500 })

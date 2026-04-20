@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Minus, Plus } from 'lucide-react'
 
@@ -26,13 +26,6 @@ export function QuantityInput({
 
   const step = measureType === 'INT' ? 1 : 0.1
   const minValue = measureType === 'INT' ? Math.max(1, min) : Math.max(0.001, min)
-
-  // 同步外部 value 变化到 input
-  useEffect(() => {
-    if (!isEditing) {
-      setInputValue(value.toString())
-    }
-  }, [value, isEditing])
 
   const handleDecrease = () => {
     const newValue = Math.max(minValue, value - step)
@@ -87,6 +80,7 @@ export function QuantityInput({
 
   const canDecrease = value > minValue
   const canIncrease = value < max
+  const displayValue = isEditing ? inputValue : value.toString()
 
   // 根据 size 调整按钮和文本大小
   const buttonSize = size === 'sm' ? 'h-7 w-7 min-h-[36px] min-w-[36px]' : size === 'lg' ? 'h-10 w-10 min-h-[52px] min-w-[52px]' : 'h-8 w-8 min-h-[44px] min-w-[44px]'
@@ -107,7 +101,7 @@ export function QuantityInput({
       <input
         type="text"
         inputMode={measureType === 'INT' ? 'numeric' : 'decimal'}
-        value={inputValue}
+        value={displayValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}
         onFocus={handleInputFocus}

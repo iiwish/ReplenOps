@@ -1,5 +1,6 @@
 'use client'
 
+import type { Route } from 'next'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, FileText, Package, User } from 'lucide-react'
@@ -56,7 +57,7 @@ export default function MobileTabBar() {
           return (
             <Link
               key={tab.href}
-              href={tab.href as any}
+              href={tab.href as Route}
               className={cn(
                 'flex flex-col items-center justify-center flex-1',
                 'min-w-[44px] min-h-[44px]', // 触控区域最小尺寸

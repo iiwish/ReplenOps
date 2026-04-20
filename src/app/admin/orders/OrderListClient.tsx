@@ -22,6 +22,11 @@ interface OrderItem {
   createdBy: string
 }
 
+interface OrdersListData {
+  data: OrderItem[]
+  total: number
+}
+
 // 订单状态配置
 const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING: { label: '待审批', color: 'orange' },
@@ -54,7 +59,7 @@ export function OrderListClient() {
     try {
       const res = await getOrders({ page, pageSize, ...filters })
       if (res.success && res.data) {
-        const resultData = res.data as any
+        const resultData = res.data as OrdersListData
         setData(resultData.data)
         setTotal(resultData.total)
       } else {

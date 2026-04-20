@@ -3,14 +3,14 @@
 import { getAuditLogDetail } from '@/actions/audit-log-actions'
 import { AuditLogDetail } from '@/components/admin/audit-logs/AuditLogDetail'
 import { Spin, Button, Space, message } from 'antd'
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { AuditLogDetail as AuditLogDetailType } from '@/services/audit-log.service'
 
 export default function AuditLogDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [loading, setLoading] = useState(false)
   const [log, setLog] = useState<AuditLogDetailType | null>(null)
 
-  const loadDetail = async () => {
+  const loadDetail = useCallback(async () => {
     setLoading(true)
     try {
       const { id } = await params
@@ -26,11 +26,11 @@ export default function AuditLogDetailPage({ params }: { params: Promise<{ id: s
     } finally {
       setLoading(false)
     }
-  }
+  }, [params])
 
   useEffect(() => {
-    loadDetail()
-  }, [params])
+    void loadDetail()
+  }, [loadDetail])
 
   const handleBack = () => {
     window.history.back()

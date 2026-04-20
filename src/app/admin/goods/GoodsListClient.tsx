@@ -218,7 +218,7 @@ export default function GoodsListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/goods/${record.id}/edit` as any)}
+            onClick={() => router.push(`/admin/goods/${record.id}/edit`)}
           >
             编辑
           </Button>
@@ -283,7 +283,7 @@ export default function GoodsListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/goods/new' as any)}
+              onClick={() => router.push('/admin/goods/new')}
             >
               新增商品
             </Button>

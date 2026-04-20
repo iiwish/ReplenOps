@@ -154,7 +154,7 @@ export default function GoodsCategoryListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/goods-category/${record.id}/edit` as any)}
+            onClick={() => router.push(`/admin/goods-category/${record.id}/edit`)}
           >
             编辑
           </Button>
@@ -203,7 +203,7 @@ export default function GoodsCategoryListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/goods-category/new' as any)}
+              onClick={() => router.push('/admin/goods-category/new')}
             >
               新增分类
             </Button>

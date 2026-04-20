@@ -1,5 +1,6 @@
 'use client'
 
+import type { Route } from 'next'
 import { Layout, Menu } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
 import { useMemo } from 'react'
@@ -53,7 +54,7 @@ export default function AppSidebar({ collapsed }: AppSidebarProps) {
   const handleMenuClick = ({ key }: { key: string }) => {
     const path = keyToPathMap.get(key)
     if (path) {
-      router.push(path as any)
+      router.push(path as Route)
     }
   }
 

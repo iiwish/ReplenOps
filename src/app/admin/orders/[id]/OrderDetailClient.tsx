@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Card, Descriptions, Table, Button, message, Tag, Space, Timeline } from 'antd'
 import { useRouter } from 'next/navigation'
 import { getOrderById } from '@/actions/order-actions'
@@ -32,6 +32,8 @@ interface OrderDetail {
   }>
 }
 
+type OrderDetailItem = OrderDetail['items'][number]
+
 // 订单状态配置
 const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING: { label: '待审批', color: 'orange' },
@@ -49,11 +51,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
   const [showRevokeModal, setShowRevokeModal] = useState(false)
   const [revokeLoading, setRevokeLoading] = useState(false)
 
-  useEffect(() => {
-    loadData()
-  }, [orderId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getOrderById(orderId)
@@ -65,7 +63,11 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
   const handleRevoke = async (reason: string) => {
     setRevokeLoading(true)
@@ -123,7 +125,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
       dataIndex: 'quantity',
       key: 'quantity',
       width: 120,
-      render: (qty: number, record: any) => `${qty}${record.goodsUnit}`,
+      render: (qty: number, record: OrderDetailItem) => `${qty}${record.goodsUnit}`,
     },
     {
       title: '单价',

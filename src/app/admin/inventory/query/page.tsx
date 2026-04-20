@@ -14,6 +14,16 @@ interface SearchParams {
   stockStatus?: string
 }
 
+type StockStatus = 'all' | 'has_stock' | 'zero_stock' | 'low_stock'
+
+function normalizeStockStatus(value: string): StockStatus {
+  if (value === 'has_stock' || value === 'zero_stock' || value === 'low_stock') {
+    return value
+  }
+
+  return 'all'
+}
+
 export default async function InventoryQueryPage({
   searchParams,
 }: {
@@ -28,7 +38,7 @@ export default async function InventoryQueryPage({
   const categoryId = params.categoryId
   const goodsId = params.goodsId
   const keyword = params.keyword
-  const stockStatus = params.stockStatus || 'all'
+  const stockStatus = normalizeStockStatus(params.stockStatus || 'all')
 
   const [initialData, warehouses, categories] = await Promise.all([
     inventoryQueryService.query({
@@ -42,7 +52,7 @@ export default async function InventoryQueryPage({
       categoryId,
       goodsId,
       keyword,
-      stockStatus: stockStatus as any,
+      stockStatus,
     }),
     warehouseService.listAll(),
     goodsCategoryService.listAll(),

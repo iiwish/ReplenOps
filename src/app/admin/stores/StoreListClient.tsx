@@ -67,7 +67,7 @@ export default function StoreListClient({
           } else {
             message.error(result.message || '删除失败')
           }
-        } catch (error) {
+        } catch {
           message.error('删除失败，请重试')
         } finally {
           setLoading(false)
@@ -87,7 +87,7 @@ export default function StoreListClient({
       } else {
         message.error(result.message || '操作失败')
       }
-    } catch (error) {
+    } catch {
       message.error('操作失败，请重试')
     } finally {
       setLoading(false)
@@ -171,7 +171,7 @@ export default function StoreListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/stores/${record.id}/edit` as any)}
+            onClick={() => router.push(`/admin/stores/${record.id}/edit`)}
           >
             编辑
           </Button>
@@ -179,7 +179,7 @@ export default function StoreListClient({
             type="link"
             size="small"
             icon={<UserOutlined />}
-            onClick={() => router.push(`/admin/stores/${record.id}/admins` as any)}
+            onClick={() => router.push(`/admin/stores/${record.id}/admins`)}
           >
             管理员
           </Button>
@@ -228,7 +228,7 @@ export default function StoreListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/stores/new' as any)}
+              onClick={() => router.push('/admin/stores/new')}
             >
               新增门店
             </Button>

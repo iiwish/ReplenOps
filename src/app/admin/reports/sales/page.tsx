@@ -296,7 +296,9 @@ export default function SalesReportPage() {
         <Space className="w-full" size="large">
           <RangePicker
             value={filters.dateRange}
-            onChange={(dates) => setFilters((prev) => ({ ...prev, dateRange: dates as any }))}
+            onChange={(dates) =>
+              setFilters((prev) => ({ ...prev, dateRange: dates as [Dayjs, Dayjs] | null }))
+            }
             placeholder={['开始日期', '结束日期']}
           />
           <Select
@@ -304,7 +306,7 @@ export default function SalesReportPage() {
             placeholder="选择门店"
             style={{ width: 200 }}
             value={filters.storeIds}
-            onChange={(values) => setFilters((prev) => ({ ...prev, storeIds: values as any }))}
+            onChange={(values: string[]) => setFilters((prev) => ({ ...prev, storeIds: values }))}
           >
             <Select.Option value="store1">门店1</Select.Option>
             <Select.Option value="store2">门店2</Select.Option>

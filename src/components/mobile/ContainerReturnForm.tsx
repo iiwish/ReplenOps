@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import { Card, Button, InputNumber, Modal, Form, message } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
@@ -31,7 +31,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
   const [selectedContainer, setSelectedContainer] = useState<ReturnableContainer | null>(null)
   const [showModal, setShowModal] = useState(false)
 
-  const loadContainers = async () => {
+  const loadContainers = useCallback(async () => {
     if (!selectedStore?.id) {
       message.error('未选择门店')
       return
@@ -49,7 +49,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
       console.error('加载包装物失败:', error)
       message.error('加载包装物失败')
     }
-  }
+  }, [selectedStore])
 
   const handleContainerSelect = (container: ReturnableContainer) => {
     setSelectedContainer(container)
@@ -93,8 +93,12 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
   }
 
   useEffect(() => {
-    loadContainers()
-  }, [selectedStore?.id])
+    const timeoutId = window.setTimeout(() => {
+      void loadContainers()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadContainers])
 
   return (
     <div style={{ padding: '16px', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>

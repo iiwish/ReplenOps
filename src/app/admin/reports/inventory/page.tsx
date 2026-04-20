@@ -6,6 +6,8 @@ import { Package, AlertTriangle, DollarSign } from 'lucide-react'
 import { ReportChart } from '@/components/admin/reports/ReportChart'
 import type { InventoryReportData } from '@/services/report.service'
 
+type InventoryReportItem = InventoryReportData['inventory'][number]
+
 export default function InventoryReportPage() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<InventoryReportData | null>(null)
@@ -86,7 +88,7 @@ export default function InventoryReportPage() {
       title: '可用库存',
       dataIndex: 'availableQuantity',
       key: 'availableQuantity',
-      render: (value: number, record: any) => {
+      render: (value: number, record: InventoryReportItem) => {
         const minStock = record.quantity - record.availableQuantity
         return (
           <span className={value < minStock ? 'font-semibold text-red-600' : ''}>

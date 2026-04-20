@@ -11,7 +11,7 @@ export class CacheService {
     }
   }
 
-  async set(key: string, value: any, ttl: number = DEFAULT_TTL): Promise<void> {
+  async set(key: string, value: unknown, ttl: number = DEFAULT_TTL): Promise<void> {
     try {
       await redis.setex(key, ttl, JSON.stringify(value))
     } catch (error) {

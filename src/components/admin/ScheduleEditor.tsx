@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { toast } from '@/hooks/use-toast'
 import type { ScheduleItem } from '@/actions/schedule-actions'
 
@@ -20,30 +20,29 @@ interface ScheduleEditorProps {
   onReset: () => Promise<{ success: boolean; error?: string }>
 }
 
-export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: ScheduleEditorProps) {
-  const [schedules, setSchedules] = useState<Record<number, ScheduleItem>>({})
-  const [saving, setSaving] = useState<Record<number, boolean>>({})
-  const [isResetting, setIsResetting] = useState(false)
-
-  useEffect(() => {
-    const map: Record<number, ScheduleItem> = {}
-    for (const s of initialSchedules) {
-      map[s.dayOfWeek] = s
-    }
-    // Fill in missing days with defaults
-    for (const day of DAYS) {
-      if (!map[day.value]) {
-        map[day.value] = {
-          id: 0,
-          dayOfWeek: day.value,
-          startTime: day.value === 7 ? '00:00' : '07:30',
-          endTime: day.value === 7 ? '00:00' : '18:30',
-          isActive: day.value !== 7,
-        }
+function createScheduleMap(initialSchedules: ScheduleItem[]): Record<number, ScheduleItem> {
+  const map: Record<number, ScheduleItem> = {}
+  for (const schedule of initialSchedules) {
+    map[schedule.dayOfWeek] = schedule
+  }
+  for (const day of DAYS) {
+    if (!map[day.value]) {
+      map[day.value] = {
+        id: 0,
+        dayOfWeek: day.value,
+        startTime: day.value === 7 ? '00:00' : '07:30',
+        endTime: day.value === 7 ? '00:00' : '18:30',
+        isActive: day.value !== 7,
       }
     }
-    setSchedules(map)
-  }, [initialSchedules])
+  }
+  return map
+}
+
+export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: ScheduleEditorProps) {
+  const [schedules, setSchedules] = useState<Record<number, ScheduleItem>>(() => createScheduleMap(initialSchedules))
+  const [saving, setSaving] = useState<Record<number, boolean>>({})
+  const [isResetting, setIsResetting] = useState(false)
 
   const handleUpdate = async (dayOfWeek: number) => {
     const s = schedules[dayOfWeek]

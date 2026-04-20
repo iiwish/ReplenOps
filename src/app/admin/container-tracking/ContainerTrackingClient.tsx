@@ -58,7 +58,7 @@ export default function ContainerTrackingPage() {
     {
       title: '包装物名称',
       key: 'container',
-      render: (_: any, record: TrackingItem) => (
+      render: (_value: unknown, record: TrackingItem) => (
         <div>
           <div>{record.containerName}</div>
           <div className="text-xs text-gray-500">{record.containerCode}</div>
@@ -109,7 +109,7 @@ export default function ContainerTrackingPage() {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: TrackingItem) => (
+      render: (_value: unknown, record: TrackingItem) => (
         <Space>
           <Button
             type="link"

@@ -1,5 +1,6 @@
 'use client'
 
+import type { Route } from 'next'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Table, Select, Space, Card, Input, Tag } from 'antd'
@@ -41,7 +42,7 @@ export default function InventoryQueryListClient({
     if (updates.stockStatus) params.set('stockStatus', String(updates.stockStatus))
 
     const queryString = params.toString()
-    router.push(`/admin/inventory/query${queryString ? `?${queryString}` : ''}` as any)
+    router.push(`/admin/inventory/query${queryString ? `?${queryString}` : ''}` as Route)
   }
 
   const handleWarehouseChange = (values: string[]) => {

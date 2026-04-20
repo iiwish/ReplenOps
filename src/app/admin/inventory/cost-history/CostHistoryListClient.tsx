@@ -1,5 +1,6 @@
 'use client'
 
+import type { Route } from 'next'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -79,9 +80,7 @@ export default function CostHistoryListClient({
   const handleFilter = () => {
     setLoading(true)
     const query = buildQueryString()
-    router.push(
-      `/admin/inventory/cost-history${query ? `?${query}` : ''}` as any
-    )
+    router.push(`/admin/inventory/cost-history${query ? `?${query}` : ''}` as Route)
   }
 
   // 重置筛选
@@ -92,7 +91,7 @@ export default function CostHistoryListClient({
       dateRange: null,
     })
     setLoading(true)
-    router.push('/admin/inventory/cost-history' as any)
+    router.push('/admin/inventory/cost-history' as Route)
   }
 
   // 刷新
@@ -110,7 +109,7 @@ export default function CostHistoryListClient({
     if (pageSize) {
       params.set('pageSize', pageSize.toString())
     }
-    router.push(`/admin/inventory/cost-history?${params.toString()}` as any)
+    router.push(`/admin/inventory/cost-history?${params.toString()}` as Route)
   }
 
   // 渲染成本变动（带颜色）
@@ -148,7 +147,7 @@ export default function CostHistoryListClient({
     }
 
     return (
-      <Link href={`${config.routePrefix}/${referenceId}` as any}>
+      <Link href={`${config.routePrefix}/${referenceId}` as Route}>
         <Text className="text-blue-600 hover:underline">{config.label}</Text>
       </Link>
     )

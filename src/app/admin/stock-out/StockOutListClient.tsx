@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import type { Dayjs } from 'dayjs'
 import {
   Table,
   Button,
@@ -69,8 +70,8 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
     buildUrl({ warehouseId: value })
   }
 
-  const handleDateRangeChange = (dates: any) => {
-    if (dates && dates[0] && dates[1]) {
+  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+    if (dates?.[0] && dates?.[1]) {
       const range: [string, string] = [dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')]
       setDateRange(range)
       buildUrl({ startDate: range[0], endDate: range[1] })
@@ -116,7 +117,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
           } else {
             message.error(result.message || '出库失败')
           }
-        } catch (error) {
+        } catch {
           message.error('出库失败，请重试')
         } finally {
           setLoading(false)
@@ -158,7 +159,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
           } else {
             message.error(result.message || '取消失败')
           }
-        } catch (error) {
+        } catch {
           message.error('取消失败，请重试')
         } finally {
           setLoading(false)
@@ -174,7 +175,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       key: 'code',
       width: 150,
       render: (text, record) => (
-        <a onClick={() => router.push(`/admin/stock-out/${record.id}` as any)}>{text}</a>
+        <a onClick={() => router.push(`/admin/stock-out/${record.id}`)}>{text}</a>
       ),
     },
     {
@@ -250,7 +251,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
               type="link"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => router.push(`/admin/stock-out/${record.id}` as any)}
+              onClick={() => router.push(`/admin/stock-out/${record.id}`)}
             >
               查看
             </Button>

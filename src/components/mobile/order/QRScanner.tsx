@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -20,10 +20,16 @@ interface QRScannerProps {
 export function QRScanner({ open, onOpenChange, onScan }: QRScannerProps) {
   const { isScanning, error, startScanner, stopScanner } = useQRScanner()
 
+  const handleClose = useCallback(() => {
+    stopScanner()
+    onOpenChange(false)
+  }, [onOpenChange, stopScanner])
+
   useEffect(() => {
+    let timeoutId: number | undefined
+
     if (open) {
-      // 延迟启动扫描器，确保 DOM 已渲染
-      setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         startScanner('qr-reader', (decodedText) => {
           onScan(decodedText)
           onOpenChange(false)
@@ -32,12 +38,13 @@ export function QRScanner({ open, onOpenChange, onScan }: QRScannerProps) {
     } else {
       stopScanner()
     }
-  }, [open])
 
-  const handleClose = () => {
-    stopScanner()
-    onOpenChange(false)
-  }
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [open, onOpenChange, onScan, startScanner, stopScanner])
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>

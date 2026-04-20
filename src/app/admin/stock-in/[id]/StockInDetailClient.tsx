@@ -327,7 +327,7 @@ export default function StockInDetailClient({
                     type="default"
                     icon={<EditOutlined />}
                     onClick={() =>
-                      router.push(`/admin/stock-in/${data.id}/edit` as any)
+                      router.push(`/admin/stock-in/${data.id}/edit`)
                     }
                   >
                     编辑
