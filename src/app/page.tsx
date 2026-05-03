@@ -62,8 +62,9 @@ export default async function HomePage() {
   }
 
   // 双重权限 → 显示平台切换界面
-  // 自动判断当前设备类型作为默认选中
+  // 自动判断当前设备类型作为默认平台；已有用户偏好时用于当前选中和自动跳转目标
   const defaultPlatform: 'admin' | 'mobile' = isMobileDevice ? 'mobile' : 'admin'
+  const selectedPlatform = platformPreference || defaultPlatform
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/20">
@@ -76,7 +77,7 @@ export default async function HomePage() {
           </p>
           <p className="text-sm text-muted-foreground">
             检测到您正在使用 {isMobileDevice ? '移动设备' : '电脑'}，
-            将为您跳转到{defaultPlatform === 'mobile' ? '移动端' : '管理端'}
+            将为您跳转到{selectedPlatform === 'mobile' ? '移动端' : '管理端'}
           </p>
         </div>
 
@@ -85,7 +86,7 @@ export default async function HomePage() {
           <PlatformSwitch
             hasAdmin={canAccessAdmin}
             hasMobile={canAccessMobile}
-            currentPlatform={defaultPlatform}
+            currentPlatform={selectedPlatform}
           />
         </div>
 
@@ -96,7 +97,7 @@ export default async function HomePage() {
 
         {/* Auto-redirect script */}
         <AutoRedirect
-          targetPlatform={platformPreference || defaultPlatform}
+          targetPlatform={selectedPlatform}
         />
       </div>
     </main>
@@ -115,8 +116,11 @@ function AutoRedirect({
         __html: `
           (function() {
             var pref = document.cookie.match(/erp_platform_preference=([^;]+)/);
-            // If user has a preference cookie, respect it; otherwise use device detection
-            var finalTarget = (pref && pref[1]) || '/${targetPlatform}';
+            var preferredTarget = pref ? decodeURIComponent(pref[1]) : null;
+            // Only trust known platform paths; otherwise fall back to the server-validated target.
+            var finalTarget = (preferredTarget === '/admin' || preferredTarget === '/mobile')
+              ? preferredTarget
+              : '/${targetPlatform}';
             setTimeout(function() {
               window.location.href = finalTarget;
             }, 3000);

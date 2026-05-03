@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 function persistPlatformPreference(target: string): void {
-  document.cookie = `erp_platform_preference=${target}; path=/; max-age=${60 * 60 * 24 * 30}`
+  document.cookie = `erp_platform_preference=${target}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`
 }
 
 function navigateToPlatform(target: string): void {
@@ -80,7 +80,7 @@ export default function PlatformSwitch({
           <button
             key={platform.key}
             onClick={() => handleSwitch(platform.href)}
-            disabled={isSwitching || platform.active}
+            disabled={isSwitching}
             className={`
               flex-1 flex items-center gap-4 p-5 rounded-xl border-2 transition-all duration-200
               ${
@@ -89,7 +89,7 @@ export default function PlatformSwitch({
                   : 'border-border hover:border-primary/50 hover:shadow-sm bg-card'
               }
               ${isSwitching && !platform.active ? 'opacity-50 pointer-events-none' : ''}
-              ${!platform.active ? 'cursor-pointer' : 'cursor-default'}
+              cursor-pointer
             `}
           >
             <div className={`${platform.active ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -106,7 +106,7 @@ export default function PlatformSwitch({
               </div>
               <div className="text-sm text-muted-foreground">{platform.sublabel}</div>
             </div>
-            {!platform.active && (
+            {(!platform.active || !isSwitching) && (
               <svg className="w-5 h-5 ml-auto text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
