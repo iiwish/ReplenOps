@@ -1,12 +1,12 @@
 import { requireRoles } from '@/lib/rbac-server'
+import { MOBILE_ACCESS_ROLES } from '@/lib/rbac'
 import { getCurrentUser } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import CartConfirmClient from './CartConfirmClient'
 
 export default async function CartConfirmPage() {
-  // 验证用户权限，仅允许 store_admin 访问
-  await requireRoles(['store_admin'])
+  await requireRoles(MOBILE_ACCESS_ROLES)
 
   // 获取当前用户
   const user = await getCurrentUser()

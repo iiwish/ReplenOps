@@ -1,10 +1,10 @@
 import { requireRoles } from '@/lib/rbac-server'
+import { MOBILE_ACCESS_ROLES } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import MobileOrderClient from './MobileOrderClient'
 
 export default async function MobileOrderPage() {
-  // 验证用户权限，仅允许 store_admin 访问
-  await requireRoles(['store_admin'])
+  await requireRoles(MOBILE_ACCESS_ROLES)
 
   // 注意：storeId 现在由客户端状态管理提供，不再从服务端获取
 

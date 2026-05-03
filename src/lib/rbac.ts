@@ -39,10 +39,17 @@ export const ROLE_PERMISSIONS: Record<
   },
 }
 
+export const MOBILE_ACCESS_ROLES: UserRole[] = [
+  'super_admin',
+  'warehouse_manager',
+  'store_admin',
+  'approver',
+]
+
 /**
  * 路由类型
  */
-export type RouteType = 'admin' | 'mobile' | 'public'
+export type RouteType = 'admin' | 'mobile' | 'api' | 'public'
 
 /**
  * 公开路由（不需要认证）
@@ -83,6 +90,9 @@ export function getRouteType(pathname: string): RouteType | null {
   if (pathname.startsWith(ROUTE_PREFIXES.mobile)) {
     return 'mobile'
   }
+  if (pathname.startsWith('/api')) {
+    return 'api'
+  }
   if (isPublicRoute(pathname)) {
     return 'public'
   }
@@ -120,6 +130,8 @@ export function hasPermission(role: UserRole | UserRole[], pathname: string): bo
       case 'mobile':
         if (permissions.canAccessMobile) return true
         break
+      case 'api':
+        return true
     }
   }
 
