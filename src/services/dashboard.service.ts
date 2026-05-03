@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import type { AuthUser } from '@/lib/auth'
+import { assertCanReadStore, canReadAllStores, getAccessibleStoreIds } from '@/lib/store-access'
 
 export interface TodayStats {
   orderCount: number
@@ -24,9 +26,8 @@ export interface TodoList {
 }
 
 export class DashboardService {
-  async getTodayStats(storeId?: string): Promise<TodayStats> {
-    const normalizedStoreId =
-      storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
+  async getTodayStats(storeId?: string, user?: AuthUser): Promise<TodayStats> {
+    const storeScope = await this.getStoreScope(storeId, user)
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -42,15 +43,15 @@ export class DashboardService {
       containerToReturnCountResult,
     ] = await Promise.all([
       prisma.order.count({
-        where: {
-          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
+          where: {
+          ...(storeScope !== undefined && { storeId: storeScope }),
           createdAt: { gte: today, lt: tomorrow },
           isDeleted: false,
         },
       }),
       prisma.order.aggregate({
-        where: {
-          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
+          where: {
+          ...(storeScope !== undefined && { storeId: storeScope }),
           createdAt: { gte: today, lt: tomorrow },
           status: 'COMPLETED',
           isDeleted: false,
@@ -58,8 +59,8 @@ export class DashboardService {
         _sum: { totalAmount: true },
       }),
       prisma.order.count({
-        where: {
-          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
+          where: {
+          ...(storeScope !== undefined && { storeId: storeScope }),
           status: { in: ['PENDING', 'APPROVED'] },
           isDeleted: false,
         },
@@ -77,8 +78,8 @@ export class DashboardService {
         },
       }),
       prisma.containerTracking.findMany({
-        where: {
-          ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
+          where: {
+          ...(storeScope !== undefined && { storeId: storeScope }),
           currentBorrowed: { gt: 0 },
         },
       }),
@@ -102,21 +103,20 @@ export class DashboardService {
     }
   }
 
-  async getTodoList(storeId?: string): Promise<TodoList> {
-    const normalizedStoreId =
-      storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
+  async getTodoList(storeId?: string, user?: AuthUser): Promise<TodoList> {
+    const storeScope = await this.getStoreScope(storeId, user)
 
-    const pendingOrders = await prisma.order.count({
+    const pendingReceiptOrders = await prisma.order.count({
       where: {
-        ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
-        status: { in: ['PENDING', 'APPROVED'] },
+        ...(storeScope !== undefined && { storeId: storeScope }),
+        status: { in: ['APPROVED', 'PROCESSING'] },
         isDeleted: false,
       },
     })
 
     const containerTrackings = await prisma.containerTracking.findMany({
       where: {
-        ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
+        ...(storeScope !== undefined && { storeId: storeScope }),
         currentBorrowed: { gt: 0 },
       },
       include: {
@@ -144,8 +144,8 @@ export class DashboardService {
         type: 'order',
         title: '待收货订单',
         description: '有订单待收货处理',
-        count: pendingOrders,
-        link: '/mobile/orders',
+        count: pendingReceiptOrders,
+        link: '/mobile/orders?status=APPROVED',
       },
       containersToReturn: {
         id: 'containers-return',
@@ -164,6 +164,31 @@ export class DashboardService {
         link: '/mobile/inventory',
       },
     }
+  }
+
+  private async getStoreScope(
+    storeId?: string,
+    user?: AuthUser
+  ): Promise<number | { in: number[] } | undefined> {
+    if (storeId !== undefined) {
+      const normalizedStoreId = Number.parseInt(storeId, 10)
+      if (Number.isNaN(normalizedStoreId)) {
+        throw new Error('门店ID无效')
+      }
+
+      if (user) {
+        await assertCanReadStore(user, normalizedStoreId)
+      }
+
+      return normalizedStoreId
+    }
+
+    if (user && !canReadAllStores(user)) {
+      const accessibleStoreIds = await getAccessibleStoreIds(user)
+      return { in: accessibleStoreIds }
+    }
+
+    return undefined
   }
 
   async getSalesTrend(

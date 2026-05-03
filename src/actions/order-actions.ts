@@ -6,6 +6,8 @@ import { orderService } from '@/services/order.service'
 import type { CartRestoreItem } from '@/services/order.service'
 import { orderingScheduleService } from '@/services/ordering-schedule.service'
 import { getCurrentUser } from '@/lib/session.server'
+import { getUserRoles } from '@/lib/session.server'
+import { assertCanOperateStore } from '@/lib/store-access'
 
 // Zod 验证 Schema
 const orderItemSchema = z.object({
@@ -39,6 +41,9 @@ const rejectOrderSchema = z.object({
   reason: z.string().min(1, '请填写拒绝原因'),
 })
 
+const orderIdSchema = z.string().regex(/^\d+$/, '订单ID无效')
+const ORDER_REVIEW_ROLES = new Set(['super_admin', 'warehouse_manager', 'approver'])
+
 // 通用响应接口
 interface ActionResponse<T = unknown> {
   success: boolean
@@ -67,6 +72,8 @@ export async function createOrder(data: {
 
     // Zod 验证
     const validatedData = createOrderSchema.parse(data)
+
+    await assertCanOperateStore(user, Number.parseInt(validatedData.storeId, 10))
 
     // 检查报货时间窗口
     const isWithinTime = await orderingScheduleService.isWithinOrderingTime()
@@ -130,7 +137,18 @@ export async function getOrders(params: {
   endDate?: string
 }): Promise<ActionResponse> {
   try {
-    const result = await orderService.list(params)
+    const user = await getCurrentUser()
+    if (!user) {
+      return {
+        success: false,
+        message: '用户未登录',
+      }
+    }
+
+    const result = await orderService.list({
+      ...params,
+      user,
+    })
 
     return {
       success: true,
@@ -151,7 +169,15 @@ export async function getOrders(params: {
  */
 export async function getOrderById(id: string): Promise<ActionResponse> {
   try {
-    const order = await orderService.getById(id)
+    const user = await getCurrentUser()
+    if (!user) {
+      return {
+        success: false,
+        message: '用户未登录',
+      }
+    }
+
+    const order = await orderService.getById(id, user)
 
     if (!order) {
       return {
@@ -222,6 +248,14 @@ export async function approveOrder(data: {
       }
     }
 
+    const roles = getUserRoles(user)
+    if (!roles.some((role) => ORDER_REVIEW_ROLES.has(role))) {
+      return {
+        success: false,
+        message: '无权审批订单',
+      }
+    }
+
     // Zod 验证
     const validatedData = approveOrderSchema.parse(data)
 
@@ -262,6 +296,14 @@ export async function rejectOrder(data: { id: string; reason: string }): Promise
       return {
         success: false,
         message: '用户未登录',
+      }
+    }
+
+    const roles = getUserRoles(user)
+    if (!roles.some((role) => ORDER_REVIEW_ROLES.has(role))) {
+      return {
+        success: false,
+        message: '无权拒绝订单',
       }
     }
 
@@ -309,7 +351,8 @@ export async function revokeOrder(orderId: string): Promise<ActionResponse & { r
       }
     }
 
-    const restoredItems = await orderService.revokeOrder(Number(orderId))
+    const validatedOrderId = orderIdSchema.parse(orderId)
+    const restoredItems = await orderService.revokeOrder(Number(validatedOrderId), user)
 
     revalidatePath('/mobile/orders')
     revalidatePath('/admin/orders')
@@ -324,7 +367,50 @@ export async function revokeOrder(orderId: string): Promise<ActionResponse & { r
 
     return {
       success: false,
-      message: error instanceof Error ? error.message : '撤回订单失败',
+      message: error instanceof z.ZodError ? '订单ID无效' : error instanceof Error ? error.message : '撤回订单失败',
+    }
+  }
+}
+
+/**
+ * 确认收货（移动端）
+ */
+export async function confirmOrderReceipt(orderId: string): Promise<ActionResponse> {
+  try {
+    const validatedOrderId = orderIdSchema.parse(orderId)
+    const user = await getCurrentUser()
+    if (!user) {
+      return {
+        success: false,
+        message: '用户未登录',
+      }
+    }
+
+    await orderService.confirmReceipt(validatedOrderId, user)
+
+    revalidatePath('/mobile/orders')
+    revalidatePath(`/mobile/orders/${validatedOrderId}`)
+    revalidatePath('/mobile/home')
+    revalidatePath('/admin/orders')
+    revalidatePath('/admin/stock-out')
+
+    return {
+      success: true,
+      message: '确认收货成功',
+    }
+  } catch (error) {
+    console.error('确认收货失败:', error)
+
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        message: '订单ID无效',
+      }
+    }
+
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '确认收货失败',
     }
   }
 }

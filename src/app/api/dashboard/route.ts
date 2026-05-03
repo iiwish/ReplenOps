@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId') || undefined
 
     const [stats, todoList] = await Promise.all([
-      dashboardService.getTodayStats(storeId),
-      dashboardService.getTodoList(storeId),
+      dashboardService.getTodayStats(storeId, user),
+      dashboardService.getTodoList(storeId, user),
     ])
 
     return NextResponse.json({
