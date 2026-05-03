@@ -1,4 +1,4 @@
-import { getOrderingSchedule, updateOrderingSchedule, resetScheduleToDefault } from '@/actions/schedule-actions'
+import { getOrderingSchedule } from '@/actions/schedule-actions'
 import ScheduleEditor from '@/components/admin/ScheduleEditor'
 
 export default async function SystemConfigPage() {
@@ -21,13 +21,7 @@ export default async function SystemConfigPage() {
           </p>
         </div>
         <div className="p-6">
-          <ScheduleEditor
-            initialSchedules={schedules}
-            onUpdate={async (dayOfWeek, data) =>
-              updateOrderingSchedule(dayOfWeek, data)
-            }
-            onReset={async () => resetScheduleToDefault()}
-          />
+          <ScheduleEditor initialSchedules={schedules} />
         </div>
       </div>
     </div>

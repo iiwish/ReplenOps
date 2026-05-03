@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { resetScheduleToDefault, updateOrderingSchedule } from '@/actions/schedule-actions'
 import { toast } from '@/hooks/use-toast'
 import type { ScheduleItem } from '@/actions/schedule-actions'
 
@@ -16,8 +17,6 @@ const DAYS = [
 
 interface ScheduleEditorProps {
   initialSchedules: ScheduleItem[]
-  onUpdate: (dayOfWeek: number, data: { startTime: string; endTime: string; isActive: boolean }) => Promise<{ success: boolean; error?: string }>
-  onReset: () => Promise<{ success: boolean; error?: string }>
 }
 
 function createScheduleMap(initialSchedules: ScheduleItem[]): Record<number, ScheduleItem> {
@@ -39,7 +38,7 @@ function createScheduleMap(initialSchedules: ScheduleItem[]): Record<number, Sch
   return map
 }
 
-export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: ScheduleEditorProps) {
+export default function ScheduleEditor({ initialSchedules }: ScheduleEditorProps) {
   const [schedules, setSchedules] = useState<Record<number, ScheduleItem>>(() => createScheduleMap(initialSchedules))
   const [saving, setSaving] = useState<Record<number, boolean>>({})
   const [isResetting, setIsResetting] = useState(false)
@@ -48,7 +47,7 @@ export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: 
     const s = schedules[dayOfWeek]
     if (!s) return
     setSaving((prev) => ({ ...prev, [dayOfWeek]: true }))
-    const result = await onUpdate(dayOfWeek, {
+    const result = await updateOrderingSchedule(dayOfWeek, {
       startTime: s.startTime,
       endTime: s.endTime,
       isActive: s.isActive,
@@ -63,7 +62,7 @@ export default function ScheduleEditor({ initialSchedules, onUpdate, onReset }: 
 
   const handleReset = async () => {
     setIsResetting(true)
-    const result = await onReset()
+    const result = await resetScheduleToDefault()
     setIsResetting(false)
     if (result.success) {
       toast({ title: '已重置为默认值（周一至周六 07:30-18:30）' })
