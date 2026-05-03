@@ -140,7 +140,7 @@ export default function InventoryReportPage() {
             <Statistic
               title="库存总金额"
               value={data?.summary.totalAmount || 0}
-              valueStyle={{ color: '#3f8600' }}
+              styles={{ content: { color: '#3f8600' } }}
               prefix={<DollarSign className="h-4 w-4" />}
               suffix="¥"
             />
@@ -149,7 +149,7 @@ export default function InventoryReportPage() {
             <Statistic
               title="库存预警"
               value={data?.summary.lowStockCount || 0}
-              valueStyle={{ color: '#cf1322' }}
+              styles={{ content: { color: '#cf1322' } }}
               prefix={<AlertTriangle className="h-4 w-4" />}
             />
           </Col>

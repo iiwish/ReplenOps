@@ -270,7 +270,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
                     title="可用库存"
                     value={currentInventory.availableQuantity}
                     suffix={currentInventory.goodsUnit}
-                    valueStyle={{ color: '#3f8600' }}
+                    styles={{ content: { color: '#3f8600' } }}
                   />
                 </Col>
                 <Col span={8}>
@@ -278,7 +278,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
                     title="锁定库存"
                     value={currentInventory.lockedQuantity}
                     suffix={currentInventory.goodsUnit}
-                    valueStyle={{ color: '#cf1322' }}
+                    styles={{ content: { color: '#cf1322' } }}
                   />
                 </Col>
               </Row>
@@ -312,8 +312,8 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
                         value={changeQty}
                         suffix={currentInventory.goodsUnit}
                         prefix={changeQty > 0 ? '+' : ''}
-                        valueStyle={{
-                          color: changeQty > 0 ? '#52c41a' : changeQty < 0 ? '#ff4d4f' : '#000',
+                        styles={{
+                          content: { color: changeQty > 0 ? '#52c41a' : changeQty < 0 ? '#ff4d4f' : '#000' },
                         }}
                       />
                     </div>
