@@ -291,7 +291,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
                   value={totalAmount}
                   prefix="¥"
                   precision={2}
-                  valueStyle={{ color: '#3f8600' }}
+                  styles={{ content: { color: '#3f8600' } }}
                 />
               </Col>
               <Col span={12}>
@@ -300,7 +300,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
                   value={totalCostAmount}
                   prefix="¥"
                   precision={2}
-                  valueStyle={{ color: '#3f8600' }}
+                  styles={{ content: { color: '#3f8600' } }}
                 />
               </Col>
             </Row>
@@ -311,8 +311,8 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
                   value={stockOut.totalProfit}
                   prefix="¥"
                   precision={2}
-                  valueStyle={{
-                    color: stockOut.totalProfit >= 0 ? '#3f8600' : '#cf1322',
+                  styles={{
+                    content: { color: stockOut.totalProfit >= 0 ? '#3f8600' : '#cf1322' },
                   }}
                 />
               </Col>
@@ -322,8 +322,8 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
                   value={profitRate}
                   suffix="%"
                   precision={2}
-                  valueStyle={{
-                    color: stockOut.totalProfit >= 0 ? '#3f8600' : '#cf1322',
+                  styles={{
+                    content: { color: stockOut.totalProfit >= 0 ? '#3f8600' : '#cf1322' },
                   }}
                 />
               </Col>

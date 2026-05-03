@@ -78,7 +78,7 @@ export function TrackingSummary({
             title="包装物种类"
             value={summary.totalContainers}
             suffix="种"
-            valueStyle={{ color: '#1890ff' }}
+            styles={{ content: { color: '#1890ff' } }}
           />
         </Card>
       </Col>
@@ -87,7 +87,7 @@ export function TrackingSummary({
           <Statistic
             title="总在外数量"
             value={summary.totalBorrowed}
-            valueStyle={{ color: '#faad14' }}
+            styles={{ content: { color: '#faad14' } }}
           />
         </Card>
       </Col>
@@ -98,7 +98,7 @@ export function TrackingSummary({
             value={summary.totalDeposit}
             precision={2}
             prefix="¥"
-            valueStyle={{ color: '#cf1322' }}
+            styles={{ content: { color: '#cf1322' } }}
           />
         </Card>
       </Col>
@@ -109,7 +109,7 @@ export function TrackingSummary({
             value={summary.avgReturnRate}
             precision={1}
             suffix="%"
-            valueStyle={{ color: '#52c41a' }}
+            styles={{ content: { color: '#52c41a' } }}
           />
         </Card>
       </Col>

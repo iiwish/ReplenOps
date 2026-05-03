@@ -295,7 +295,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
               value={totalCost}
               prefix="¥"
               precision={2}
-              valueStyle={{ color: '#3f8600' }}
+              styles={{ content: { color: '#3f8600' } }}
             />
           </Card>
         </Col>
@@ -306,14 +306,14 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
               value={totalProfit}
               prefix="¥"
               precision={2}
-              valueStyle={{ color: totalProfit >= 0 ? '#3f8600' : '#cf1322' }}
+              styles={{ content: { color: totalProfit >= 0 ? '#3f8600' : '#cf1322' } }}
               suffix={<DollarOutlined style={{ fontSize: 14 }} />}
             />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="记录数" value={initialData.total} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="记录数" value={initialData.total} styles={{ content: { color: '#3f8600' } }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -321,7 +321,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
             <Statistic
               title="待出库"
               value={initialData.data.filter((item) => item.status === 'PENDING').length}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
