@@ -1,4 +1,5 @@
 import { requireRoles } from '@/lib/rbac-server'
+import { MOBILE_ACCESS_ROLES } from '@/lib/rbac'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { WithdrawOrderButton } from '@/components/mobile/order/WithdrawOrderButton'
+import { ConfirmReceiptButton } from '@/components/mobile/order/ConfirmReceiptButton'
 
 interface OrderDetailPageProps {
   params: Promise<{
@@ -18,14 +20,15 @@ interface OrderDetailPageProps {
 // 状态映射
 const STATUS_MAP: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   PENDING: { text: '待审批', variant: 'default' },
-  APPROVED: { text: '已审批', variant: 'secondary' },
+  APPROVED: { text: '待收货', variant: 'secondary' },
+  PROCESSING: { text: '待收货', variant: 'secondary' },
   COMPLETED: { text: '已完成', variant: 'outline' },
   REJECTED: { text: '已拒绝', variant: 'destructive' },
+  CANCELLED: { text: '已取消', variant: 'outline' },
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
-  // 验证用户权限，仅允许 store_admin 访问
-  await requireRoles(['store_admin'])
+  await requireRoles(MOBILE_ACCESS_ROLES)
 
   const { id } = await params
 
@@ -209,6 +212,15 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* 底部间距 */}
         <div className="h-4" />
+
+        {(order.status === 'APPROVED' || order.status === 'PROCESSING') && (
+          <div className="sticky bottom-0 left-0 right-0 p-4 bg-background border-t">
+            <ConfirmReceiptButton
+              orderId={order.id}
+              orderCode={order.code}
+            />
+          </div>
+        )}
 
         {/* 撤回按钮（PENDING / REJECTED 状态显示） */}
         {(order.status === 'PENDING' || order.status === 'REJECTED') && (
