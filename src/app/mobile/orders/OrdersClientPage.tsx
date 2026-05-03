@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 import { getOrders } from '@/actions/order-actions'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
@@ -12,9 +13,11 @@ import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 // 状态映射
 const STATUS_MAP: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   PENDING: { text: '待审批', variant: 'default' },
-  APPROVED: { text: '已审批', variant: 'secondary' },
+  APPROVED: { text: '待收货', variant: 'secondary' },
+  PROCESSING: { text: '待收货', variant: 'secondary' },
   COMPLETED: { text: '已完成', variant: 'outline' },
   REJECTED: { text: '已拒绝', variant: 'destructive' },
+  CANCELLED: { text: '已取消', variant: 'outline' },
 }
 
 interface Order {
@@ -30,9 +33,12 @@ interface Order {
 }
 
 export default function OrdersClientPage() {
+  const searchParams = useSearchParams()
   const { selectedStoreId } = useStoreSelectionStore()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const initialTab = ['APPROVED', 'PROCESSING'].includes(searchParams.get('status') || '') ? 'receipt' : 'all'
+  const [activeTab, setActiveTab] = useState(initialTab)
 
   useEffect(() => {
     if (selectedStoreId) {
@@ -64,8 +70,10 @@ export default function OrdersClientPage() {
   // 按状态筛选订单
   const allOrders = orders
   const pendingOrders = orders.filter((o) => o.status === 'PENDING')
-  const approvedOrders = orders.filter((o) => o.status === 'APPROVED')
+  const receiptOrders = orders.filter((o) => o.status === 'APPROVED' || o.status === 'PROCESSING')
   const completedOrders = orders.filter((o) => o.status === 'COMPLETED')
+  const rejectedOrders = orders.filter((o) => o.status === 'REJECTED')
+  const cancelledOrders = orders.filter((o) => o.status === 'CANCELLED')
 
   // 渲染订单卡片
   const renderOrderCard = (order: Order) => {
@@ -133,8 +141,8 @@ export default function OrdersClientPage() {
 
   return (
     <div className="p-4">
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="all">
             全部
             {allOrders.length > 0 && (
@@ -147,16 +155,28 @@ export default function OrdersClientPage() {
               <span className="ml-1 text-xs">({pendingOrders.length})</span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="approved">
-            已审批
-            {approvedOrders.length > 0 && (
-              <span className="ml-1 text-xs">({approvedOrders.length})</span>
+          <TabsTrigger value="receipt">
+            待收货
+            {receiptOrders.length > 0 && (
+              <span className="ml-1 text-xs">({receiptOrders.length})</span>
             )}
           </TabsTrigger>
           <TabsTrigger value="completed">
             已完成
             {completedOrders.length > 0 && (
               <span className="ml-1 text-xs">({completedOrders.length})</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="rejected">
+            已拒绝
+            {rejectedOrders.length > 0 && (
+              <span className="ml-1 text-xs">({rejectedOrders.length})</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="cancelled">
+            已取消
+            {cancelledOrders.length > 0 && (
+              <span className="ml-1 text-xs">({cancelledOrders.length})</span>
             )}
           </TabsTrigger>
         </TabsList>
@@ -181,12 +201,12 @@ export default function OrdersClientPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="approved" className="space-y-3 mt-4">
-          {approvedOrders.length > 0 ? (
-            approvedOrders.map(renderOrderCard)
+        <TabsContent value="receipt" className="space-y-3 mt-4">
+          {receiptOrders.length > 0 ? (
+            receiptOrders.map(renderOrderCard)
           ) : (
             <div className="text-center text-muted-foreground py-8">
-              暂无已审批订单
+              暂无待收货订单
             </div>
           )}
         </TabsContent>
@@ -197,6 +217,26 @@ export default function OrdersClientPage() {
           ) : (
             <div className="text-center text-muted-foreground py-8">
               暂无已完成订单
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="rejected" className="space-y-3 mt-4">
+          {rejectedOrders.length > 0 ? (
+            rejectedOrders.map(renderOrderCard)
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              暂无已拒绝订单
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="cancelled" className="space-y-3 mt-4">
+          {cancelledOrders.length > 0 ? (
+            cancelledOrders.map(renderOrderCard)
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              暂无已取消订单
             </div>
           )}
         </TabsContent>
