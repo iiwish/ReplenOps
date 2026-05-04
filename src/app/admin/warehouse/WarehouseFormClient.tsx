@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Form, Input, Button, Card, App, Space } from 'antd'
 import { createWarehouse, updateWarehouse } from '@/actions/warehouse-actions'
@@ -21,62 +21,61 @@ interface WarehouseFormClientProps {
 export default function WarehouseFormClient({ mode, initialValues }: WarehouseFormClientProps) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const { message } = App.useApp()
   const router = useRouter()
 
   // 使用 Ant Design Form 的 onFinish 回调
   const handleFinish = async (values: WarehouseFormData) => {
     setLoading(true)
-    try {
-      const formData = new FormData()
-      Object.entries(values).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, String(value))
-        }
-      })
+    const formData = new FormData()
+    Object.entries(values).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value))
+      }
+    })
 
-      if (mode === 'create') {
-        createWarehouse(formData).then(() => {
-          // 成功创建后跳转
-          message.success('仓库创建成功')
-          window.location.href = '/admin/warehouse'
-        }).catch((error) => {
-          const msg = error instanceof Error ? error.message : String(error)
-          if (!msg.includes('NEXT_REDIRECT')) {
-            message.error(msg || '创建失败')
-          }
-          setLoading(false)
-        })
-        // 返回让 loading 状态保持，避免重复提交
-        return
-      } else {
-        const result = await updateWarehouse(initialValues!.id, formData)
-        if (result.success) {
-          message.success(result.message)
-          router.push('/admin/warehouse')
-        } else {
-          if (result.errors) {
-            const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
-              name: field,
-              errors,
-            }))
-            form.setFields(fieldErrors)
-          } else {
-            message.error(result.message || '更新失败')
-          }
-          setLoading(false)
+    const result = await (async () => {
+      try {
+        return mode === 'create'
+          ? await createWarehouse(formData)
+          : await updateWarehouse(initialValues!.id, formData)
+      } catch (error) {
+        console.error('仓库保存请求失败:', error)
+        return {
+          success: false,
+          message: '操作失败，请重试',
         }
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      if (!msg.includes('NEXT_REDIRECT') && !msg.includes('next-client')) {
-        message.error(msg || '操作失败')
-      }
-      setLoading(false)
+    })()
+
+    setLoading(false)
+
+    if (result.success) {
+      message.success(result.message)
+      setShouldNavigateTo('/admin/warehouse')
+      return
     }
+
+    if (result.errors) {
+      const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
+        name: field,
+        errors,
+      }))
+      form.setFields(fieldErrors)
+      return
+    }
+
+    message.error(result.message || '操作失败')
   }
 
   // handleSubmit removed - form submission is handled by onFinish directly
+
+  useEffect(() => {
+    if (shouldNavigateTo) {
+      window.location.href = shouldNavigateTo
+    }
+  }, [shouldNavigateTo])
 
   return (
     <Card title={mode === 'create' ? '新增仓库' : '编辑仓库'}>
@@ -128,7 +127,7 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
         <Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" loading={loading}>
-              {loading ? '提交中…' : '创 建'}
+              {loading ? '提交中…' : mode === 'create' ? '创建' : '更新'}
             </Button>
             <Button htmlType="button" onClick={() => router.back()}>
               取 消
