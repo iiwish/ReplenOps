@@ -2,7 +2,7 @@
 
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/session.server'
-import { containerService } from '@/services/container.service'
+import { containerService, type ContainerRecord } from '@/services/container.service'
 import { containerTrackingService } from '@/services/container-tracking.service'
 
 interface ActionResponse<T = unknown> {
@@ -17,7 +17,7 @@ const createContainerSchema = z.object({
   name: z.string().min(1, '名称不能为空'),
   unit: z.string().min(1, '单位不能为空'),
   deposit: z.coerce.number().min(0, '押金不能为负数'),
-  remark: z.string().optional(),
+  remark: z.preprocess((value) => (value === null ? undefined : value), z.string().optional()),
 })
 
 const updateContainerSchema = createContainerSchema.partial().extend({
@@ -125,7 +125,7 @@ export async function deleteContainer(id: string): Promise<ActionResponse> {
   }
 }
 
-export async function listContainers(): Promise<ActionResponse> {
+export async function listContainers(): Promise<ActionResponse<ContainerRecord[]>> {
   try {
     const containers = await containerService.list()
 

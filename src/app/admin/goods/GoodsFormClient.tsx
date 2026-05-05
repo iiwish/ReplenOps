@@ -14,6 +14,7 @@ import {
   Radio,
 } from 'antd'
 import { createGoods, updateGoods } from '@/actions/goods-actions'
+import { listContainers } from '@/actions/container-actions'
 
 const { TextArea } = Input
 
@@ -27,8 +28,17 @@ interface GoodsFormData {
   costPrice: number
   partnerPrice: number
   defaultInPrice: number
+  containerId?: string | null
+  containerRatio?: number
   imageUrl?: string
   description?: string
+}
+
+interface ContainerOption {
+  id: string
+  code: string
+  name: string
+  unit: string
 }
 
 interface GoodsFormClientProps {
@@ -46,6 +56,7 @@ export default function GoodsFormClient({
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
+  const [containers, setContainers] = useState<ContainerOption[]>([])
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsFormData) => {
@@ -95,6 +106,22 @@ export default function GoodsFormClient({
       window.location.href = shouldNavigateTo
     }
   }, [shouldNavigateTo])
+
+  useEffect(() => {
+    const loadContainers = async () => {
+      const result = await listContainers()
+      if (result.success && Array.isArray(result.data)) {
+        setContainers(result.data.map((container) => ({
+          id: container.id,
+          code: container.code,
+          name: container.name,
+          unit: container.unit,
+        })))
+      }
+    }
+
+    void loadContainers()
+  }, [])
 
   return (
     <Card variant="borderless">
@@ -175,6 +202,54 @@ export default function GoodsFormClient({
             style={{ width: 150 }}
           >
             <Input placeholder="如：瓶、kg、箱" maxLength={10} />
+          </Form.Item>
+        </Space>
+
+        <Space style={{ width: '100%' }} size="large" align="start">
+          <Form.Item
+            label="绑定包装物"
+            name="containerId"
+            style={{ width: 250 }}
+            tooltip="出库完成后，会按商品数量和配比自动借出包装物"
+          >
+            <Select
+              allowClear
+              placeholder="不绑定包装物"
+              options={containers.map((container) => ({
+                label: `${container.name} (${container.code})`,
+                value: container.id,
+              }))}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+
+          <Form.Item
+            label="包装物配比"
+            name="containerRatio"
+            style={{ width: 180 }}
+            dependencies={["containerId"]}
+            rules={[
+              ({ getFieldValue }) => ({
+                validator(_, value: number | undefined) {
+                  if (!getFieldValue('containerId') || (value && value > 0)) {
+                    return Promise.resolve()
+                  }
+                  return Promise.reject(new Error('绑定包装物时请输入配比'))
+                },
+              }),
+            ]}
+            tooltip="每多少个商品需要 1 个包装物，例如 30 个鸡蛋/框则填 30"
+          >
+            <InputNumber
+              placeholder="如：30"
+              min={0}
+              precision={0}
+              step={1}
+              style={{ width: 180 }}
+            />
           </Form.Item>
         </Space>
 

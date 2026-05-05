@@ -57,7 +57,10 @@ export default function ContainersListClient() {
 
   const handleEdit = (container: Container) => {
     setEditingContainer(container)
-    form.setFieldsValue(container)
+    form.setFieldsValue({
+      ...container,
+      remark: container.remark ?? '',
+    })
     setModalVisible(true)
   }
 
@@ -90,6 +93,8 @@ export default function ContainersListClient() {
           message.success('更新成功')
           setModalVisible(false)
           fetchContainers()
+        } else {
+          message.error(result.message || '更新失败')
         }
       } else {
         const result = await createContainer(values)
@@ -97,6 +102,8 @@ export default function ContainersListClient() {
           message.success('创建成功')
           setModalVisible(false)
           fetchContainers()
+        } else {
+          message.error(result.message || '创建失败')
         }
       }
     } catch {
@@ -208,7 +215,7 @@ export default function ContainersListClient() {
               placeholder="请输入押金"
               min={0}
               precision={2}
-              addonAfter="元"
+              suffix="元"
             />
           </Form.Item>
           <Form.Item label="备注" name="remark">

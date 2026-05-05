@@ -185,6 +185,20 @@ export default function GoodsListClient({
       render: (price: number) => `¥${price.toFixed(2)}`,
     },
     {
+      title: '包装物',
+      key: 'container',
+      width: 150,
+      render: (_value: unknown, record) =>
+        record.containerName ? (
+          <span>
+            {record.containerName}
+            <Tag style={{ marginLeft: 8 }}>{record.containerRatio}:1</Tag>
+          </span>
+        ) : (
+          '-'
+        ),
+    },
+    {
       title: '状态',
       dataIndex: 'isActive',
       key: 'isActive',

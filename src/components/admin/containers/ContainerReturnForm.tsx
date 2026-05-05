@@ -33,38 +33,6 @@ interface Container {
   deposit: number
 }
 
-interface ReturnItem {
-  containerId: string
-  containerName: string
-  currentBorrowed: number
-  deposit: number
-  quantity: number
-}
-
-interface Container {
-  trackingId: string
-  containerId: string
-  containerName: string
-  currentBorrowed: number
-  deposit: number
-}
-
-interface ReturnItem {
-  containerId: string
-  containerName: string
-  currentBorrowed: number
-  deposit: number
-  quantity: number
-}
-
-interface Container {
-  trackingId: string
-  containerId: string
-  containerName: string
-  currentBorrowed: number
-  deposit: number
-}
-
 interface ContainerReturnFormProps {
   storeId?: string
   onSuccess?: () => void
@@ -84,7 +52,7 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
 
   const loadStores = async () => {
     try {
-      const response = await fetch('/api/stores', {
+      const response = await fetch('/api/stores/user', {
         cache: 'no-store',
       })
 
@@ -254,7 +222,7 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
                       max={item.currentBorrowed}
                       value={item.quantity}
                       onChange={(val) => handleQuantityChange(index, val)}
-                      addonAfter="个"
+                      suffix="个"
                       style={{ width: '100%' }}
                     />
                   </Col>

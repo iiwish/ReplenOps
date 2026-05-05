@@ -137,14 +137,29 @@ export class OrderRevocationService {
 
         if (tracking) {
           const returnQty = log.quantity.toNumber()
+          const beforeBorrowed = tracking.currentBorrowed.toNumber()
 
-          await tx.containerTracking.update({
-            where: { id: log.containerTrackingId },
+          if (beforeBorrowed < returnQty) {
+            throw new Error(
+              `包装物 ${log.containerTrackingId} 在外数量不足，无法撤销订单自动归还`
+            )
+          }
+
+          const updated = await tx.containerTracking.updateMany({
+            where: {
+              id: log.containerTrackingId,
+              currentBorrowed: { gte: returnQty },
+            },
             data: {
+              totalReturned: { increment: returnQty },
               currentBorrowed: { decrement: returnQty },
               lastReturnAt: new Date(),
             },
           })
+
+          if (updated.count !== 1) {
+            throw new Error('包装物在外数量已变化，请刷新后重试')
+          }
 
           await tx.containerLog.create({
             data: {
@@ -152,8 +167,8 @@ export class OrderRevocationService {
               orderId: orderIdInt,
               opType: 'RETURN',
               quantity: returnQty,
-              beforeBorrowed: tracking.currentBorrowed.toNumber(),
-              afterBorrowed: tracking.currentBorrowed.toNumber() - returnQty,
+              beforeBorrowed,
+              afterBorrowed: beforeBorrowed - returnQty,
               remark: '系统自动归还-订单撤销',
               operatedBy: operatorId,
               operatedAt: new Date(),

@@ -4,11 +4,7 @@ export default function NewContainerReturnPage() {
   return (
     <div style={{ padding: '24px' }}>
       <h1>包装物归还登记</h1>
-      <ContainerReturnForm
-        onSuccess={() => {
-          console.log('归还成功')
-        }}
-      />
+      <ContainerReturnForm />
     </div>
   )
 }

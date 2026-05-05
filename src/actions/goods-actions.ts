@@ -17,11 +17,16 @@ const goodsSchema = z.object({
   measureType: z.enum(['INT', 'DECIMAL'], {
     message: '请选择计量类型',
   }),
-  costPrice: z.number().min(0, '成本价不能为负数'),
-  partnerPrice: z.number().min(0, '合作价不能为负数'),
-  defaultInPrice: z.number().min(0, '默认入库价不能为负数'),
+  costPrice: z.coerce.number().min(0, '成本价不能为负数'),
+  partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
+  defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
+  containerId: z.string().optional(),
+  containerRatio: z.coerce.number().int('包装物配比必须是整数').min(0, '包装物配比不能为负数').optional(),
   imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
   description: z.string().optional().nullable(),
+}).refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
+  message: '绑定包装物时配比必须大于0',
+  path: ['containerRatio'],
 })
 
 const updateGoodsSchema = z.object({
@@ -32,11 +37,16 @@ const updateGoodsSchema = z.object({
   measureType: z.enum(['INT', 'DECIMAL'], {
     message: '请选择计量类型',
   }),
-  costPrice: z.number().min(0, '成本价不能为负数'),
-  partnerPrice: z.number().min(0, '合作价不能为负数'),
-  defaultInPrice: z.number().min(0, '默认入库价不能为负数'),
+  costPrice: z.coerce.number().min(0, '成本价不能为负数'),
+  partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
+  defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
+  containerId: z.string().optional(),
+  containerRatio: z.coerce.number().int('包装物配比必须是整数').min(0, '包装物配比不能为负数').optional(),
   imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
   description: z.string().optional().nullable(),
+}).refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
+  message: '绑定包装物时配比必须大于0',
+  path: ['containerRatio'],
 })
 
 // 通用响应接口
@@ -60,9 +70,11 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
       spec: (formData.get('spec') as string) || undefined,
       unit: formData.get('unit') as string,
       measureType: formData.get('measureType') as 'INT' | 'DECIMAL',
-      costPrice: parseFloat(formData.get('costPrice') as string) || 0,
-      partnerPrice: parseFloat(formData.get('partnerPrice') as string) || 0,
-      defaultInPrice: parseFloat(formData.get('defaultInPrice') as string) || 0,
+      costPrice: formData.get('costPrice'),
+      partnerPrice: formData.get('partnerPrice'),
+      defaultInPrice: formData.get('defaultInPrice'),
+      containerId: (formData.get('containerId') as string) || undefined,
+      containerRatio: formData.get('containerRatio') || 0,
       imageUrl: (formData.get('imageUrl') as string) || undefined,
       description: (formData.get('description') as string) || undefined,
     }
@@ -125,9 +137,11 @@ export async function updateGoods(
       spec: (formData.get('spec') as string) || undefined,
       unit: formData.get('unit') as string,
       measureType: formData.get('measureType') as 'INT' | 'DECIMAL',
-      costPrice: parseFloat(formData.get('costPrice') as string) || 0,
-      partnerPrice: parseFloat(formData.get('partnerPrice') as string) || 0,
-      defaultInPrice: parseFloat(formData.get('defaultInPrice') as string) || 0,
+      costPrice: formData.get('costPrice'),
+      partnerPrice: formData.get('partnerPrice'),
+      defaultInPrice: formData.get('defaultInPrice'),
+      containerId: (formData.get('containerId') as string) || undefined,
+      containerRatio: formData.get('containerRatio') || 0,
       imageUrl: (formData.get('imageUrl') as string) || undefined,
       description: (formData.get('description') as string) || undefined,
     }
