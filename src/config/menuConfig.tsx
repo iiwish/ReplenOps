@@ -110,11 +110,6 @@ export const menuItems: MenuItemConfig[] = [
     icon: <BarChartOutlined />,
     children: [
       {
-        key: 'profit-report',
-        label: '利润分析',
-        path: '/admin/reports/profit',
-      },
-      {
         key: 'inventory-report',
         label: '库存报表',
         path: '/admin/reports/inventory',

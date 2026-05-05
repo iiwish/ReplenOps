@@ -35,18 +35,22 @@ export default function InventoryReportPage() {
     try {
       const response = await fetch('/api/reports/inventory/export')
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `库存报表_${new Date().toISOString().slice(0, 10)}.xlsx`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
-        message.success('导出成功')
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
+        message.error(result?.error || '导出失败')
+        return
       }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `库存报表_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      message.success('导出成功')
     } catch (error) {
       console.error('导出失败:', error)
       message.error('导出失败')
@@ -164,7 +168,7 @@ export default function InventoryReportPage() {
           <Button onClick={loadData} loading={loading}>
             刷新
           </Button>
-          <Button onClick={handleExport}>导出Excel</Button>
+          <Button onClick={handleExport}>导出CSV</Button>
         </Space>
       </Card>
 
