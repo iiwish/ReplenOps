@@ -158,7 +158,6 @@ export async function updateGoods(
 
     // 重新验证缓存
     revalidatePath('/admin/goods')
-    revalidatePath(`/admin/goods/${id}/edit`)
 
     return {
       success: true,

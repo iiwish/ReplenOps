@@ -23,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { deleteGoodsCategory, toggleGoodsCategoryStatus } from '@/actions/goods-category-actions'
 import type { PaginatedGoodsCategoryResult } from '@/services/goods-category.service'
+import GoodsCategoryFormClient from './GoodsCategoryFormClient'
 
 const { Search } = Input
 
@@ -31,6 +32,7 @@ interface GoodsCategoryListClientProps {
 }
 
 type GoodsCategoryRecord = PaginatedGoodsCategoryResult['data'][number]
+type GoodsCategoryFormMode = 'create' | 'edit'
 
 export default function GoodsCategoryListClient({
   initialData,
@@ -38,6 +40,31 @@ export default function GoodsCategoryListClient({
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [formMode, setFormMode] = useState<GoodsCategoryFormMode>('create')
+  const [editingCategory, setEditingCategory] = useState<GoodsCategoryRecord | null>(null)
+
+  const handleOpenCreateModal = () => {
+    setFormMode('create')
+    setEditingCategory(null)
+    setFormModalOpen(true)
+  }
+
+  const handleOpenEditModal = (record: GoodsCategoryRecord) => {
+    setFormMode('edit')
+    setEditingCategory(record)
+    setFormModalOpen(true)
+  }
+
+  const handleCloseFormModal = () => {
+    setFormModalOpen(false)
+    setEditingCategory(null)
+  }
+
+  const handleFormSuccess = () => {
+    handleCloseFormModal()
+    router.refresh()
+  }
 
   // 搜索处理
   const handleSearch = (value: string) => {
@@ -154,7 +181,7 @@ export default function GoodsCategoryListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/goods-category/${record.id}/edit`)}
+            onClick={() => handleOpenEditModal(record)}
           >
             编辑
           </Button>
@@ -203,7 +230,7 @@ export default function GoodsCategoryListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/goods-category/new')}
+              onClick={handleOpenCreateModal}
             >
               新增分类
             </Button>
@@ -234,6 +261,33 @@ export default function GoodsCategoryListClient({
           />
         </Space>
       </Card>
+
+      <Modal
+        title={formMode === 'create' ? '新增分类' : '编辑分类'}
+        open={formModalOpen}
+        onCancel={handleCloseFormModal}
+        footer={null}
+        width={640}
+        destroyOnHidden
+      >
+        {formModalOpen && (
+          <GoodsCategoryFormClient
+            mode={formMode}
+            initialValues={
+              editingCategory
+                ? {
+                    id: editingCategory.id,
+                    code: editingCategory.code,
+                    name: editingCategory.name,
+                    sortOrder: editingCategory.sortOrder,
+                  }
+                : undefined
+            }
+            onCancel={handleCloseFormModal}
+            onSuccess={handleFormSuccess}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

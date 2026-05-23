@@ -111,7 +111,6 @@ export async function updateWarehouse(id: number, formData: FormData): Promise<A
 
     // 重新验证缓存
     revalidatePath('/admin/warehouse')
-    revalidatePath(`/admin/warehouse/${id}/edit`)
 
     return {
       success: true,

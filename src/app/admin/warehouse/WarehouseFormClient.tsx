@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Form, Input, Button, Card, App, Space } from 'antd'
+import { useState } from 'react'
+import { Form, Input, Button, App, Space } from 'antd'
 import { createWarehouse, updateWarehouse } from '@/actions/warehouse-actions'
 
-interface WarehouseFormData {
+export interface WarehouseFormData {
   code: string
   name: string
   address?: string
@@ -16,14 +15,19 @@ interface WarehouseFormData {
 interface WarehouseFormClientProps {
   mode: 'create' | 'edit'
   initialValues?: WarehouseFormData & { id: number }
+  onCancel: () => void
+  onSuccess: () => void
 }
 
-export default function WarehouseFormClient({ mode, initialValues }: WarehouseFormClientProps) {
+export default function WarehouseFormClient({
+  mode,
+  initialValues,
+  onCancel,
+  onSuccess,
+}: WarehouseFormClientProps) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const { message } = App.useApp()
-  const router = useRouter()
 
   // 使用 Ant Design Form 的 onFinish 回调
   const handleFinish = async (values: WarehouseFormData) => {
@@ -53,7 +57,7 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
 
     if (result.success) {
       message.success(result.message)
-      setShouldNavigateTo('/admin/warehouse')
+      onSuccess()
       return
     }
 
@@ -69,16 +73,7 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
     message.error(result.message || '操作失败')
   }
 
-  // handleSubmit removed - form submission is handled by onFinish directly
-
-  useEffect(() => {
-    if (shouldNavigateTo) {
-      window.location.href = shouldNavigateTo
-    }
-  }, [shouldNavigateTo])
-
   return (
-    <Card title={mode === 'create' ? '新增仓库' : '编辑仓库'}>
       <Form
         form={form}
         layout="vertical"
@@ -129,12 +124,11 @@ export default function WarehouseFormClient({ mode, initialValues }: WarehouseFo
             <Button type="primary" htmlType="submit" loading={loading}>
               {loading ? '提交中…' : mode === 'create' ? '创建' : '更新'}
             </Button>
-            <Button htmlType="button" onClick={() => router.back()}>
+            <Button htmlType="button" onClick={onCancel}>
               取 消
             </Button>
           </Space>
         </Form.Item>
       </Form>
-    </Card>
   )
 }

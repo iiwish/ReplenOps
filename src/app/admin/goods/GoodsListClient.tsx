@@ -24,6 +24,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { deleteGoods, toggleGoodsStatus } from '@/actions/goods-actions'
 import type { PaginatedGoodsResult } from '@/services/goods.service'
+import GoodsFormClient from './GoodsFormClient'
 
 const { Search } = Input
 
@@ -33,6 +34,7 @@ interface GoodsListClientProps {
 }
 
 type GoodsRecord = PaginatedGoodsResult['data'][number]
+type GoodsFormMode = 'create' | 'edit'
 
 export default function GoodsListClient({
   initialData,
@@ -42,6 +44,31 @@ export default function GoodsListClient({
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>()
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [formMode, setFormMode] = useState<GoodsFormMode>('create')
+  const [editingGoods, setEditingGoods] = useState<GoodsRecord | null>(null)
+
+  const handleOpenCreateModal = () => {
+    setFormMode('create')
+    setEditingGoods(null)
+    setFormModalOpen(true)
+  }
+
+  const handleOpenEditModal = (record: GoodsRecord) => {
+    setFormMode('edit')
+    setEditingGoods(record)
+    setFormModalOpen(true)
+  }
+
+  const handleCloseFormModal = () => {
+    setFormModalOpen(false)
+    setEditingGoods(null)
+  }
+
+  const handleFormSuccess = () => {
+    handleCloseFormModal()
+    router.refresh()
+  }
 
   // 搜索处理
   const handleSearch = (value: string) => {
@@ -232,7 +259,7 @@ export default function GoodsListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/goods/${record.id}/edit`)}
+            onClick={() => handleOpenEditModal(record)}
           >
             编辑
           </Button>
@@ -297,7 +324,7 @@ export default function GoodsListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/goods/new')}
+              onClick={handleOpenCreateModal}
             >
               新增商品
             </Button>
@@ -331,6 +358,44 @@ export default function GoodsListClient({
           />
         </Space>
       </Card>
+
+      <Modal
+        title={formMode === 'create' ? '新增商品' : '编辑商品'}
+        open={formModalOpen}
+        onCancel={handleCloseFormModal}
+        footer={null}
+        width={900}
+        destroyOnHidden
+      >
+        {formModalOpen && (
+          <GoodsFormClient
+            mode={formMode}
+            initialValues={
+              editingGoods
+                ? {
+                    id: editingGoods.id,
+                    code: editingGoods.code,
+                    name: editingGoods.name,
+                    categoryId: editingGoods.categoryId,
+                    spec: editingGoods.spec || undefined,
+                    unit: editingGoods.unit,
+                    measureType: editingGoods.measureType,
+                    costPrice: editingGoods.costPrice,
+                    partnerPrice: editingGoods.partnerPrice,
+                    defaultInPrice: editingGoods.defaultInPrice,
+                    containerId: editingGoods.containerId,
+                    containerRatio: editingGoods.containerRatio,
+                    imageUrl: editingGoods.imageUrl || undefined,
+                    description: editingGoods.description || undefined,
+                  }
+                : undefined
+            }
+            categories={categories}
+            onCancel={handleCloseFormModal}
+            onSuccess={handleFormSuccess}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

@@ -24,6 +24,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { deleteStore, toggleStoreStatus } from '@/actions/store-actions'
 import type { PaginatedStoreResult } from '@/services/store.service'
+import StoreFormClient from './StoreFormClient'
 
 const { Search } = Input
 
@@ -32,6 +33,7 @@ interface StoreListClientProps {
 }
 
 type StoreRecord = PaginatedStoreResult['data'][number]
+type StoreFormMode = 'create' | 'edit'
 
 export default function StoreListClient({
   initialData,
@@ -39,6 +41,31 @@ export default function StoreListClient({
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [formMode, setFormMode] = useState<StoreFormMode>('create')
+  const [editingStore, setEditingStore] = useState<StoreRecord | null>(null)
+
+  const handleOpenCreateModal = () => {
+    setFormMode('create')
+    setEditingStore(null)
+    setFormModalOpen(true)
+  }
+
+  const handleOpenEditModal = (record: StoreRecord) => {
+    setFormMode('edit')
+    setEditingStore(record)
+    setFormModalOpen(true)
+  }
+
+  const handleCloseFormModal = () => {
+    setFormModalOpen(false)
+    setEditingStore(null)
+  }
+
+  const handleFormSuccess = () => {
+    handleCloseFormModal()
+    router.refresh()
+  }
 
   // 搜索处理
   const handleSearch = (value: string) => {
@@ -171,7 +198,7 @@ export default function StoreListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/stores/${record.id}/edit`)}
+            onClick={() => handleOpenEditModal(record)}
           >
             编辑
           </Button>
@@ -228,7 +255,7 @@ export default function StoreListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/stores/new')}
+              onClick={handleOpenCreateModal}
             >
               新增门店
             </Button>
@@ -259,6 +286,35 @@ export default function StoreListClient({
           />
         </Space>
       </Card>
+
+      <Modal
+        title={formMode === 'create' ? '新增门店' : '编辑门店'}
+        open={formModalOpen}
+        onCancel={handleCloseFormModal}
+        footer={null}
+        width={680}
+        destroyOnHidden
+      >
+        {formModalOpen && (
+          <StoreFormClient
+            mode={formMode}
+            initialValues={
+              editingStore
+                ? {
+                    id: editingStore.id,
+                    code: editingStore.code,
+                    name: editingStore.name,
+                    address: editingStore.address || undefined,
+                    contactName: editingStore.contactName || undefined,
+                    contactPhone: editingStore.contactPhone || undefined,
+                  }
+                : undefined
+            }
+            onCancel={handleCloseFormModal}
+            onSuccess={handleFormSuccess}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

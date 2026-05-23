@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Form, Input, InputNumber, Button, Card, message, Space } from 'antd'
+import { useState } from 'react'
+import { Form, Input, InputNumber, Button, message, Space } from 'antd'
 import { createGoodsCategory, updateGoodsCategory } from '@/actions/goods-category-actions'
 
-interface GoodsCategoryFormData {
+export interface GoodsCategoryFormData {
   code: string
   name: string
   sortOrder: number
@@ -14,16 +13,18 @@ interface GoodsCategoryFormData {
 interface GoodsCategoryFormClientProps {
   mode: 'create' | 'edit'
   initialValues?: GoodsCategoryFormData & { id: string }
+  onCancel: () => void
+  onSuccess: () => void
 }
 
 export default function GoodsCategoryFormClient({
   mode,
   initialValues,
+  onCancel,
+  onSuccess,
 }: GoodsCategoryFormClientProps) {
-  const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsCategoryFormData) => {
@@ -46,7 +47,7 @@ export default function GoodsCategoryFormClient({
 
       if (result.success) {
         message.success(result.message)
-        setShouldNavigateTo('/admin/goods-category')
+        onSuccess()
       } else {
         // 处理验证错误
         if (result.errors) {
@@ -68,14 +69,7 @@ export default function GoodsCategoryFormClient({
     }
   }
 
-  useEffect(() => {
-    if (shouldNavigateTo) {
-      window.location.href = shouldNavigateTo
-    }
-  }, [shouldNavigateTo])
-
   return (
-    <Card variant="borderless">
       <Form
         form={form}
         layout="vertical"
@@ -135,12 +129,11 @@ export default function GoodsCategoryFormClient({
             <Button type="primary" htmlType="submit" loading={loading}>
               {mode === 'create' ? '创建' : '保存'}
             </Button>
-            <Button onClick={() => router.back()} disabled={loading}>
+            <Button onClick={onCancel} disabled={loading}>
               取消
             </Button>
           </Space>
         </Form.Item>
       </Form>
-    </Card>
   )
 }

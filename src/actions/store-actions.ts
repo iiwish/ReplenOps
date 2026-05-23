@@ -116,7 +116,6 @@ export async function updateStore(id: string, formData: FormData): Promise<Actio
 
     // 重新验证缓存
     revalidatePath('/admin/stores')
-    revalidatePath(`/admin/stores/${id}/edit`)
 
     return {
       success: true,

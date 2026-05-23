@@ -1,13 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   Form,
   Input,
   InputNumber,
   Button,
-  Card,
   message,
   Space,
   Select,
@@ -18,7 +16,7 @@ import { listContainers } from '@/actions/container-actions'
 
 const { TextArea } = Input
 
-interface GoodsFormData {
+export interface GoodsFormData {
   code: string
   name: string
   categoryId: string
@@ -45,17 +43,19 @@ interface GoodsFormClientProps {
   mode: 'create' | 'edit'
   initialValues?: GoodsFormData & { id: string }
   categories: Array<{ id: string; code: string; name: string }>
+  onCancel: () => void
+  onSuccess: () => void
 }
 
 export default function GoodsFormClient({
   mode,
   initialValues,
   categories,
+  onCancel,
+  onSuccess,
 }: GoodsFormClientProps) {
-  const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
   const [containers, setContainers] = useState<ContainerOption[]>([])
 
   // 表单提交处理
@@ -79,7 +79,7 @@ export default function GoodsFormClient({
 
       if (result.success) {
         message.success(result.message)
-        setShouldNavigateTo('/admin/goods')
+        onSuccess()
       } else {
         // 处理验证错误
         if (result.errors) {
@@ -102,12 +102,6 @@ export default function GoodsFormClient({
   }
 
   useEffect(() => {
-    if (shouldNavigateTo) {
-      window.location.href = shouldNavigateTo
-    }
-  }, [shouldNavigateTo])
-
-  useEffect(() => {
     const loadContainers = async () => {
       const result = await listContainers()
       if (result.success && Array.isArray(result.data)) {
@@ -124,7 +118,6 @@ export default function GoodsFormClient({
   }, [])
 
   return (
-    <Card variant="borderless">
       <Form
         form={form}
         layout="vertical"
@@ -350,12 +343,11 @@ export default function GoodsFormClient({
             <Button type="primary" htmlType="submit" loading={loading}>
               {mode === 'create' ? '创建' : '保存'}
             </Button>
-            <Button onClick={() => router.back()} disabled={loading}>
+            <Button onClick={onCancel} disabled={loading}>
               取消
             </Button>
           </Space>
         </Form.Item>
       </Form>
-    </Card>
   )
 }

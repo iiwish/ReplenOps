@@ -23,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { deleteWarehouse, toggleWarehouseStatus } from '@/actions/warehouse-actions'
 import type { PaginatedWarehouseResult } from '@/services/warehouse.service'
+import WarehouseFormClient from './WarehouseFormClient'
 
 const { Search } = Input
 
@@ -31,6 +32,7 @@ interface WarehouseListClientProps {
 }
 
 type WarehouseRecord = PaginatedWarehouseResult['data'][number]
+type WarehouseFormMode = 'create' | 'edit'
 
 export default function WarehouseListClient({
   initialData,
@@ -38,6 +40,31 @@ export default function WarehouseListClient({
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [formMode, setFormMode] = useState<WarehouseFormMode>('create')
+  const [editingWarehouse, setEditingWarehouse] = useState<WarehouseRecord | null>(null)
+
+  const handleOpenCreateModal = () => {
+    setFormMode('create')
+    setEditingWarehouse(null)
+    setFormModalOpen(true)
+  }
+
+  const handleOpenEditModal = (record: WarehouseRecord) => {
+    setFormMode('edit')
+    setEditingWarehouse(record)
+    setFormModalOpen(true)
+  }
+
+  const handleCloseFormModal = () => {
+    setFormModalOpen(false)
+    setEditingWarehouse(null)
+  }
+
+  const handleFormSuccess = () => {
+    handleCloseFormModal()
+    router.refresh()
+  }
 
   // 搜索处理
   const handleSearch = (value: string) => {
@@ -159,7 +186,7 @@ export default function WarehouseListClient({
             type="link"
             size="small"
             icon={<EditOutlined />}
-            onClick={() => router.push(`/admin/warehouse/${record.id}/edit`)}
+            onClick={() => handleOpenEditModal(record)}
           >
             编辑
           </Button>
@@ -208,7 +235,7 @@ export default function WarehouseListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => router.push('/admin/warehouse/new')}
+              onClick={handleOpenCreateModal}
             >
               新增仓库
             </Button>
@@ -239,6 +266,35 @@ export default function WarehouseListClient({
           />
         </Space>
       </Card>
+
+      <Modal
+        title={formMode === 'create' ? '新增仓库' : '编辑仓库'}
+        open={formModalOpen}
+        onCancel={handleCloseFormModal}
+        footer={null}
+        width={680}
+        destroyOnHidden
+      >
+        {formModalOpen && (
+          <WarehouseFormClient
+            mode={formMode}
+            initialValues={
+              editingWarehouse
+                ? {
+                    id: editingWarehouse.id,
+                    code: editingWarehouse.code,
+                    name: editingWarehouse.name,
+                    address: editingWarehouse.address || undefined,
+                    contactName: editingWarehouse.contactName || '',
+                    contactPhone: editingWarehouse.contactPhone || '',
+                  }
+                : undefined
+            }
+            onCancel={handleCloseFormModal}
+            onSuccess={handleFormSuccess}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

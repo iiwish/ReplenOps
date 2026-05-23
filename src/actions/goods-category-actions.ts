@@ -102,7 +102,6 @@ export async function updateGoodsCategory(
 
     // 重新验证缓存
     revalidatePath('/admin/goods-category')
-    revalidatePath(`/admin/goods-category/${id}/edit`)
 
     return {
       success: true,
