@@ -51,12 +51,15 @@ next-env.d.ts
 # OS
 Thumbs.db
 
-# Prisma
-/prisma/migrations/
-
 # Logs
 logs
 *.log
+
+# Migration reports
+scripts/private-tools/*-report.json
+scripts/private-tools/discovery-report.json
+scripts/private-tools/code-mapped-report.json
+scripts/private-tools/migration-report.json
 
 # Cache
 .turbo

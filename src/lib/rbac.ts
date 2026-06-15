@@ -54,7 +54,28 @@ export type RouteType = 'admin' | 'mobile' | 'api' | 'public'
 /**
  * 公开路由（不需要认证）
  */
-export const PUBLIC_ROUTES = ['/login', '/api/auth', '/api/health', '/']
+export const PUBLIC_API_ROUTES = [
+  '/api/health',
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/auth/refresh',
+  '/api/auth/session',
+]
+
+export const ADMIN_API_ROUTES = [
+  '/api/users',
+  '/api/ordering-schedule',
+  '/api/reports/inventory',
+]
+
+export const MOBILE_API_ROUTES = [
+  '/api/dashboard',
+  '/api/stores/user',
+  '/api/containers',
+  '/api/ordering-schedule/status',
+]
+
+export const PUBLIC_ROUTES = ['/', '/login', ...PUBLIC_API_ROUTES]
 
 /**
  * 路由前缀映射
@@ -62,6 +83,28 @@ export const PUBLIC_ROUTES = ['/login', '/api/auth', '/api/health', '/']
 export const ROUTE_PREFIXES = {
   admin: '/admin',
   mobile: '/mobile',
+}
+
+type ApiPermissionType = 'public' | 'admin' | 'mobile'
+
+function matchesRouteOrChild(pathname: string, route: string): boolean {
+  return pathname === route || pathname.startsWith(`${route}/`)
+}
+
+function getApiPermissionType(pathname: string): ApiPermissionType | null {
+  if (PUBLIC_API_ROUTES.includes(pathname)) {
+    return 'public'
+  }
+
+  if (MOBILE_API_ROUTES.some((route) => matchesRouteOrChild(pathname, route))) {
+    return 'mobile'
+  }
+
+  if (ADMIN_API_ROUTES.some((route) => matchesRouteOrChild(pathname, route))) {
+    return 'admin'
+  }
+
+  return null
 }
 
 /**
@@ -74,7 +117,10 @@ export function isPublicRoute(pathname: string): boolean {
     if (route === '/') {
       return pathname === '/'
     }
-    return pathname.startsWith(route)
+    if (route.startsWith('/api/')) {
+      return pathname === route
+    }
+    return matchesRouteOrChild(pathname, route)
   })
 }
 
@@ -84,6 +130,9 @@ export function isPublicRoute(pathname: string): boolean {
  * @returns 路由类型
  */
 export function getRouteType(pathname: string): RouteType | null {
+  if (isPublicRoute(pathname)) {
+    return 'public'
+  }
   if (pathname.startsWith(ROUTE_PREFIXES.admin)) {
     return 'admin'
   }
@@ -92,9 +141,6 @@ export function getRouteType(pathname: string): RouteType | null {
   }
   if (pathname.startsWith('/api')) {
     return 'api'
-  }
-  if (isPublicRoute(pathname)) {
-    return 'public'
   }
   return null
 }
@@ -116,6 +162,11 @@ export function hasPermission(role: UserRole | UserRole[], pathname: string): bo
     return true
   }
 
+  const apiPermissionType = routeType === 'api' ? getApiPermissionType(pathname) : null
+  if (routeType === 'api' && apiPermissionType === null) {
+    return false
+  }
+
   // 检查是否有任何角色具有访问权限
   for (const r of roles) {
     const permissions = ROLE_PERMISSIONS[r]
@@ -131,7 +182,12 @@ export function hasPermission(role: UserRole | UserRole[], pathname: string): bo
         if (permissions.canAccessMobile) return true
         break
       case 'api':
-        return true
+        if (apiPermissionType === 'admin' && permissions.canAccessAdmin) return true
+        if (apiPermissionType === 'mobile' && (permissions.canAccessMobile || permissions.canAccessAdmin)) {
+          return true
+        }
+        if (apiPermissionType === 'public') return true
+        break
     }
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { userService, type UserUpdateInput } from '@/services/user.service'
-import { requireAuth } from '@/lib/session'
+import { getUserRoles, requireAuth } from '@/lib/session'
+import { hasPermission } from '@/lib/rbac'
 import { z } from 'zod'
 
 const userUpdateSchema = z.object({
@@ -19,9 +20,9 @@ const userUpdateSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
-    const { isAdmin, isStoreAdmin } = getUserRoleInfo(user.roles)
+    const roles = getUserRoles(user)
 
-    if (!isAdmin && !isStoreAdmin) {
+    if (!hasPermission(roles, '/api/users')) {
       return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
     }
 
@@ -68,9 +69,9 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const { isAdmin, isStoreAdmin } = getUserRoleInfo(user.roles)
+    const roles = getUserRoles(user)
 
-    if (!isAdmin && !isStoreAdmin) {
+    if (!hasPermission(roles, '/api/users')) {
       return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
     }
 
@@ -99,9 +100,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少用户ID' }, { status: 400 })
     }
 
-    const { isAdmin } = getUserRoleInfo(user.roles)
+    const roles = getUserRoles(user)
 
-    if (!isAdmin) {
+    if (!roles.includes('super_admin')) {
       return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
     }
 
@@ -114,12 +115,5 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json({ success: false, error: '删除用户失败' }, { status: 500 })
-  }
-}
-
-function getUserRoleInfo(roles: string[]) {
-  return {
-    isAdmin: roles.includes('SUPER_ADMIN'),
-    isStoreAdmin: roles.includes('STORE_ADMIN'),
   }
 }

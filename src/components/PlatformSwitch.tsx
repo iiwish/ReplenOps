@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from 'react'
 
-function persistPlatformPreference(target: string): void {
-  document.cookie = `erp_platform_preference=${target}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`
-}
-
 function navigateToPlatform(target: string): void {
   window.location.assign(target)
 }
@@ -14,12 +10,17 @@ interface PlatformSwitchProps {
   hasAdmin: boolean
   hasMobile: boolean
   currentPlatform: 'admin' | 'mobile'
+  platformUrls?: {
+    admin: string
+    mobile: string
+  }
 }
 
 export default function PlatformSwitch({
   hasAdmin,
   hasMobile,
   currentPlatform,
+  platformUrls,
 }: PlatformSwitchProps) {
   const [isSwitching, setIsSwitching] = useState(false)
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null)
@@ -30,7 +31,6 @@ export default function PlatformSwitch({
     }
 
     const timeoutId = window.setTimeout(() => {
-      persistPlatformPreference(redirectTarget)
       navigateToPlatform(redirectTarget)
     }, 150)
 
@@ -43,7 +43,7 @@ export default function PlatformSwitch({
       key: 'admin' as const,
       label: '管理端 (PC)',
       sublabel: '仓库 / 库存 / 订单管理',
-      href: '/admin',
+      href: platformUrls?.admin || '/admin',
       active: currentPlatform === 'admin',
       available: hasAdmin,
       icon: (
@@ -56,7 +56,7 @@ export default function PlatformSwitch({
       key: 'mobile' as const,
       label: '移动端',
       sublabel: '门店报货 / 包装物',
-      href: '/mobile',
+      href: platformUrls?.mobile || '/mobile',
       active: currentPlatform === 'mobile',
       available: hasMobile,
       icon: (

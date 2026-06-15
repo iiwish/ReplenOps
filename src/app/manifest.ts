@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'ReplenOps',
     short_name: 'ERP',
     description: '门店订货与库存协同平台',
-    start_url: '/mobile/home',
+    start_url: '/mobile',
     scope: '/mobile',
     display: 'standalone',
     background_color: '#ffffff',

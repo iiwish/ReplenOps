@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { cookies } from 'next/headers'
 import type { UserRole } from '@/types'
 import { ROLE_PERMISSIONS } from '@/lib/rbac'
 import { getCurrentUser, getUserRoles } from '@/lib/session'
+import { buildCanonicalPlatformUrl, createDomainRoutingConfig } from '@/lib/domain-routing'
 import PlatformSwitch from '@/components/PlatformSwitch'
 
 // 检测是否为移动设备
@@ -28,18 +28,13 @@ function checkPlatformAccess(roles: UserRole[]) {
   return { canAccessAdmin, canAccessMobile }
 }
 
-// 从 cookie 获取用户偏好的平台
-async function getPlatformPreference(): Promise<'admin' | 'mobile' | null> {
-  const cookieStore = await cookies()
-  const pref = cookieStore.get('erp_platform_preference')?.value
-  if (pref === '/admin') return 'admin'
-  if (pref === '/mobile') return 'mobile'
-  return null
-}
-
 export default async function HomePage() {
   const headersList = await headers()
   const isMobileDevice = detectMobileDevice(headersList)
+  const host = headersList.get('host') || 'localhost:3000'
+  const protocol = headersList.get('x-forwarded-proto') || 'http'
+  const currentUrl = `${protocol}://${host}/`
+  const domainRoutingConfig = createDomainRoutingConfig()
 
   // 获取当前登录用户
   const user = await getCurrentUser()
@@ -51,7 +46,6 @@ export default async function HomePage() {
 
   const roles = getUserRoles(user)
   const { canAccessAdmin, canAccessMobile } = checkPlatformAccess(roles)
-  const platformPreference = await getPlatformPreference()
 
   // 只有一个权限 → 直接跳转
   if (canAccessAdmin && !canAccessMobile) {
@@ -62,9 +56,13 @@ export default async function HomePage() {
   }
 
   // 双重权限 → 显示平台切换界面
-  // 自动判断当前设备类型作为默认平台；已有用户偏好时用于当前选中和自动跳转目标
+  // 自动判断当前设备类型作为默认平台；域名已配置时由 proxy 负责默认入口
   const defaultPlatform: 'admin' | 'mobile' = isMobileDevice ? 'mobile' : 'admin'
-  const selectedPlatform = platformPreference || defaultPlatform
+  const selectedPlatform = defaultPlatform
+  const platformUrls = {
+    admin: buildCanonicalPlatformUrl('admin', currentUrl, domainRoutingConfig),
+    mobile: buildCanonicalPlatformUrl('mobile', currentUrl, domainRoutingConfig),
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/20">
@@ -87,6 +85,7 @@ export default async function HomePage() {
             hasAdmin={canAccessAdmin}
             hasMobile={canAccessMobile}
             currentPlatform={selectedPlatform}
+            platformUrls={platformUrls}
           />
         </div>
 
@@ -97,7 +96,7 @@ export default async function HomePage() {
 
         {/* Auto-redirect script */}
         <AutoRedirect
-          targetPlatform={selectedPlatform}
+          targetUrl={platformUrls[selectedPlatform]}
         />
       </div>
     </main>
@@ -105,24 +104,20 @@ export default async function HomePage() {
 }
 
 // 客户端自动跳转组件
-function AutoRedirect({
-  targetPlatform,
+export function AutoRedirect({
+  targetUrl,
 }: {
-  targetPlatform: 'admin' | 'mobile'
+  targetUrl: string
 }) {
+  const escapedTargetUrl = JSON.stringify(targetUrl)
+
   return (
     <script
       dangerouslySetInnerHTML={{
         __html: `
           (function() {
-            var pref = document.cookie.match(/erp_platform_preference=([^;]+)/);
-            var preferredTarget = pref ? decodeURIComponent(pref[1]) : null;
-            // Only trust known platform paths; otherwise fall back to the server-validated target.
-            var finalTarget = (preferredTarget === '/admin' || preferredTarget === '/mobile')
-              ? preferredTarget
-              : '/${targetPlatform}';
             setTimeout(function() {
-              window.location.href = finalTarget;
+              window.location.href = ${escapedTargetUrl};
             }, 3000);
           })();
         `,

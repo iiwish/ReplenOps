@@ -5,7 +5,16 @@ const config = [
   ...nextCoreWebVitals,
   ...nextTypeScript,
   {
-    ignores: ['node_modules/**', '.next/**', 'out/**', 'dist/**'],
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      '.vercel/**',
+      'out/**',
+      'dist/**',
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
+    ],
   },
   {
     rules: {
