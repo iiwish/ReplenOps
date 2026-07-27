@@ -140,9 +140,7 @@ export class OrderRevocationService {
           const beforeBorrowed = tracking.currentBorrowed.toNumber()
 
           if (beforeBorrowed < returnQty) {
-            throw new Error(
-              `包装物 ${log.containerTrackingId} 在外数量不足，无法撤销订单自动归还`
-            )
+            throw new Error(`包装物 ${log.containerTrackingId} 在外数量不足，无法撤销订单自动归还`)
           }
 
           const updated = await tx.containerTracking.updateMany({
@@ -180,8 +178,12 @@ export class OrderRevocationService {
       await tx.approvalLog.create({
         data: {
           orderId: orderIdInt,
+          entityType: 'ORDER',
+          entityId: String(orderIdInt),
           action: 'revoke',
           reason,
+          beforeJson: { status: order.status },
+          afterJson: { status: 'CANCELLED', reason },
           operatedBy: operatorId,
           operatorIp,
         },

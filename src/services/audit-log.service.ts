@@ -20,6 +20,8 @@ export interface AuditLogListItem {
   orderId?: string
   orderCode?: string
   orderStore?: string
+  entityType: string
+  entityId?: string
   createdAt: Date
 }
 
@@ -40,6 +42,10 @@ export interface AuditLogDetail {
   orderId?: string
   orderCode?: string
   orderStore?: string
+  entityType: string
+  entityId?: string
+  beforeJson?: Prisma.JsonValue
+  afterJson?: Prisma.JsonValue
   createdAt: Date
 }
 
@@ -112,6 +118,8 @@ export class AuditLogService {
       orderId: log.orderId !== null ? String(log.orderId) : undefined,
       orderCode: log.order?.code || undefined,
       orderStore: log.order?.store?.name || undefined,
+      entityType: log.entityType,
+      entityId: log.entityId || undefined,
       createdAt: log.createdAt,
     }))
 
@@ -162,24 +170,36 @@ export class AuditLogService {
       orderId: log.orderId !== null ? String(log.orderId) : undefined,
       orderCode: log.order?.code || undefined,
       orderStore: log.order?.store?.name || undefined,
+      entityType: log.entityType,
+      entityId: log.entityId || undefined,
+      beforeJson: log.beforeJson ?? undefined,
+      afterJson: log.afterJson ?? undefined,
       createdAt: log.createdAt,
     }
   }
 
   async create(data: {
     orderId?: number
+    entityType?: string
+    entityId?: string
     action: string
     operatedBy: string
     operatorIp?: string
     reason?: string
+    beforeJson?: Prisma.InputJsonValue
+    afterJson?: Prisma.InputJsonValue
   }): Promise<void> {
     await prisma.approvalLog.create({
       data: {
         orderId: data.orderId,
+        entityType: data.entityType ?? 'ORDER',
+        entityId: data.entityId ?? (data.orderId === undefined ? undefined : String(data.orderId)),
         action: data.action,
         operatedBy: data.operatedBy,
         operatorIp: data.operatorIp,
         reason: data.reason,
+        beforeJson: data.beforeJson,
+        afterJson: data.afterJson,
       },
     })
   }
@@ -187,14 +207,14 @@ export class AuditLogService {
   async exportToExcel(params: ListAuditLogsParams): Promise<Buffer> {
     const result = await this.list(params)
 
-    const headers = ['操作时间', '操作类型', '操作人', 'IP地址', '订单号', '操作说明']
+    const headers = ['操作时间', '操作类型', '操作人', 'IP地址', '业务对象', '操作说明']
 
     const rows = result.data.map((log) => [
       new Date(log.createdAt).toLocaleString('zh-CN'),
       log.action,
       log.operatedBy,
       log.operatorIp || '-',
-      log.orderCode || '-',
+      log.orderCode || `${log.entityType} #${log.entityId || '-'}`,
       log.reason || '-',
     ])
 

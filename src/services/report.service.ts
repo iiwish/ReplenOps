@@ -104,7 +104,11 @@ export class ReportService {
         AND created_at <= ${endDate}
         AND status = 'COMPLETED'
         AND is_deleted = false
-        ${storeIdInts && storeIdInts.length > 0 ? prisma.$queryRaw`AND store_id = ANY(${storeIdInts})` : prisma.$queryRaw``}
+        ${
+          storeIdInts && storeIdInts.length > 0
+            ? Prisma.sql`AND store_id IN (${Prisma.join(storeIdInts)})`
+            : Prisma.empty
+        }
       GROUP BY DATE(created_at)
       ORDER BY date
     `
@@ -136,20 +140,16 @@ export class ReportService {
     }
 
     if (categoryId) {
-      const goodsIds = await prisma.goods.findMany({
-        where: { categoryId: Number.parseInt(categoryId, 10) },
-        select: { id: true },
-      })
-      const orderItems = await prisma.orderItem.findMany({
-        where: {
-          goodsId: { in: goodsIds.map((g) => g.id) },
-        },
-        select: { orderId: true },
-        distinct: ['orderId'],
-      })
-      const orderIds = orderItems.map((i) => i.orderId)
+      const parsedCategoryId = Number.parseInt(categoryId, 10)
       goodsSalesWhere = {
-        orderId: { in: orderIds },
+        order: whereClause,
+        OR: [
+          { categoryIdSnapshot: parsedCategoryId },
+          {
+            categoryIdSnapshot: null,
+            goods: { categoryId: parsedCategoryId },
+          },
+        ],
       }
     }
 

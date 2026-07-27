@@ -3,51 +3,72 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { goodsService } from '@/services/goods.service'
+import { getCurrentUser } from '@/lib/session.server'
+
+async function requireUserId(): Promise<string> {
+  const user = await getCurrentUser()
+  if (!user) {
+    throw new Error('请先登录')
+  }
+  return user.id
+}
 
 // Zod 验证 Schema
-const goodsSchema = z.object({
-  code: z
-    .string()
-    .min(1, '商品编码不能为空')
-    .regex(/^G\d{6}$/, '商品编码格式错误，应为 G + 6位数字（如 G000001）'),
-  name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
-  categoryId: z.string().min(1, '请选择商品分类'),
-  spec: z.string().optional(),
-  unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
-  measureType: z.enum(['INT', 'DECIMAL'], {
-    message: '请选择计量类型',
-  }),
-  costPrice: z.coerce.number().min(0, '成本价不能为负数'),
-  partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
-  defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
-  containerId: z.string().optional(),
-  containerRatio: z.coerce.number().int('包装物配比必须是整数').min(0, '包装物配比不能为负数').optional(),
-  imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
-  description: z.string().optional().nullable(),
-}).refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
-  message: '绑定包装物时配比必须大于0',
-  path: ['containerRatio'],
-})
+const goodsSchema = z
+  .object({
+    code: z
+      .string()
+      .min(1, '商品编码不能为空')
+      .regex(/^G\d{6}$/, '商品编码格式错误，应为 G + 6位数字（如 G000001）'),
+    name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
+    categoryId: z.string().min(1, '请选择商品分类'),
+    spec: z.string().optional(),
+    unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
+    measureType: z.enum(['INT', 'DECIMAL'], {
+      message: '请选择计量类型',
+    }),
+    costPrice: z.coerce.number().min(0, '成本价不能为负数'),
+    partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
+    defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
+    containerId: z.string().optional(),
+    containerRatio: z.coerce
+      .number()
+      .int('包装物配比必须是整数')
+      .min(0, '包装物配比不能为负数')
+      .optional(),
+    imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
+    description: z.string().optional().nullable(),
+  })
+  .refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
+    message: '绑定包装物时配比必须大于0',
+    path: ['containerRatio'],
+  })
 
-const updateGoodsSchema = z.object({
-  name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
-  categoryId: z.string().min(1, '请选择商品分类'),
-  spec: z.string().optional(),
-  unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
-  measureType: z.enum(['INT', 'DECIMAL'], {
-    message: '请选择计量类型',
-  }),
-  costPrice: z.coerce.number().min(0, '成本价不能为负数'),
-  partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
-  defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
-  containerId: z.string().optional(),
-  containerRatio: z.coerce.number().int('包装物配比必须是整数').min(0, '包装物配比不能为负数').optional(),
-  imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
-  description: z.string().optional().nullable(),
-}).refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
-  message: '绑定包装物时配比必须大于0',
-  path: ['containerRatio'],
-})
+const updateGoodsSchema = z
+  .object({
+    name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
+    categoryId: z.string().min(1, '请选择商品分类'),
+    spec: z.string().optional(),
+    unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
+    measureType: z.enum(['INT', 'DECIMAL'], {
+      message: '请选择计量类型',
+    }),
+    costPrice: z.coerce.number().min(0, '成本价不能为负数'),
+    partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
+    defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
+    containerId: z.string().optional(),
+    containerRatio: z.coerce
+      .number()
+      .int('包装物配比必须是整数')
+      .min(0, '包装物配比不能为负数')
+      .optional(),
+    imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
+    description: z.string().optional().nullable(),
+  })
+  .refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
+    message: '绑定包装物时配比必须大于0',
+    path: ['containerRatio'],
+  })
 
 // 通用响应接口
 interface ActionResponse<T = unknown> {
@@ -62,6 +83,7 @@ interface ActionResponse<T = unknown> {
  */
 export async function createGoods(formData: FormData): Promise<ActionResponse> {
   try {
+    const userId = await requireUserId()
     // 从 FormData 提取数据
     const rawData = {
       code: formData.get('code') as string,
@@ -83,11 +105,14 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
     const validatedData = goodsSchema.parse(rawData)
 
     // 调用 Service 创建 (过滤掉null值)
-    const goods = await goodsService.create({
-      ...validatedData,
-      imageUrl: validatedData.imageUrl || undefined,
-      description: validatedData.description || undefined,
-    })
+    const goods = await goodsService.create(
+      {
+        ...validatedData,
+        imageUrl: validatedData.imageUrl || undefined,
+        description: validatedData.description || undefined,
+      },
+      userId
+    )
 
     // 重新验证缓存
     revalidatePath('/admin/goods')
@@ -125,11 +150,9 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
 /**
  * 更新商品
  */
-export async function updateGoods(
-  id: string,
-  formData: FormData
-): Promise<ActionResponse> {
+export async function updateGoods(id: string, formData: FormData): Promise<ActionResponse> {
   try {
+    const userId = await requireUserId()
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
@@ -150,11 +173,15 @@ export async function updateGoods(
     const validatedData = updateGoodsSchema.parse(rawData)
 
     // 调用 Service 更新 (过滤掉null值)
-    const goods = await goodsService.update(id, {
-      ...validatedData,
-      imageUrl: validatedData.imageUrl || undefined,
-      description: validatedData.description || undefined,
-    })
+    const goods = await goodsService.update(
+      id,
+      {
+        ...validatedData,
+        imageUrl: validatedData.imageUrl || undefined,
+        description: validatedData.description || undefined,
+      },
+      userId
+    )
 
     // 重新验证缓存
     revalidatePath('/admin/goods')
@@ -194,7 +221,8 @@ export async function updateGoods(
  */
 export async function deleteGoods(id: string): Promise<ActionResponse> {
   try {
-    await goodsService.delete(id)
+    const userId = await requireUserId()
+    await goodsService.delete(id, userId)
 
     // 重新验证缓存
     revalidatePath('/admin/goods')
@@ -223,7 +251,8 @@ export async function deleteGoods(id: string): Promise<ActionResponse> {
  */
 export async function toggleGoodsStatus(id: string): Promise<ActionResponse> {
   try {
-    const goods = await goodsService.toggleStatus(id)
+    const userId = await requireUserId()
+    const goods = await goodsService.toggleStatus(id, userId)
 
     // 重新验证缓存
     revalidatePath('/admin/goods')

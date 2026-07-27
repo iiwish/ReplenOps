@@ -239,11 +239,12 @@ export async function approveStockIn(id: string): Promise<ActionResponse> {
 /**
  * 审批拒绝
  */
-export async function rejectStockIn(
-  id: string,
-  reason: string
-): Promise<ActionResponse> {
+export async function rejectStockIn(id: string, reason: string): Promise<ActionResponse> {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return { success: false, message: '用户未登录' }
+    }
     if (!reason || reason.trim() === '') {
       return {
         success: false,
@@ -251,7 +252,7 @@ export async function rejectStockIn(
       }
     }
 
-    const stockIn = await stockInService.reject(id, reason)
+    const stockIn = await stockInService.reject(id, reason, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/stock-in')
@@ -282,7 +283,11 @@ export async function rejectStockIn(
  */
 export async function completeStockIn(id: string): Promise<ActionResponse> {
   try {
-    const stockIn = await stockInService.complete(id)
+    const user = await getCurrentUser()
+    if (!user) {
+      return { success: false, message: '用户未登录' }
+    }
+    const stockIn = await stockInService.complete(id, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/stock-in')
@@ -312,11 +317,12 @@ export async function completeStockIn(id: string): Promise<ActionResponse> {
 /**
  * 取消入库单
  */
-export async function cancelStockIn(
-  id: string,
-  reason: string
-): Promise<ActionResponse> {
+export async function cancelStockIn(id: string, reason: string): Promise<ActionResponse> {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return { success: false, message: '用户未登录' }
+    }
     if (!reason || reason.trim() === '') {
       return {
         success: false,
@@ -324,7 +330,7 @@ export async function cancelStockIn(
       }
     }
 
-    const stockIn = await stockInService.cancel(id, reason)
+    const stockIn = await stockInService.cancel(id, reason, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/stock-in')

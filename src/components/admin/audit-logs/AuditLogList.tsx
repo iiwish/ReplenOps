@@ -22,6 +22,18 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       reject: { color: 'red', label: '拒绝' },
       revoke: { color: 'orange', label: '撤销' },
       adjust: { color: 'blue', label: '调整' },
+      APPROVE: { color: 'green', label: '审批' },
+      REJECT: { color: 'red', label: '拒绝' },
+      GOODS_CREATE: { color: 'green', label: '创建商品' },
+      GOODS_UPDATE: { color: 'blue', label: '修改商品' },
+      GOODS_DELETE: { color: 'red', label: '删除商品' },
+      GOODS_STATUS_CHANGE: { color: 'orange', label: '商品状态' },
+      STOCK_OUT_COMPLETE: { color: 'green', label: '确认出库' },
+      STOCK_OUT_CANCEL: { color: 'red', label: '取消出库' },
+      STOCK_IN_APPROVE: { color: 'green', label: '审批入库' },
+      STOCK_IN_REJECT: { color: 'red', label: '拒绝入库' },
+      STOCK_IN_COMPLETE: { color: 'green', label: '确认入库' },
+      STOCK_IN_CANCEL: { color: 'red', label: '取消入库' },
     }
     const config = actionConfig[action] || { color: 'default', label: action }
     return <Tag color={config.color}>{config.label}</Tag>
@@ -65,7 +77,7 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       ),
     },
     {
-      title: '订单号',
+      title: '业务对象',
       dataIndex: 'orderCode',
       key: 'orderCode',
       width: 150,
@@ -79,7 +91,7 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
             {code}
           </Button>
         ) : (
-          <span>-</span>
+          <span>{`${record.entityType} #${record.entityId || '-'}`}</span>
         ),
     },
     {

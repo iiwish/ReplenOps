@@ -200,15 +200,6 @@ class ProfitReportService {
   ): Promise<PaginatedProfitResult<ProfitByGoods>> {
     const where = this.buildWhereClause(params)
 
-    // 如果按分类筛选，先获取分类下的所有商品
-    if (params.categoryId) {
-      const categoryGoods = await prisma.goods.findMany({
-        where: { categoryId: Number.parseInt(params.categoryId, 10) },
-        select: { id: true },
-      })
-      params.goodsIds = categoryGoods.map((g) => String(g.id))
-    }
-
     // 查询出库单明细
     const stockOutIds = await prisma.stockOut
       .findMany({
@@ -221,10 +212,23 @@ class ProfitReportService {
       .then((items) => items.map((i) => i.id))
 
     // 按商品汇总
+    const categoryWhere: Prisma.StockOutItemWhereInput | undefined = params.categoryId
+      ? {
+          OR: [
+            { categoryIdSnapshot: Number.parseInt(params.categoryId, 10) },
+            {
+              categoryIdSnapshot: null,
+              goods: { categoryId: Number.parseInt(params.categoryId, 10) },
+            },
+          ],
+        }
+      : undefined
+
     const result = await prisma.stockOutItem.groupBy({
       by: ['goodsId'],
       where: {
         stockOutId: { in: stockOutIds },
+        ...categoryWhere,
       },
       _sum: {
         quantity: true,
@@ -246,7 +250,11 @@ class ProfitReportService {
 
     // 计算销售总额和成本总额
     const items = await prisma.stockOutItem.findMany({
-      where: { stockOutId: { in: stockOutIds }, goodsId: { in: goodsIds } },
+      where: {
+        stockOutId: { in: stockOutIds },
+        goodsId: { in: goodsIds },
+        ...categoryWhere,
+      },
       select: {
         goodsId: true,
         quantity: true,
@@ -318,32 +326,6 @@ class ProfitReportService {
   async getByCategory(params: ProfitReportParams): Promise<ProfitByCategory[]> {
     const where = this.buildWhereClause(params)
 
-    // 查询所有符合条件的商品
-    const goodsIds = await prisma.stockOutItem
-      .findMany({
-        where: {
-          stockOut: {
-            ...where,
-            status: 'COMPLETED',
-          },
-        },
-        select: { goodsId: true },
-        distinct: ['goodsId'],
-      })
-      .then((items) => items.map((i) => i.goodsId))
-
-    const goods = await prisma.goods.findMany({
-      where: { id: { in: goodsIds } },
-      select: { id: true, categoryId: true },
-    })
-
-    const categoryGoodsMap = new Map<number, number[]>()
-    goods.forEach((g) => {
-      const existing = categoryGoodsMap.get(g.categoryId) || []
-      existing.push(g.id)
-      categoryGoodsMap.set(g.categoryId, existing)
-    })
-
     // 查询出库单明细
     const items = await prisma.stockOutItem.findMany({
       where: {
@@ -351,9 +333,14 @@ class ProfitReportService {
           ...where,
           status: 'COMPLETED',
         },
-        goodsId: { in: goodsIds },
       },
       include: {
+        goods: {
+          select: {
+            categoryId: true,
+            category: { select: { name: true } },
+          },
+        },
         stockOut: {
           select: { order: { select: { totalAmount: true } } },
         },
@@ -363,20 +350,18 @@ class ProfitReportService {
     // 按分类汇总
     const categoryMap = new Map<
       number,
-      { sales: number; cost: number; profit: number; orderCount: number }
+      { name: string; sales: number; cost: number; profit: number; orderIds: Set<number> }
     >()
     const totalSalesMap = new Map<number, number>()
 
     items.forEach((item) => {
-      const goodsInfo = goods.find((g) => g.id === item.goodsId)
-      if (!goodsInfo) return
-
-      const categoryId = goodsInfo.categoryId
+      const categoryId = item.categoryIdSnapshot ?? item.goods.categoryId
       const existing = categoryMap.get(categoryId) || {
+        name: item.categoryNameSnapshot ?? item.goods.category.name,
         sales: 0,
         cost: 0,
         profit: 0,
-        orderCount: 0,
+        orderIds: new Set<number>(),
       }
       const qty = item.quantity.toNumber()
       const sales = item.salePrice.toNumber() * qty
@@ -385,10 +370,11 @@ class ProfitReportService {
       const orderSales = item.stockOut.order?.totalAmount?.toNumber() || 0
 
       categoryMap.set(categoryId, {
+        name: existing.name,
         sales: existing.sales + sales,
         cost: existing.cost + cost,
         profit: existing.profit + profit,
-        orderCount: existing.orderCount + 1,
+        orderIds: existing.orderIds.add(item.stockOutId),
       })
 
       // 记录总销售额（避免重复计算）
@@ -399,14 +385,6 @@ class ProfitReportService {
 
     const totalSales = Array.from(totalSalesMap.values()).reduce((sum, v) => sum + v, 0)
 
-    // 获取分类名称
-    const categoryIds = Array.from(categoryMap.keys())
-    const categories = await prisma.goodsCategory.findMany({
-      where: { id: { in: categoryIds } },
-      select: { id: true, name: true },
-    })
-    const categoryNameMap = new Map(categories.map((c) => [c.id, c.name]))
-
     return Array.from(categoryMap.entries())
       .map(([categoryId, data]) => {
         const profitRate = data.sales > 0 ? (data.profit / data.sales) * 100 : 0
@@ -414,12 +392,12 @@ class ProfitReportService {
 
         return {
           categoryId: String(categoryId),
-          categoryName: categoryNameMap.get(categoryId) || '未知分类',
+          categoryName: data.name || '未知分类',
           totalSales: data.sales,
           totalCost: data.cost,
           totalProfit: data.profit,
           profitRate: Number(profitRate.toFixed(2)),
-          orderCount: data.orderCount,
+          orderCount: data.orderIds.size,
           salesPercentage: Number(salesPercentage.toFixed(2)),
         }
       })
@@ -523,22 +501,32 @@ class ProfitReportService {
       }
     }
 
+    const itemConditions: Prisma.StockOutItemWhereInput[] = []
+
+    if (params.categoryId) {
+      const categoryId = Number.parseInt(params.categoryId, 10)
+      itemConditions.push({
+        OR: [
+          { categoryIdSnapshot: categoryId },
+          { categoryIdSnapshot: null, goods: { categoryId } },
+        ],
+      })
+    }
+
     if (params.goodsId) {
-      where.items = {
-        some: {
-          goodsId: Number.parseInt(params.goodsId, 10),
-        },
-      }
+      itemConditions.push({ goodsId: Number.parseInt(params.goodsId, 10) })
     }
 
     if (params.goodsIds) {
-      where.items = {
-        some: {
-          goodsId: {
-            in: params.goodsIds.map((goodsId) => Number.parseInt(goodsId, 10)),
-          },
+      itemConditions.push({
+        goodsId: {
+          in: params.goodsIds.map((goodsId) => Number.parseInt(goodsId, 10)),
         },
-      }
+      })
+    }
+
+    if (itemConditions.length > 0) {
+      where.items = { some: { AND: itemConditions } }
     }
 
     return where
