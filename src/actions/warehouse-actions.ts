@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { warehouseService } from '@/services/warehouse.service'
 
 // Zod 验证 Schema
@@ -42,6 +43,7 @@ interface ActionResponse<T = unknown> {
  */
 export async function createWarehouse(formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     // 从 FormData 提取数据
     const rawData = {
       code: formData.get('code') as string,
@@ -95,6 +97,7 @@ export async function createWarehouse(formData: FormData): Promise<ActionRespons
  */
 export async function updateWarehouse(id: number, formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
@@ -147,6 +150,7 @@ export async function updateWarehouse(id: number, formData: FormData): Promise<A
  */
 export async function deleteWarehouse(id: number): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     await warehouseService.delete(id)
 
     // 重新验证缓存
@@ -176,6 +180,7 @@ export async function deleteWarehouse(id: number): Promise<ActionResponse> {
  */
 export async function toggleWarehouseStatus(id: number): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     const warehouse = await warehouseService.toggleStatus(id)
 
     // 重新验证缓存

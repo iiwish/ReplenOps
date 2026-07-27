@@ -4,7 +4,6 @@ import { assertCanReadStore, canReadAllStores, getAccessibleStoreIds } from '@/l
 
 export interface TodayStats {
   orderCount: number
-  totalAmount: number
   pendingCount: number
   lowStockCount: number
   containerToReturnCount: number
@@ -37,29 +36,19 @@ export class DashboardService {
 
     const [
       orderCountResult,
-      totalAmountResult,
       pendingCountResult,
       lowStockCountResult,
       containerToReturnCountResult,
     ] = await Promise.all([
       prisma.order.count({
-          where: {
+        where: {
           ...(storeScope !== undefined && { storeId: storeScope }),
           createdAt: { gte: today, lt: tomorrow },
           isDeleted: false,
         },
-      }),
-      prisma.order.aggregate({
-          where: {
-          ...(storeScope !== undefined && { storeId: storeScope }),
-          createdAt: { gte: today, lt: tomorrow },
-          status: 'COMPLETED',
-          isDeleted: false,
-        },
-        _sum: { totalAmount: true },
       }),
       prisma.order.count({
-          where: {
+        where: {
           ...(storeScope !== undefined && { storeId: storeScope }),
           status: { in: ['PENDING', 'APPROVED'] },
           isDeleted: false,
@@ -78,7 +67,7 @@ export class DashboardService {
         },
       }),
       prisma.containerTracking.findMany({
-          where: {
+        where: {
           ...(storeScope !== undefined && { storeId: storeScope }),
           currentBorrowed: { gt: 0 },
         },
@@ -96,7 +85,6 @@ export class DashboardService {
 
     return {
       orderCount: orderCountResult,
-      totalAmount: totalAmountResult._sum.totalAmount?.toNumber() || 0,
       pendingCount: pendingCountResult,
       lowStockCount,
       containerToReturnCount,
@@ -191,18 +179,16 @@ export class DashboardService {
     return undefined
   }
 
-  async getSalesTrend(
+  async getOrderTrend(
     days: number = 7,
     storeId?: string
   ): Promise<
     Array<{
       date: string
-      amount: number
       count: number
     }>
   > {
-    const normalizedStoreId =
-      storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
+    const normalizedStoreId = storeId !== undefined ? Number.parseInt(storeId, 10) : undefined
 
     const endDate = new Date()
     endDate.setHours(23, 59, 59, 999)
@@ -220,40 +206,36 @@ export class DashboardService {
       },
       select: {
         createdAt: true,
-        totalAmount: true,
       },
       orderBy: {
         createdAt: 'asc',
       },
     })
 
-    const trendMap = new Map<string, { amount: number; count: number }>()
+    const trendMap = new Map<string, { count: number }>()
 
     for (let i = 0; i < days; i++) {
       const date = new Date(startDate)
       date.setDate(date.getDate() + i)
       const dateStr = date.toISOString().split('T')[0] ?? ''
-      trendMap.set(dateStr, { amount: 0, count: 0 })
+      trendMap.set(dateStr, { count: 0 })
     }
 
     for (const order of orders) {
       const dateStr = order.createdAt.toISOString().split('T')[0] ?? ''
       const existing = trendMap.get(dateStr)
       if (existing !== undefined) {
-        existing.amount += Number(order.totalAmount)
         existing.count += 1
       }
     }
 
     const result: Array<{
       date: string
-      amount: number
       count: number
     }> = []
     trendMap.forEach((data, date) => {
       result.push({
         date,
-        amount: data.amount,
         count: data.count,
       })
     })

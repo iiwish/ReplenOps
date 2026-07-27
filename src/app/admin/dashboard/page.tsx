@@ -17,13 +17,14 @@ export default async function DashboardPage() {
     )
   }
 
-  const { todayStats, salesTrend, totalSales, totalOrders, totalGoods, totalUsers } = result.data
+  const { todayStats, orderTrend, totalOrders, totalCompletedOrders, totalGoods, totalStores } =
+    result.data
 
   const calculateWeeklyGrowth = () => {
-    if (salesTrend.length < 2) return 0
+    if (orderTrend.length < 14) return 0
 
-    const currentWeek = salesTrend.slice(-7).reduce((sum, day) => sum + day.amount, 0)
-    const previousWeek = salesTrend.slice(-14, -7).reduce((sum, day) => sum + day.amount, 0)
+    const currentWeek = orderTrend.slice(-7).reduce((sum, day) => sum + day.count, 0)
+    const previousWeek = orderTrend.slice(-14, -7).reduce((sum, day) => sum + day.count, 0)
 
     if (previousWeek === 0) return 0
     return ((currentWeek - previousWeek) / previousWeek) * 100
@@ -41,22 +42,12 @@ export default async function DashboardPage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card variant="borderless">
-            <Statistic
-              title="今日销售额"
-              value={todayStats.totalAmount}
-              precision={2}
-              suffix="元"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card variant="borderless">
             <Statistic title="今日订单" value={todayStats.orderCount} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card variant="borderless">
-            <Statistic title="待处理" value={todayStats.pendingCount} />
+            <Statistic title="待处理订单" value={todayStats.pendingCount} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -64,26 +55,31 @@ export default async function DashboardPage() {
             <Statistic title="库存预警" value={todayStats.lowStockCount} />
           </Card>
         </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card variant="borderless">
+            <Statistic title="待归还包装物" value={todayStats.containerToReturnCount} />
+          </Card>
+        </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} sm={12}>
-          <Card title="总销售额" variant="borderless">
-            <Statistic value={totalSales} precision={2} suffix="元" />
-            <p style={{ marginTop: 16, color: '#666' }}>所有已完成订单</p>
-          </Card>
-        </Col>
         <Col xs={24} sm={12}>
           <Card title="总订单数" variant="borderless">
             <Statistic value={totalOrders} />
             <p style={{ marginTop: 16, color: '#666' }}>历史订单总量</p>
           </Card>
         </Col>
+        <Col xs={24} sm={12}>
+          <Card title="已完成订单" variant="borderless">
+            <Statistic value={totalCompletedOrders} />
+            <p style={{ marginTop: 16, color: '#666' }}>已完成库存出库</p>
+          </Card>
+        </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} sm={12}>
-          <Card title="本周销售趋势" variant="borderless">
+          <Card title="本周订单趋势" variant="borderless">
             <Statistic
               title="较上周"
               value={weeklyGrowth}
@@ -93,7 +89,7 @@ export default async function DashboardPage() {
                 content: { color: weeklyGrowth >= 0 ? '#3f8600' : '#cf1322' },
               }}
             />
-            <p style={{ marginTop: 16, color: '#666' }}>周同比增长率</p>
+            <p style={{ marginTop: 16, color: '#666' }}>较前七日订单量变化</p>
           </Card>
         </Col>
         <Col xs={24} sm={12}>
@@ -103,7 +99,7 @@ export default async function DashboardPage() {
                 <Statistic title="商品数" value={totalGoods} />
               </Col>
               <Col span={12}>
-                <Statistic title="门店数" value={totalUsers} />
+                <Statistic title="门店数" value={totalStores} />
               </Col>
             </Row>
             <p style={{ marginTop: 16, color: '#666' }}>系统基础信息</p>

@@ -45,7 +45,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
   const handleComplete = () => {
     Modal.confirm({
       title: '确认出库',
-      content: `确定要确认出库单"${stockOut.code}"吗？此操作将扣减库存并计算利润。`,
+      content: `确定要确认出库单"${stockOut.code}"吗？此操作将扣减库存并记录出库成本。`,
       okText: '确认',
       cancelText: '取消',
       okButtonProps: { danger: true },
@@ -137,9 +137,9 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
       align: 'right',
     },
     {
-      title: '销售单价',
-      dataIndex: 'salePrice',
-      key: 'salePrice',
+      title: '领用单价',
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
       width: 100,
       align: 'right',
       render: (value) => `¥${value.toFixed(2)}`,
@@ -153,9 +153,9 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
       render: (value) => `¥${value.toFixed(2)}`,
     },
     {
-      title: '销售金额',
-      dataIndex: 'amount',
-      key: 'amount',
+      title: '领用金额',
+      dataIndex: 'lineAmount',
+      key: 'lineAmount',
       width: 100,
       align: 'right',
       render: (value) => `¥${value.toFixed(2)}`,
@@ -168,24 +168,11 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
       align: 'right',
       render: (value) => `¥${value.toFixed(2)}`,
     },
-    {
-      title: '利润',
-      dataIndex: 'profit',
-      key: 'profit',
-      width: 100,
-      align: 'right',
-      render: (value) => (
-        <span style={{ color: value >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>
-          ¥{value.toFixed(2)}
-        </span>
-      ),
-    },
   ]
 
   const config = statusMap[stockOut.status as keyof typeof statusMap]
-  const totalAmount = stockOut.items.reduce((sum, item) => sum + item.amount, 0)
+  const totalQuantity = stockOut.items.reduce((sum, item) => sum + item.quantity, 0)
   const totalCostAmount = stockOut.items.reduce((sum, item) => sum + item.costAmount, 0)
-  const profitRate = totalAmount > 0 ? (stockOut.totalProfit / totalAmount) * 100 : 0
 
   return (
     <div>
@@ -254,9 +241,8 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
               pagination={false}
               scroll={{ x: 1000 }}
               summary={(pageData) => {
-                const sumAmount = pageData.reduce((sum, item) => sum + item.amount, 0)
+                const sumAmount = pageData.reduce((sum, item) => sum + item.lineAmount, 0)
                 const sumCostAmount = pageData.reduce((sum, item) => sum + item.costAmount, 0)
-                const sumProfit = pageData.reduce((sum, item) => sum + item.profit, 0)
 
                 return (
                   <Table.Summary fixed>
@@ -264,16 +250,13 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
                       <Table.Summary.Cell index={0} colSpan={4}>
                         <strong>合计</strong>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={1} align="right">
+                      <Table.Summary.Cell index={4} colSpan={2} />
+                      <Table.Summary.Cell index={6} align="right">
                         <strong>¥{sumAmount.toFixed(2)}</strong>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={2} align="right">
+                      <Table.Summary.Cell index={7} align="right">
                         <strong>¥{sumCostAmount.toFixed(2)}</strong>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={3} align="right">
-                        <strong>¥{sumProfit.toFixed(2)}</strong>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={4} align="right" />
                     </Table.Summary.Row>
                   </Table.Summary>
                 )
@@ -283,14 +266,12 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
         </Col>
 
         <Col span={8}>
-          <Card title="利润统计" style={{ marginBottom: 16 }}>
+          <Card title="出库概览" style={{ marginBottom: 16 }}>
             <Row gutter={16}>
               <Col span={12}>
                 <Statistic
-                  title="销售总额"
-                  value={totalAmount}
-                  prefix="¥"
-                  precision={2}
+                  title="出库数量"
+                  value={totalQuantity}
                   styles={{ content: { color: '#3f8600' } }}
                 />
               </Col>
@@ -304,37 +285,13 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
                 />
               </Col>
             </Row>
-            <Row gutter={16} style={{ marginTop: 16 }}>
-              <Col span={12}>
-                <Statistic
-                  title="利润总额"
-                  value={stockOut.totalProfit}
-                  prefix="¥"
-                  precision={2}
-                  styles={{
-                    content: { color: stockOut.totalProfit >= 0 ? '#3f8600' : '#cf1322' },
-                  }}
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic
-                  title="利润率"
-                  value={profitRate}
-                  suffix="%"
-                  precision={2}
-                  styles={{
-                    content: { color: stockOut.totalProfit >= 0 ? '#3f8600' : '#cf1322' },
-                  }}
-                />
-              </Col>
-            </Row>
           </Card>
 
           {stockOut.status === 'COMPLETED' && (
             <Card title="操作说明" style={{ marginBottom: 16 }}>
               <Alert
                 message="出库已完成"
-                description="此出库单已完成，库存已扣减，利润已计算。"
+                description="此出库单已完成，库存已扣减，出库成本已记录。"
                 type="success"
                 showIcon
               />
@@ -366,7 +323,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
             <Card title="操作说明" style={{ marginBottom: 16 }}>
               <Alert
                 message="待出库"
-                description="此出库单待确认出库，点击确认出库按钮将扣减库存并计算利润。"
+                description="此出库单待确认出库，点击确认出库按钮将扣减库存并记录出库成本。"
                 type="info"
                 showIcon
               />

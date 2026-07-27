@@ -24,7 +24,6 @@ import {
   CloseCircleOutlined,
   SearchOutlined,
   ExclamationCircleOutlined,
-  DollarOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { completeStockOut, cancelStockOut } from '@/actions/stock-out-actions'
@@ -103,7 +102,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
   const handleComplete = (record: StockOutRecord) => {
     Modal.confirm({
       title: '确认出库',
-      content: `确定要确认出库单"${record.code}"吗？此操作将扣减库存并计算利润。`,
+      content: `确定要确认出库单"${record.code}"吗？此操作将扣减库存并记录出库成本。`,
       okText: '确认',
       cancelText: '取消',
       okButtonProps: { danger: true },
@@ -213,18 +212,6 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       render: (value) => `¥${value.toFixed(2)}`,
     },
     {
-      title: '利润',
-      dataIndex: 'totalProfit',
-      key: 'totalProfit',
-      width: 100,
-      align: 'right',
-      render: (value) => (
-        <span style={{ color: value >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>
-          ¥{value.toFixed(2)}
-        </span>
-      ),
-    },
-    {
       title: '完成时间',
       dataIndex: 'completedAt',
       key: 'completedAt',
@@ -282,7 +269,6 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
     },
   ]
 
-  const totalProfit = initialData.data.reduce((sum, item) => sum + item.totalProfit, 0)
   const totalCost = initialData.data.reduce((sum, item) => sum + item.totalCost, 0)
 
   return (
@@ -301,19 +287,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="总利润"
-              value={totalProfit}
-              prefix="¥"
-              precision={2}
-              styles={{ content: { color: totalProfit >= 0 ? '#3f8600' : '#cf1322' } }}
-              suffix={<DollarOutlined style={{ fontSize: 14 }} />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="记录数" value={initialData.total} styles={{ content: { color: '#3f8600' } }} />
+            <Statistic title="记录数" value={initialData.total} />
           </Card>
         </Col>
         <Col span={6}>
@@ -322,6 +296,15 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
               title="待出库"
               value={initialData.data.filter((item) => item.status === 'PENDING').length}
               styles={{ content: { color: '#faad14' } }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="已出库"
+              value={initialData.data.filter((item) => item.status === 'COMPLETED').length}
+              styles={{ content: { color: '#3f8600' } }}
             />
           </Card>
         </Col>
@@ -381,7 +364,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
               buildUrl({ page: page.toString(), pageSize: pageSize?.toString() })
             },
           }}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1200 }}
         />
       </Card>
     </div>

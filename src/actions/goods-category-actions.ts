@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { goodsCategoryService } from '@/services/goods-category.service'
 
 // Zod 验证 Schema
@@ -30,10 +31,9 @@ interface ActionResponse<T = unknown> {
 /**
  * 创建商品分类
  */
-export async function createGoodsCategory(
-  formData: FormData
-): Promise<ActionResponse> {
+export async function createGoodsCategory(formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     // 从 FormData 提取数据
     const rawData = {
       code: formData.get('code') as string,
@@ -83,11 +83,9 @@ export async function createGoodsCategory(
 /**
  * 更新商品分类
  */
-export async function updateGoodsCategory(
-  id: string,
-  formData: FormData
-): Promise<ActionResponse> {
+export async function updateGoodsCategory(id: string, formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
@@ -138,6 +136,7 @@ export async function updateGoodsCategory(
  */
 export async function deleteGoodsCategory(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     await goodsCategoryService.delete(id)
 
     // 重新验证缓存
@@ -165,10 +164,9 @@ export async function deleteGoodsCategory(id: string): Promise<ActionResponse> {
 /**
  * 切换商品分类状态（启用/禁用）
  */
-export async function toggleGoodsCategoryStatus(
-  id: string
-): Promise<ActionResponse> {
+export async function toggleGoodsCategoryStatus(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     const category = await goodsCategoryService.toggleStatus(id)
 
     // 重新验证缓存
@@ -201,6 +199,7 @@ export async function updateGoodsCategorySortOrder(
   orders: { id: string; sortOrder: number }[]
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('master-data:write')
     await goodsCategoryService.updateSortOrder(orders)
 
     // 重新验证缓存

@@ -59,7 +59,7 @@ export async function getTodoList(storeId?: string): Promise<ActionResponse> {
   }
 }
 
-export async function getSalesTrend(days: number = 7, storeId?: string): Promise<ActionResponse> {
+export async function getOrderTrend(days: number = 7, storeId?: string): Promise<ActionResponse> {
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -69,7 +69,7 @@ export async function getSalesTrend(days: number = 7, storeId?: string): Promise
       }
     }
 
-    const trend = await dashboardService.getSalesTrend(days, storeId)
+    const trend = await dashboardService.getOrderTrend(days, storeId)
 
     return {
       success: true,
@@ -78,7 +78,7 @@ export async function getSalesTrend(days: number = 7, storeId?: string): Promise
   } catch (error) {
     return {
       success: false,
-      message: error instanceof Error ? error.message : '获取销售趋势失败',
+      message: error instanceof Error ? error.message : '获取订单趋势失败',
     }
   }
 }
@@ -87,19 +87,18 @@ export async function getAdminDashboardData(): Promise<
   ActionResponse<{
     todayStats: {
       orderCount: number
-      totalAmount: number
       pendingCount: number
       lowStockCount: number
+      containerToReturnCount: number
     }
-    salesTrend: Array<{
+    orderTrend: Array<{
       date: string
-      amount: number
       count: number
     }>
-    totalSales: number
     totalOrders: number
+    totalCompletedOrders: number
     totalGoods: number
-    totalUsers: number
+    totalStores: number
   }>
 > {
   try {
@@ -111,19 +110,18 @@ export async function getAdminDashboardData(): Promise<
       }
     }
 
-    const [todayStats, salesTrend, totalSales, totalOrders, totalGoods, storeCount] =
+    const [todayStats, orderTrend, totalOrders, totalCompletedOrders, totalGoods, totalStores] =
       await Promise.all([
         dashboardService.getTodayStats(),
-        dashboardService.getSalesTrend(7),
-        prisma.order.aggregate({
+        dashboardService.getOrderTrend(14),
+        prisma.order.count({
           where: {
-            status: 'COMPLETED',
             isDeleted: false,
           },
-          _sum: { totalAmount: true },
         }),
         prisma.order.count({
           where: {
+            status: 'COMPLETED',
             isDeleted: false,
           },
         }),
@@ -146,15 +144,15 @@ export async function getAdminDashboardData(): Promise<
       data: {
         todayStats: {
           orderCount: todayStats.orderCount,
-          totalAmount: todayStats.totalAmount,
           pendingCount: todayStats.pendingCount,
           lowStockCount: todayStats.lowStockCount,
+          containerToReturnCount: todayStats.containerToReturnCount,
         },
-        salesTrend,
-        totalSales: totalSales._sum.totalAmount?.toNumber() || 0,
+        orderTrend,
         totalOrders,
+        totalCompletedOrders,
         totalGoods,
-        totalUsers: storeCount,
+        totalStores,
       },
     }
   } catch (error) {

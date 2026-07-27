@@ -2,16 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { goodsService } from '@/services/goods.service'
-import { getCurrentUser } from '@/lib/session.server'
-
-async function requireUserId(): Promise<string> {
-  const user = await getCurrentUser()
-  if (!user) {
-    throw new Error('请先登录')
-  }
-  return user.id
-}
 
 // Zod 验证 Schema
 const goodsSchema = z
@@ -28,7 +20,7 @@ const goodsSchema = z
       message: '请选择计量类型',
     }),
     costPrice: z.coerce.number().min(0, '成本价不能为负数'),
-    partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
+    partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
     defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
     containerId: z.string().optional(),
     containerRatio: z.coerce
@@ -54,7 +46,7 @@ const updateGoodsSchema = z
       message: '请选择计量类型',
     }),
     costPrice: z.coerce.number().min(0, '成本价不能为负数'),
-    partnerPrice: z.coerce.number().min(0, '合作价不能为负数'),
+    partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
     defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
     containerId: z.string().optional(),
     containerRatio: z.coerce
@@ -83,7 +75,7 @@ interface ActionResponse<T = unknown> {
  */
 export async function createGoods(formData: FormData): Promise<ActionResponse> {
   try {
-    const userId = await requireUserId()
+    const user = await requireActionPermission('goods:write')
     // 从 FormData 提取数据
     const rawData = {
       code: formData.get('code') as string,
@@ -111,7 +103,7 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
         imageUrl: validatedData.imageUrl || undefined,
         description: validatedData.description || undefined,
       },
-      userId
+      user.id
     )
 
     // 重新验证缓存
@@ -152,7 +144,7 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
  */
 export async function updateGoods(id: string, formData: FormData): Promise<ActionResponse> {
   try {
-    const userId = await requireUserId()
+    const user = await requireActionPermission('goods:write')
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
@@ -180,7 +172,7 @@ export async function updateGoods(id: string, formData: FormData): Promise<Actio
         imageUrl: validatedData.imageUrl || undefined,
         description: validatedData.description || undefined,
       },
-      userId
+      user.id
     )
 
     // 重新验证缓存
@@ -221,8 +213,8 @@ export async function updateGoods(id: string, formData: FormData): Promise<Actio
  */
 export async function deleteGoods(id: string): Promise<ActionResponse> {
   try {
-    const userId = await requireUserId()
-    await goodsService.delete(id, userId)
+    const user = await requireActionPermission('goods:write')
+    await goodsService.delete(id, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/goods')
@@ -251,8 +243,8 @@ export async function deleteGoods(id: string): Promise<ActionResponse> {
  */
 export async function toggleGoodsStatus(id: string): Promise<ActionResponse> {
   try {
-    const userId = await requireUserId()
-    const goods = await goodsService.toggleStatus(id, userId)
+    const user = await requireActionPermission('goods:write')
+    const goods = await goodsService.toggleStatus(id, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/goods')

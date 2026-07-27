@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { storeService } from '@/services/store.service'
 import { userService } from '@/services/user.service'
 
@@ -47,6 +48,7 @@ interface ActionResponse<T = unknown> {
  */
 export async function createStore(formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('store:manage')
     // 从 FormData 提取数据
     const rawData = {
       code: formData.get('code') as string,
@@ -100,6 +102,7 @@ export async function createStore(formData: FormData): Promise<ActionResponse> {
  */
 export async function updateStore(id: string, formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('store:manage')
     // 从 FormData 提取数据
     const rawData = {
       name: formData.get('name') as string,
@@ -152,6 +155,7 @@ export async function updateStore(id: string, formData: FormData): Promise<Actio
  */
 export async function deleteStore(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('store:manage')
     await storeService.delete(id)
 
     // 重新验证缓存
@@ -181,6 +185,7 @@ export async function deleteStore(id: string): Promise<ActionResponse> {
  */
 export async function toggleStoreStatus(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('store:manage')
     const store = await storeService.toggleStatus(id)
 
     // 重新验证缓存
@@ -211,6 +216,7 @@ export async function toggleStoreStatus(id: string): Promise<ActionResponse> {
  */
 export async function addStoreAdmin(storeId: string, formData: FormData): Promise<ActionResponse> {
   try {
+    await requireActionPermission('store:manage')
     // 从 FormData 提取数据
     const rawData = {
       userId: formData.get('userId') as string,
@@ -274,6 +280,7 @@ export async function addStoreAdmin(storeId: string, formData: FormData): Promis
  */
 export async function removeStoreAdmin(storeId: string, userId: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('store:manage')
     await storeService.removeAdmin(storeId, userId)
 
     // 重新验证缓存
@@ -307,6 +314,7 @@ export async function checkStoreCode(
   excludeId?: string
 ): Promise<ActionResponse<{ available: boolean }>> {
   try {
+    await requireActionPermission('store:manage')
     const available = await storeService.isCodeAvailable(code, excludeId)
 
     return {

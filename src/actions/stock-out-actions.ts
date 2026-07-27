@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { stockOutService } from '@/services/stock-out.service'
-import { getCurrentUser } from '@/lib/session'
 
 // 通用响应接口
 interface ActionResponse<T = unknown> {
@@ -30,6 +30,7 @@ export async function getStockOuts(params: {
   endDate?: string
 }): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const result = await stockOutService.list({
       page: params.page,
       keyword: params.keyword,
@@ -64,6 +65,7 @@ export async function getStockOuts(params: {
  */
 export async function getStockOutById(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const stockOut = await stockOutService.findById(id)
 
     if (!stockOut) {
@@ -97,13 +99,7 @@ export async function getStockOutById(id: string): Promise<ActionResponse> {
  */
 export async function completeStockOut(id: string): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
+    const user = await requireActionPermission('stock:write')
 
     const stockOut = await stockOutService.complete(id, user.id)
 
@@ -140,13 +136,7 @@ export async function cancelStockOut(
   data: { reason: string }
 ): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
+    const user = await requireActionPermission('stock:write')
 
     const validatedData = cancelStockOutSchema.parse(data)
 
@@ -190,6 +180,7 @@ export async function cancelStockOut(
  */
 export async function getActiveWarehouses(): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const stockInService = await import('@/services/stock-in.service')
     const warehouses = await stockInService.stockInService.getActiveWarehouses()
 

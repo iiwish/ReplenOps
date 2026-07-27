@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { stockInService } from '@/services/stock-in.service'
-import { getCurrentUser } from '@/lib/session'
 
 // Zod 验证 Schema
 const stockInItemSchema = z.object({
@@ -62,14 +62,7 @@ export async function createStockIn(data: {
   submitForApproval?: boolean
 }): Promise<ActionResponse> {
   try {
-    // 获取当前用户
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
+    const user = await requireActionPermission('stock:write')
 
     // Zod 验证
     const validatedData = stockInSchema.parse(data)
@@ -125,6 +118,8 @@ export async function updateStockIn(
   }
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:write')
+
     // Zod 验证
     const validatedData = updateStockInSchema.parse(data)
 
@@ -170,6 +165,7 @@ export async function updateStockIn(
  */
 export async function submitStockIn(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:write')
     const stockIn = await stockInService.submit(id)
 
     // 重新验证缓存
@@ -201,14 +197,7 @@ export async function submitStockIn(id: string): Promise<ActionResponse> {
  */
 export async function approveStockIn(id: string): Promise<ActionResponse> {
   try {
-    // 获取当前用户
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
+    const user = await requireActionPermission('stock:write')
 
     const stockIn = await stockInService.approve(id, user.id)
 
@@ -241,10 +230,7 @@ export async function approveStockIn(id: string): Promise<ActionResponse> {
  */
 export async function rejectStockIn(id: string, reason: string): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    const user = await requireActionPermission('stock:write')
     if (!reason || reason.trim() === '') {
       return {
         success: false,
@@ -283,10 +269,7 @@ export async function rejectStockIn(id: string, reason: string): Promise<ActionR
  */
 export async function completeStockIn(id: string): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    const user = await requireActionPermission('stock:write')
     const stockIn = await stockInService.complete(id, user.id)
 
     // 重新验证缓存
@@ -319,10 +302,7 @@ export async function completeStockIn(id: string): Promise<ActionResponse> {
  */
 export async function cancelStockIn(id: string, reason: string): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    const user = await requireActionPermission('stock:write')
     if (!reason || reason.trim() === '') {
       return {
         success: false,
@@ -361,6 +341,7 @@ export async function cancelStockIn(id: string, reason: string): Promise<ActionR
  */
 export async function deleteStockIn(id: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:write')
     await stockInService.delete(id)
 
     // 重新验证缓存
@@ -390,6 +371,7 @@ export async function deleteStockIn(id: string): Promise<ActionResponse> {
  */
 export async function searchGoods(keyword: string = ''): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:write')
     const goods = await stockInService.searchGoods(keyword)
 
     return {
@@ -416,6 +398,7 @@ export async function searchGoods(keyword: string = ''): Promise<ActionResponse>
  */
 export async function getActiveWarehouses(): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const warehouses = await stockInService.getActiveWarehouses()
 
     return {

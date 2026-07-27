@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { orderApprovalService } from '@/services/order-approval.service'
-import { getCurrentUser } from '@/lib/session.server'
 
 // Zod 验证 Schema
 const approveOrderSchema = z.object({
@@ -42,10 +42,7 @@ export async function getPendingOrders(params: {
   keyword?: string
 }): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    await requireActionPermission('order:review')
 
     const result = await orderApprovalService.listPendingOrders(params)
 
@@ -67,10 +64,7 @@ export async function getPendingOrders(params: {
  */
 export async function getOrderDetailWithStock(orderId: string): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    await requireActionPermission('order:review')
 
     const result = await orderApprovalService.getOrderDetailWithStock(orderId)
 
@@ -95,10 +89,7 @@ export async function approveOrder(data: {
   comment?: string
 }): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    const user = await requireActionPermission('order:review')
 
     // Zod 验证
     const validatedData = approveOrderSchema.parse(data)
@@ -146,10 +137,7 @@ export async function rejectOrder(data: {
   reason: string
 }): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    const user = await requireActionPermission('order:review')
 
     // Zod 验证
     const validatedData = rejectOrderSchema.parse(data)
@@ -192,10 +180,7 @@ export async function rejectOrder(data: {
  */
 export async function batchApproveOrders(data: { orderIds: string[] }): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return { success: false, message: '用户未登录' }
-    }
+    const user = await requireActionPermission('order:review')
 
     // Zod 验证
     const validatedData = batchApproveSchema.parse(data)

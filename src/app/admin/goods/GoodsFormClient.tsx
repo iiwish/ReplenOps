@@ -278,13 +278,13 @@ export default function GoodsFormClient({
           </Form.Item>
 
           <Form.Item
-            label="合作价（元）"
+            label="领用价（元）"
             name="partnerPrice"
             rules={[
-              { required: true, message: '请输入合作价' },
-              { type: 'number', min: 0, message: '合作价不能为负数' },
+              { required: true, message: '请输入领用价' },
+              { type: 'number', min: 0, message: '领用价不能为负数' },
             ]}
-            tooltip="批发价格"
+            tooltip="内部领用计价"
           >
             <InputNumber
               placeholder="0.00"

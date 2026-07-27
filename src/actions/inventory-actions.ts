@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { inventoryService } from '@/services/inventory.service'
 import { inventoryLogService } from '@/services/inventory-log.service'
-import { getCurrentUser } from '@/lib/session.server'
 
 // Zod 验证 Schema
 const adjustStockSchema = z.object({
@@ -32,14 +32,7 @@ export async function adjustStock(data: {
   reason: string
 }): Promise<ActionResponse> {
   try {
-    // 获取当前用户
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
+    const user = await requireActionPermission('inventory:adjust')
 
     // Zod 验证
     const validatedData = adjustStockSchema.parse(data)
@@ -92,6 +85,7 @@ export async function getInventoryLogs(params: {
   operatorId?: string
 }): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     // 转换日期字符串为 Date 对象
     const parsedParams = {
       ...params,
@@ -121,6 +115,7 @@ export async function getInventoryInfo(
   goodsId: string
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const inventory = await inventoryService.findByWarehouseAndGoods(warehouseId, goodsId)
 
     if (!inventory) {

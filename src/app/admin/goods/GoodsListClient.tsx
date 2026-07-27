@@ -196,7 +196,7 @@ export default function GoodsListClient({
       render: (price: number) => `¥${price.toFixed(2)}`,
     },
     {
-      title: '合作价',
+      title: '领用价',
       dataIndex: 'partnerPrice',
       key: 'partnerPrice',
       width: 100,

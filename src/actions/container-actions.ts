@@ -1,7 +1,7 @@
 'use server'
 
 import { z } from 'zod'
-import { getCurrentUser } from '@/lib/session.server'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { containerService, type ContainerRecord } from '@/services/container.service'
 import { containerTrackingService } from '@/services/container-tracking.service'
 
@@ -28,13 +28,7 @@ export async function createContainer(
   formData: z.infer<typeof createContainerSchema>
 ): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '请先登录',
-      }
-    }
+    await requireActionPermission('master-data:write')
 
     const validatedData = createContainerSchema.parse(formData)
 
@@ -64,13 +58,7 @@ export async function updateContainer(
   formData: z.infer<typeof updateContainerSchema>
 ): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '请先登录',
-      }
-    }
+    await requireActionPermission('master-data:write')
 
     const validatedData = updateContainerSchema.parse(formData)
 
@@ -97,13 +85,7 @@ export async function updateContainer(
 
 export async function deleteContainer(id: string): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '请先登录',
-      }
-    }
+    await requireActionPermission('master-data:write')
 
     await containerService.delete(id)
 
@@ -127,6 +109,7 @@ export async function deleteContainer(id: string): Promise<ActionResponse> {
 
 export async function listContainers(): Promise<ActionResponse<ContainerRecord[]>> {
   try {
+    await requireActionPermission('stock:read')
     const containers = await containerService.list()
 
     return {
@@ -153,6 +136,7 @@ export async function listTracking(
   containerId?: string
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const result = await containerTrackingService.list({
       storeId,
       containerId,
@@ -179,6 +163,7 @@ export async function listTracking(
 
 export async function getTrackingLogs(trackingId: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const logs = await containerTrackingService.getLogs(trackingId)
 
     return {
@@ -205,13 +190,7 @@ export async function returnContainer(
   quantity: number
 ): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '请先登录',
-      }
-    }
+    const user = await requireActionPermission('stock:write')
 
     await containerTrackingService.returnContainers(trackingId, quantity, user.id)
 

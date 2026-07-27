@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireActionPermission } from '@/lib/action-permissions'
 
 export interface ScheduleItem {
   id: number
@@ -17,6 +18,7 @@ export async function getOrderingSchedule(): Promise<{
   error?: string
 }> {
   try {
+    await requireActionPermission('stock:read')
     const schedules = await prisma.orderingSchedule.findMany({
       orderBy: { dayOfWeek: 'asc' },
     })
@@ -40,6 +42,7 @@ export async function updateOrderingSchedule(
   data: { startTime: string; endTime: string; isActive: boolean }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireActionPermission('system:manage')
     await prisma.orderingSchedule.upsert({
       where: { dayOfWeek },
       update: {
@@ -63,13 +66,14 @@ export async function updateOrderingSchedule(
 
 export async function resetScheduleToDefault(): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireActionPermission('system:manage')
     const defaults = [
-      { dayOfWeek: 1, startTime: '07:30', endTime: '18:30', isActive: true },  // 周一
-      { dayOfWeek: 2, startTime: '07:30', endTime: '18:30', isActive: true },  // 周二
-      { dayOfWeek: 3, startTime: '07:30', endTime: '18:30', isActive: true },  // 周三
-      { dayOfWeek: 4, startTime: '07:30', endTime: '18:30', isActive: true },  // 周四
-      { dayOfWeek: 5, startTime: '07:30', endTime: '18:30', isActive: true },  // 周五
-      { dayOfWeek: 6, startTime: '07:30', endTime: '18:30', isActive: true },  // 周六
+      { dayOfWeek: 1, startTime: '07:30', endTime: '18:30', isActive: true }, // 周一
+      { dayOfWeek: 2, startTime: '07:30', endTime: '18:30', isActive: true }, // 周二
+      { dayOfWeek: 3, startTime: '07:30', endTime: '18:30', isActive: true }, // 周三
+      { dayOfWeek: 4, startTime: '07:30', endTime: '18:30', isActive: true }, // 周四
+      { dayOfWeek: 5, startTime: '07:30', endTime: '18:30', isActive: true }, // 周五
+      { dayOfWeek: 6, startTime: '07:30', endTime: '18:30', isActive: true }, // 周六
       { dayOfWeek: 7, startTime: '00:00', endTime: '00:00', isActive: false }, // 周日休息
     ]
 

@@ -5,8 +5,8 @@ import { z } from 'zod'
 import { orderService } from '@/services/order.service'
 import type { CartRestoreItem } from '@/services/order.service'
 import { orderingScheduleService } from '@/services/ordering-schedule.service'
+import { requireActionPermission } from '@/lib/action-permissions'
 import { getCurrentUser } from '@/lib/session.server'
-import { getUserRoles } from '@/lib/session.server'
 import { assertCanOperateStore } from '@/lib/store-access'
 
 // Zod 验证 Schema
@@ -42,7 +42,6 @@ const rejectOrderSchema = z.object({
 })
 
 const orderIdSchema = z.string().regex(/^\d+$/, '订单ID无效')
-const ORDER_REVIEW_ROLES = new Set(['super_admin', 'warehouse_manager', 'approver'])
 
 // 通用响应接口
 interface ActionResponse<T = unknown> {
@@ -240,21 +239,7 @@ export async function approveOrder(data: {
   comment?: string
 }): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
-
-    const roles = getUserRoles(user)
-    if (!roles.some((role) => ORDER_REVIEW_ROLES.has(role))) {
-      return {
-        success: false,
-        message: '无权审批订单',
-      }
-    }
+    const user = await requireActionPermission('order:review')
 
     // Zod 验证
     const validatedData = approveOrderSchema.parse(data)
@@ -291,21 +276,7 @@ export async function approveOrder(data: {
  */
 export async function rejectOrder(data: { id: string; reason: string }): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '用户未登录',
-      }
-    }
-
-    const roles = getUserRoles(user)
-    if (!roles.some((role) => ORDER_REVIEW_ROLES.has(role))) {
-      return {
-        success: false,
-        message: '无权拒绝订单',
-      }
-    }
+    const user = await requireActionPermission('order:review')
 
     // Zod 验证
     const validatedData = rejectOrderSchema.parse(data)
@@ -341,7 +312,9 @@ export async function rejectOrder(data: { id: string; reason: string }): Promise
  * 撤回订单（移动端：软删除 + 返回商品用于恢复购物车）
  * 允许 PENDING / REJECTED 状态的订单被撤回
  */
-export async function revokeOrder(orderId: string): Promise<ActionResponse & { restoredCartItems?: CartRestoreItem[] }> {
+export async function revokeOrder(
+  orderId: string
+): Promise<ActionResponse & { restoredCartItems?: CartRestoreItem[] }> {
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -367,7 +340,12 @@ export async function revokeOrder(orderId: string): Promise<ActionResponse & { r
 
     return {
       success: false,
-      message: error instanceof z.ZodError ? '订单ID无效' : error instanceof Error ? error.message : '撤回订单失败',
+      message:
+        error instanceof z.ZodError
+          ? '订单ID无效'
+          : error instanceof Error
+            ? error.message
+            : '撤回订单失败',
     }
   }
 }

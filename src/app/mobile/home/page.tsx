@@ -1,14 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { AlertTriangle, Boxes, Clock, LogOut, RefreshCw, ShoppingBag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/mobile/dashboard/StatCard'
 import { TodoList } from '@/components/mobile/dashboard/TodoList'
 import { QuickActions } from '@/components/mobile/dashboard/QuickActions'
 import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
 import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
-import { ShoppingBag, DollarSign, Clock, AlertTriangle, LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { getUserStores } from '@/actions/store-actions'
@@ -55,9 +54,9 @@ async function logoutClient(): Promise<void> {
 interface DashboardData {
   stats: {
     orderCount: number
-    totalAmount: number
     pendingCount: number
     lowStockCount: number
+    containerToReturnCount: number
   }
   todos: Array<{
     key: string
@@ -79,9 +78,9 @@ export default function HomePage() {
   const [data, setData] = useState<DashboardData>({
     stats: {
       orderCount: 0,
-      totalAmount: 0,
       pendingCount: 0,
       lowStockCount: 0,
+      containerToReturnCount: 0,
     },
     todos: [],
   })
@@ -174,13 +173,6 @@ export default function HomePage() {
     router.push('/login')
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('zh-CN', {
-      style: 'currency',
-      currency: 'CNY',
-    }).format(amount)
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 pb-6">
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-6 text-white">
@@ -227,9 +219,9 @@ export default function HomePage() {
             color="blue"
           />
           <StatCard
-            icon={DollarSign}
-            title="今日销售额"
-            value={formatCurrency(data.stats.totalAmount)}
+            icon={Boxes}
+            title="待归还包装物"
+            value={data.stats.containerToReturnCount}
             color="green"
           />
         </div>
