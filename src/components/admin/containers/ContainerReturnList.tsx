@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Table, Card, Form, Select, DatePicker, Button, Space, Tag, message } from 'antd'
-import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { getReturnLogs } from '@/actions/container-return-actions'
@@ -10,12 +10,6 @@ import { getReturnLogs } from '@/actions/container-return-actions'
 interface LogsResult {
   data: LogItem[]
   total: number
-}
-
-interface StoreListItem {
-  id: string
-  code: string
-  name: string
 }
 
 interface StoreListItem {
@@ -43,9 +37,14 @@ interface LogItem {
 interface ContainerReturnListProps {
   storeId?: string
   containerId?: string
+  canWriteStock: boolean
 }
 
-export function ContainerReturnList({ storeId, containerId }: ContainerReturnListProps) {
+export function ContainerReturnList({
+  storeId,
+  containerId,
+  canWriteStock,
+}: ContainerReturnListProps) {
   const [form] = Form.useForm()
   const [stores, setStores] = useState<StoreListItem[]>([])
   const [containers, setContainers] = useState<Array<{ id: string; name: string }>>([])
@@ -102,8 +101,8 @@ export function ContainerReturnList({ storeId, containerId }: ContainerReturnLis
       const result = await getReturnLogs({
         storeId: values.storeId,
         containerId: values.containerId,
-        dateFrom: values.dateFrom ? values.dateFrom.toISOString() : undefined,
-        dateTo: values.dateTo ? values.dateTo.toISOString() : undefined,
+        dateFrom: values.dateFrom ? values.dateFrom.format('YYYY-MM-DD') : undefined,
+        dateTo: values.dateTo ? values.dateTo.format('YYYY-MM-DD') : undefined,
         page: currentPage,
         pageSize: currentPageSize,
       })
@@ -132,10 +131,6 @@ export function ContainerReturnList({ storeId, containerId }: ContainerReturnLis
     form.resetFields()
     setPage(1)
     loadLogs(1, pageSize)
-  }
-
-  const handleExport = () => {
-    message.info('导出功能开发中...')
   }
 
   const columns: ColumnsType<LogItem> = [
@@ -245,9 +240,11 @@ export function ContainerReturnList({ storeId, containerId }: ContainerReturnLis
             <Button icon={<ReloadOutlined />} onClick={() => loadLogs()}>
               刷新
             </Button>
-            <Button icon={<DownloadOutlined />} onClick={handleExport}>
-              导出
-            </Button>
+            {canWriteStock && (
+              <Button type="primary" icon={<PlusOutlined />} href="/admin/container-return/new">
+                登记归还
+              </Button>
+            )}
           </Space>
         </Form.Item>
       </Form>

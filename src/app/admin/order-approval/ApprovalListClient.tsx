@@ -16,7 +16,7 @@ interface OrderItem {
   storeName: string
   totalAmount: number
   itemCount: number
-  createdAt: Date
+  orderedAt: Date
   remark?: string | null
 }
 
@@ -90,21 +90,21 @@ export function ApprovalListClient() {
             loadData()
 
             // 显示详细结果
-              if (res.data && Array.isArray(res.data)) {
-                const batchResults = res.data as BatchApproveResultItem[]
-                const failedOrders = batchResults.filter((result) => !result.success)
-                if (failedOrders.length > 0) {
-                  Modal.info({
-                    title: '批量审批结果',
-                    content: (
-                      <div>
-                        <p>成功: {batchResults.filter((result) => result.success).length}个</p>
-                        <p>失败: {failedOrders.length}个</p>
-                        <div className="mt-2">
-                          {failedOrders.map((item) => (
-                            <div key={item.orderId} className="text-red-500">
-                              {item.orderId}: {item.message}
-                            </div>
+            if (res.data && Array.isArray(res.data)) {
+              const batchResults = res.data as BatchApproveResultItem[]
+              const failedOrders = batchResults.filter((result) => !result.success)
+              if (failedOrders.length > 0) {
+                Modal.info({
+                  title: '批量审批结果',
+                  content: (
+                    <div>
+                      <p>成功: {batchResults.filter((result) => result.success).length}个</p>
+                      <p>失败: {failedOrders.length}个</p>
+                      <div className="mt-2">
+                        {failedOrders.map((item) => (
+                          <div key={item.orderId} className="text-red-500">
+                            {item.orderId}: {item.message}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -150,8 +150,8 @@ export function ApprovalListClient() {
     },
     {
       title: '下单时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      dataIndex: 'orderedAt',
+      key: 'orderedAt',
       width: 180,
       render: (date: Date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },

@@ -18,7 +18,10 @@ interface OrderDetailPageProps {
 }
 
 // 状态映射
-const STATUS_MAP: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+const STATUS_MAP: Record<
+  string,
+  { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
+> = {
   PENDING: { text: '待审批', variant: 'default' },
   APPROVED: { text: '待收货', variant: 'secondary' },
   PROCESSING: { text: '待收货', variant: 'secondary' },
@@ -54,6 +57,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     revokedBy: string | null
     revokedAt: Date | null
     revokeReason: string | null
+    orderedAt: Date
     createdAt: Date
     updatedAt: Date
     items: Array<{
@@ -72,22 +76,18 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const statusInfo = STATUS_MAP[order.status] || { text: order.status, variant: 'default' as const }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* 顶部导航栏 */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background px-4 py-3">
         <Link href="/mobile/orders">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-          >
+          <Button variant="ghost" size="icon" className="h-9 w-9">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
         <h1 className="text-lg font-semibold">订单详情</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {/* 订单状态卡片 */}
         <Card>
           <CardHeader>
@@ -95,12 +95,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <div>
                 <CardTitle>{order.code}</CardTitle>
                 <CardDescription className="mt-1">
-                  {new Date(order.createdAt).toLocaleString('zh-CN')}
+                  {new Date(order.orderedAt).toLocaleString('zh-CN')}
                 </CardDescription>
               </div>
-              <Badge variant={statusInfo.variant}>
-                {statusInfo.text}
-              </Badge>
+              <Badge variant={statusInfo.variant}>{statusInfo.text}</Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -158,19 +156,17 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             {order.items.map((item, index) => (
               <div key={item.id}>
                 {index > 0 && <Separator className="my-3" />}
-                <div className="flex justify-between items-start">
+                <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="font-medium">{item.goodsName}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="mt-0.5 text-xs text-muted-foreground">
                       编号: {item.goodsCode}
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
+                    <div className="mt-1 text-sm text-muted-foreground">
                       ¥{item.unitPrice.toFixed(2)} × {item.quantity} {item.goodsUnit}
                     </div>
                   </div>
-                  <div className="font-medium">
-                    ¥{item.totalPrice.toFixed(2)}
-                  </div>
+                  <div className="font-medium">¥{item.totalPrice.toFixed(2)}</div>
                 </div>
               </div>
             ))}
@@ -179,16 +175,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* 金额汇总 */}
         <Card>
-          <CardContent className="pt-6 space-y-2">
+          <CardContent className="space-y-2 pt-6">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">商品种类</span>
               <span>{order.items.length} 种</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">商品总数</span>
-              <span>
-                {order.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(3)}
-              </span>
+              <span>{order.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(3)}</span>
             </div>
             <Separator />
             <div className="flex justify-between text-lg font-bold">
@@ -214,17 +208,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         <div className="h-4" />
 
         {(order.status === 'APPROVED' || order.status === 'PROCESSING') && (
-          <div className="sticky bottom-0 left-0 right-0 p-4 bg-background border-t">
-            <ConfirmReceiptButton
-              orderId={order.id}
-              orderCode={order.code}
-            />
+          <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4">
+            <ConfirmReceiptButton orderId={order.id} orderCode={order.code} />
           </div>
         )}
 
         {/* 撤回按钮（PENDING / REJECTED 状态显示） */}
         {(order.status === 'PENDING' || order.status === 'REJECTED') && (
-          <div className="sticky bottom-0 left-0 right-0 p-4 bg-background border-t">
+          <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4">
             <WithdrawOrderButton
               orderId={order.id}
               orderCode={order.code}

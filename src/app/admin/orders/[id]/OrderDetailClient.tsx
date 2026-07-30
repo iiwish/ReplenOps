@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Card, Descriptions, Table, Button, message, Tag, Space, Timeline } from 'antd'
+import { Card, Descriptions, Table, Button, message, Tag, Space, Timeline, Result } from 'antd'
 import { useRouter } from 'next/navigation'
 import { getOrderById } from '@/actions/order-actions'
 import { revokeOrder } from '@/actions/order-revocation-actions'
@@ -17,9 +17,15 @@ interface OrderDetail {
   totalAmount: number
   remark: string | null
   createdBy: string
+  orderedAt: Date
   createdAt: Date
   approvedBy?: string | null
   approvedAt?: Date | null
+  stockOut: {
+    id: string
+    code: string
+    status: string
+  } | null
   items: Array<{
     id: string
     goodsCode: string
@@ -48,17 +54,21 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showRevokeModal, setShowRevokeModal] = useState(false)
   const [revokeLoading, setRevokeLoading] = useState(false)
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const res = await getOrderById(orderId)
       if (res.success && res.data) {
         setOrder(res.data as OrderDetail)
       } else {
-        message.error(res.message || '加载失败')
+        const errorMessage = res.message || '加载失败'
+        setLoadError(errorMessage)
+        message.error(errorMessage)
       }
     } finally {
       setLoading(false)
@@ -89,8 +99,19 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
     }
   }
 
-  if (loading || !order) {
+  if (loading) {
     return <div>加载中...</div>
+  }
+
+  if (!order) {
+    return (
+      <Result
+        status="404"
+        title="订单不可用"
+        subTitle={loadError || '该订单不存在或已被删除'}
+        extra={<Button onClick={() => router.push('/admin/orders')}>返回订单列表</Button>}
+      />
+    )
   }
 
   const statusConfig = ORDER_STATUS_CONFIG[order.status] || {
@@ -154,9 +175,14 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
           </Descriptions.Item>
           <Descriptions.Item label="门店">{order.storeName}</Descriptions.Item>
           <Descriptions.Item label="下单时间">
-            {dayjs(order.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+            {dayjs(order.orderedAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
           <Descriptions.Item label="下单人">{order.createdBy}</Descriptions.Item>
+          {order.stockOut && (
+            <Descriptions.Item label="关联出库单">
+              <Link href={`/admin/stock-out/${order.stockOut.id}`}>{order.stockOut.code}</Link>
+            </Descriptions.Item>
+          )}
           {order.approvedBy && (
             <Descriptions.Item label="审批人">{order.approvedBy}</Descriptions.Item>
           )}
@@ -204,7 +230,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
                 <div>
                   <div className="font-semibold">订单创建</div>
                   <div className="text-sm text-gray-500">
-                    {dayjs(order.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                    {dayjs(order.orderedAt).format('YYYY-MM-DD HH:mm:ss')}
                   </div>
                   <div className="text-sm text-gray-500">创建人: {order.createdBy}</div>
                 </div>
@@ -243,6 +269,11 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
           {order.status === 'PENDING' && (
             <Link href={`/admin/order-approval/${order.id}`}>
               <Button type="primary">去审批</Button>
+            </Link>
+          )}
+          {order.stockOut && (
+            <Link href={`/admin/stock-out/${order.stockOut.id}`}>
+              <Button>查看出库单</Button>
             </Link>
           )}
           {canRevoke && (

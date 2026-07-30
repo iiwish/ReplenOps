@@ -2,6 +2,8 @@ import { requirePageAccess } from '@/lib/rbac-server'
 import { inventoryLogService } from '@/services/inventory-log.service'
 import { stockInService } from '@/services/stock-in.service'
 import InventoryLogListClient from './InventoryLogListClient'
+import { getShanghaiDateRange } from '@/lib/shanghai-time'
+import { canPerformAction } from '@/lib/action-permissions'
 
 export const metadata = {
   title: '库存变动日志',
@@ -22,7 +24,7 @@ export default async function InventoryLogsPage({
   }>
 }) {
   // 权限验证
-  await requirePageAccess('/admin/inventory/logs')
+  const { user } = await requirePageAccess('/admin/inventory/logs')
 
   // 解析搜索参数
   const params = await searchParams
@@ -30,25 +32,23 @@ export default async function InventoryLogsPage({
   const pageSize = parseInt(params.pageSize || '20', 10)
 
   // 构建查询参数
+  const dateRange = getShanghaiDateRange(params.startDate, params.endDate)
   const queryParams = {
     page,
     pageSize,
     warehouseId: params.warehouseId,
     goodsId: params.goodsId,
     changeTypes: params.changeTypes ? params.changeTypes.split(',') : undefined,
-    startDate: params.startDate ? new Date(params.startDate) : undefined,
-    endDate: params.endDate ? new Date(params.endDate) : undefined,
+    startDate: dateRange.start,
+    endDateExclusive: dateRange.endExclusive,
     operatorId: params.operatorId,
   }
 
-  // 获取库存日志列表
-  const logsResult = await inventoryLogService.list(queryParams)
-
-  // 获取筛选数据
-  const warehouses = await stockInService.getActiveWarehouses()
-
-  // 当前操作人筛选暂未接入用户列表查询
-  const operators: Array<{ id: string; username: string }> = []
+  const [logsResult, warehouses, operators] = await Promise.all([
+    inventoryLogService.list(queryParams),
+    stockInService.getActiveWarehouses(),
+    inventoryLogService.getOperators(),
+  ])
 
   return (
     <InventoryLogListClient
@@ -58,6 +58,15 @@ export default async function InventoryLogsPage({
         name: warehouse.name,
       }))}
       operators={operators}
+      initialFilters={{
+        warehouseId: params.warehouseId,
+        goodsId: params.goodsId,
+        changeTypes: params.changeTypes ? params.changeTypes.split(',') : [],
+        startDate: params.startDate,
+        endDate: params.endDate,
+        operatorId: params.operatorId,
+      }}
+      canAdjustInventory={canPerformAction(user, 'inventory:adjust')}
     />
   )
 }

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type { Route } from 'next'
 import { Table, Button, message, Card, Space, DatePicker, Select, Input, Tag, Modal } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { getOrders, deleteOrder } from '@/actions/order-actions'
 import Link from 'next/link'
 import dayjs from 'dayjs'
+import { FileExcelOutlined } from '@ant-design/icons'
 
 const { RangePicker } = DatePicker
 const { Search } = Input
@@ -18,6 +20,7 @@ interface OrderItem {
   status: string
   totalAmount: number
   remark?: string | null
+  orderedAt: Date
   createdAt: Date
   createdBy: string
 }
@@ -136,14 +139,12 @@ export function OrderListClient() {
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       width: 120,
-      render: (amount: number) => (
-        <span className="font-semibold">¥{amount.toFixed(2)}</span>
-      ),
+      render: (amount: number) => <span className="font-semibold">¥{amount.toFixed(2)}</span>,
     },
     {
       title: '下单时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      dataIndex: 'orderedAt',
+      key: 'orderedAt',
       width: 180,
       render: (date: Date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
@@ -162,19 +163,18 @@ export function OrderListClient() {
       render: (_, record) => (
         <Space size="small">
           <Link href={`/admin/orders/${record.id}`}>
-            <Button type="link" size="small">查看</Button>
+            <Button type="link" size="small">
+              查看
+            </Button>
           </Link>
           {record.status === 'PENDING' && (
             <>
               <Link href={`/admin/order-approval/${record.id}`}>
-                <Button type="link" size="small">审批</Button>
+                <Button type="link" size="small">
+                  审批
+                </Button>
               </Link>
-              <Button
-                type="link"
-                size="small"
-                danger
-                onClick={() => handleDelete(record)}
-              >
+              <Button type="link" size="small" danger onClick={() => handleDelete(record)}>
                 删除
               </Button>
             </>
@@ -207,7 +207,11 @@ export function OrderListClient() {
             </Select>
             <span>日期范围:</span>
             <RangePicker
-              value={filters.startDate && filters.endDate ? [dayjs(filters.startDate), dayjs(filters.endDate)] : null}
+              value={
+                filters.startDate && filters.endDate
+                  ? [dayjs(filters.startDate), dayjs(filters.endDate)]
+                  : null
+              }
               onChange={(dates) => {
                 if (dates) {
                   setFilters({
@@ -234,7 +238,9 @@ export function OrderListClient() {
               onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
               onSearch={handleFilter}
             />
-            <Button type="primary" onClick={handleFilter}>查询</Button>
+            <Button type="primary" onClick={handleFilter}>
+              查询
+            </Button>
             <Button onClick={handleReset}>重置</Button>
           </Space>
         </Space>
@@ -244,6 +250,9 @@ export function OrderListClient() {
       <div className="mb-4">
         <Space>
           <Button onClick={loadData}>刷新</Button>
+          <Link href={'/admin/reports/stock-out' as Route}>
+            <Button icon={<FileExcelOutlined />}>月度出库报表</Button>
+          </Link>
         </Space>
       </div>
 

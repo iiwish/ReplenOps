@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Table, Button, Modal, InputNumber, message, Space } from 'antd'
 import { ContainerOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -40,7 +40,7 @@ interface LogItem {
   operatedAt: Date
 }
 
-export default function ContainerTrackingPage() {
+export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock: boolean }) {
   const [loading, setLoading] = useState(false)
   const [trackingData, setTrackingData] = useState<TrackingItem[]>([])
   const [logModalVisible, setLogModalVisible] = useState(false)
@@ -119,14 +119,16 @@ export default function ContainerTrackingPage() {
           >
             查看日志
           </Button>
-          <Button
-            type="primary"
-            size="small"
-            onClick={() => handleOpenReturnModal(record)}
-            disabled={record.currentBorrowed === 0}
-          >
-            归还
-          </Button>
+          {canWriteStock && (
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => handleOpenReturnModal(record)}
+              disabled={record.currentBorrowed === 0}
+            >
+              归还
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -185,6 +187,8 @@ export default function ContainerTrackingPage() {
       if (result.success && result.data) {
         setCurrentLogs(result.data as LogItem[])
         setLogModalVisible(true)
+      } else {
+        message.error(result.message || '加载日志失败')
       }
     } catch {
       message.error('加载日志失败')
@@ -211,7 +215,9 @@ export default function ContainerTrackingPage() {
       if (result.success) {
         message.success('归还成功')
         setReturnModalVisible(false)
-        fetchData()
+        void fetchData()
+      } else {
+        message.error(result.message || '归还失败')
       }
     } catch {
       message.error('归还失败')
@@ -220,19 +226,25 @@ export default function ContainerTrackingPage() {
     }
   }
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const result = await listTracking()
       if (result.success && result.data) {
         setTrackingData(result.data as TrackingItem[])
+      } else {
+        message.error(result.message || '加载失败')
       }
     } catch {
       message.error('加载失败')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchData()
+  }, [fetchData])
 
   return (
     <div className="p-6">

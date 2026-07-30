@@ -19,7 +19,9 @@ interface OrderDetail {
   totalAmount: number
   remark: string | null
   createdBy: string
-  createdAt: Date
+  orderedAt: Date
+  warehouseId: string | null
+  warehouseName: string | null
   items: Array<{
     id: string
     goodsName: string
@@ -30,6 +32,7 @@ interface OrderDetail {
     totalPrice: number
     availableStock: number
     stockStatus: 'sufficient' | 'tight' | 'insufficient'
+    inventoryReserved: boolean
   }>
   canApprove: boolean
 }
@@ -141,11 +144,13 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
         const color =
           stockStatus === 'sufficient' ? 'green' : stockStatus === 'tight' ? 'orange' : 'red'
         const text =
-          stockStatus === 'sufficient'
-            ? `✓ 充足(${availableStock})`
-            : stockStatus === 'tight'
-              ? `⚠ 紧张(${availableStock})`
-              : `✗ 不足(${availableStock})`
+          record.inventoryReserved && stockStatus !== 'insufficient'
+            ? `已锁定(${record.quantity})`
+            : stockStatus === 'sufficient'
+              ? `✓ 充足(${availableStock})`
+              : stockStatus === 'tight'
+                ? `⚠ 紧张(${availableStock})`
+                : `✗ 不足(${availableStock})`
         return <Tag color={color}>{text}</Tag>
       },
     },
@@ -159,9 +164,12 @@ export function ApprovalDetailClient({ orderId }: { orderId: string }) {
           <Descriptions.Item label="订单号">{order.code}</Descriptions.Item>
           <Descriptions.Item label="门店">{order.storeName}</Descriptions.Item>
           <Descriptions.Item label="下单时间">
-            {dayjs(order.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+            {dayjs(order.orderedAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
           <Descriptions.Item label="下单人">{order.createdBy}</Descriptions.Item>
+          <Descriptions.Item label="出库仓库">
+            {order.warehouseName || '暂无可用仓库'}
+          </Descriptions.Item>
           <Descriptions.Item label="备注" span={2}>
             {order.remark || '-'}
           </Descriptions.Item>

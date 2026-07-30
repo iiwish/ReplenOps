@@ -223,8 +223,8 @@ class ContainerTrackingService {
 
       const beforeBorrowed = tracking.currentBorrowed.toNumber()
 
-        await tx.containerTracking.update({
-          where: { id: trackingIdNumber },
+      await tx.containerTracking.update({
+        where: { id: trackingIdNumber },
         data: {
           totalReturned: { increment: quantity },
           currentBorrowed: { decrement: quantity },
@@ -232,9 +232,9 @@ class ContainerTrackingService {
         },
       })
 
-        await tx.containerLog.create({
-          data: {
-            containerTrackingId: trackingIdNumber,
+      await tx.containerLog.create({
+        data: {
+          containerTrackingId: trackingIdNumber,
           opType: 'RETURN',
           quantity,
           beforeBorrowed,
@@ -338,7 +338,7 @@ class ContainerTrackingService {
     storeId?: string
     containerId?: string
     dateFrom?: Date
-    dateTo?: Date
+    dateToExclusive?: Date
     page?: number
     pageSize?: number
   }): Promise<{ data: ContainerLogItem[]; total: number }> {
@@ -348,23 +348,23 @@ class ContainerTrackingService {
       opType: 'RETURN',
     }
 
-      if (filters.storeId || filters.containerId) {
-        where.tracking = {}
-        if (filters.storeId) {
-          where.tracking.storeId = Number.parseInt(filters.storeId, 10)
-        }
-        if (filters.containerId) {
-          where.tracking.containerId = Number.parseInt(filters.containerId, 10)
-        }
+    if (filters.storeId || filters.containerId) {
+      where.tracking = {}
+      if (filters.storeId) {
+        where.tracking.storeId = Number.parseInt(filters.storeId, 10)
       }
+      if (filters.containerId) {
+        where.tracking.containerId = Number.parseInt(filters.containerId, 10)
+      }
+    }
 
-    if (filters.dateFrom || filters.dateTo) {
+    if (filters.dateFrom || filters.dateToExclusive) {
       where.operatedAt = {}
       if (filters.dateFrom) {
         where.operatedAt.gte = filters.dateFrom
       }
-      if (filters.dateTo) {
-        where.operatedAt.lte = filters.dateTo
+      if (filters.dateToExclusive) {
+        where.operatedAt.lt = filters.dateToExclusive
       }
     }
 

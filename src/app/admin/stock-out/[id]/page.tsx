@@ -1,9 +1,10 @@
 import { requirePageAccess } from '@/lib/rbac-server'
+import { canPerformAction } from '@/lib/action-permissions'
 import StockOutDetailClient from '@/app/admin/stock-out/[id]/StockOutDetailClient'
 import { stockOutService } from '@/services/stock-out.service'
 
 export default async function StockOutDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePageAccess('/admin/stock-out')
+  const { user } = await requirePageAccess('/admin/stock-out')
 
   const { id } = await params
   const stockOut = await stockOutService.findById(id)
@@ -17,5 +18,10 @@ export default async function StockOutDetailPage({ params }: { params: Promise<{
     )
   }
 
-  return <StockOutDetailClient stockOut={stockOut} />
+  return (
+    <StockOutDetailClient
+      stockOut={stockOut}
+      canWriteStock={canPerformAction(user, 'stock:write')}
+    />
+  )
 }
