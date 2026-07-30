@@ -62,6 +62,21 @@ export const menuItems: MenuItemConfig[] = [
         label: '出库管理',
         path: '/admin/stock-out',
       },
+      {
+        key: 'inventory-logs',
+        label: '库存变动',
+        path: '/admin/inventory/logs',
+      },
+      {
+        key: 'inventory-adjustment',
+        label: '库存调整',
+        path: '/admin/inventory/adjustment',
+      },
+      {
+        key: 'cost-history',
+        label: '成本变动',
+        path: '/admin/inventory/cost-history',
+      },
     ],
   },
   {
@@ -102,7 +117,23 @@ export const menuItems: MenuItemConfig[] = [
     key: 'containers',
     label: '包装物管理',
     icon: <ContainerOutlined />,
-    path: '/admin/containers',
+    children: [
+      {
+        key: 'container-list',
+        label: '包装物档案',
+        path: '/admin/containers',
+      },
+      {
+        key: 'container-tracking',
+        label: '包装物台账',
+        path: '/admin/container-tracking',
+      },
+      {
+        key: 'container-return',
+        label: '归还记录',
+        path: '/admin/container-return',
+      },
+    ],
   },
   {
     key: 'reports',

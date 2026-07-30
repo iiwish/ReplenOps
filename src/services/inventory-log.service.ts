@@ -9,7 +9,7 @@ export interface ListInventoryLogParams {
   goodsId?: string
   changeTypes?: string[] // IN, OUT, RETURN, ADJUSTMENT
   startDate?: Date
-  endDate?: Date
+  endDateExclusive?: Date
   operatorId?: string
 }
 
@@ -50,30 +50,33 @@ export class InventoryLogService {
     )
   }
 
-  private toInventoryLogDetailItem(item: {
-    id: number
-    changeType: InventoryChangeType
-    quantity: Prisma.Decimal | number
-    beforeQty: Prisma.Decimal | number
-    afterQty: Prisma.Decimal | number
-    referenceType: string | null
-    referenceId: string | null
-    remark: string | null
-    operatedBy: string
-    createdAt: Date
-    inventory: {
-      warehouseId: number
-      goodsId: number
-      warehouse: {
-        name: string
+  private toInventoryLogDetailItem(
+    item: {
+      id: number
+      changeType: InventoryChangeType
+      quantity: Prisma.Decimal | number
+      beforeQty: Prisma.Decimal | number
+      afterQty: Prisma.Decimal | number
+      referenceType: string | null
+      referenceId: string | null
+      remark: string | null
+      operatedBy: string
+      createdAt: Date
+      inventory: {
+        warehouseId: number
+        goodsId: number
+        warehouse: {
+          name: string
+        }
+        goods: {
+          code: string
+          name: string
+          unit: string
+        }
       }
-      goods: {
-        code: string
-        name: string
-        unit: string
-      }
-    }
-  }): InventoryLogDetailItem {
+    },
+    operatorNameById: Map<string, string>
+  ): InventoryLogDetailItem {
     return {
       id: String(item.id),
       warehouseId: String(item.inventory.warehouseId),
@@ -90,17 +93,28 @@ export class InventoryLogService {
       referenceId: item.referenceId,
       remark: item.remark,
       operatorId: item.operatedBy,
-      operatorName: item.operatedBy,
+      operatorName: operatorNameById.get(item.operatedBy) ?? item.operatedBy,
       createdAt: item.createdAt,
     }
+  }
+
+  private async getOperatorNameMap(operatorIds: string[]): Promise<Map<string, string>> {
+    if (operatorIds.length === 0) {
+      return new Map()
+    }
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(new Set(operatorIds)) } },
+      select: { id: true, username: true, name: true },
+    })
+
+    return new Map(users.map((user) => [user.id, user.name || user.username]))
   }
 
   /**
    * 获取库存日志列表（分页）
    */
-  async list(
-    params: ListInventoryLogParams = {}
-  ): Promise<PaginatedInventoryLogResult> {
+  async list(params: ListInventoryLogParams = {}): Promise<PaginatedInventoryLogResult> {
     const {
       page = 1,
       pageSize = 20,
@@ -108,7 +122,7 @@ export class InventoryLogService {
       goodsId,
       changeTypes,
       startDate,
-      endDate,
+      endDateExclusive,
       operatorId,
     } = params
 
@@ -135,23 +149,20 @@ export class InventoryLogService {
       const normalizedChangeTypes = this.parseChangeTypes(changeTypes)
 
       if (normalizedChangeTypes.length > 0) {
-      where.changeType = {
+        where.changeType = {
           in: normalizedChangeTypes,
         }
       }
     }
 
     // 时间范围筛选
-    if (startDate || endDate) {
+    if (startDate || endDateExclusive) {
       where.createdAt = {}
       if (startDate) {
         where.createdAt.gte = startDate
       }
-      if (endDate) {
-        // 包含结束日期当天的所有记录
-        const endOfDay = new Date(endDate)
-        endOfDay.setHours(23, 59, 59, 999)
-        where.createdAt.lte = endOfDay
+      if (endDateExclusive) {
+        where.createdAt.lt = endDateExclusive
       }
     }
 
@@ -201,11 +212,9 @@ export class InventoryLogService {
       },
     })
 
-    // 转换数据格式
-    // 注意：operatedBy 当前存储的是本地用户 ID
-    // 这里直接返回 userId，前端可按需再查询用户展示名
+    const operatorNameById = await this.getOperatorNameMap(data.map((item) => item.operatedBy))
     const formattedData: InventoryLogDetailItem[] = data.map((item) =>
-      this.toInventoryLogDetailItem(item)
+      this.toInventoryLogDetailItem(item, operatorNameById)
     )
 
     return {
@@ -262,9 +271,23 @@ export class InventoryLogService {
       },
     })
 
-    // 转换数据格式
-    // 注意：operatedBy 当前存储的是本地用户 ID
-    return data.map((item) => this.toInventoryLogDetailItem(item))
+    const operatorNameById = await this.getOperatorNameMap(data.map((item) => item.operatedBy))
+    return data.map((item) => this.toInventoryLogDetailItem(item, operatorNameById))
+  }
+
+  async getOperators(): Promise<Array<{ id: string; username: string }>> {
+    const logs = await prisma.inventoryLog.findMany({
+      distinct: ['operatedBy'],
+      select: { operatedBy: true },
+      orderBy: { operatedBy: 'asc' },
+    })
+    const operatorIds = logs.map((log) => log.operatedBy)
+    const operatorNameById = await this.getOperatorNameMap(operatorIds)
+
+    return operatorIds.map((id) => ({
+      id,
+      username: operatorNameById.get(id) ?? id,
+    }))
   }
 }
 

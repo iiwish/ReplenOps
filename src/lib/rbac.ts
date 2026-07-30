@@ -67,6 +67,8 @@ export const ADMIN_API_ROUTES = [
   '/api/ordering-schedule',
   '/api/reports/inventory',
   '/api/reports/stock-out',
+  '/api/inventory/logs',
+  '/api/inventory/cost-history',
 ]
 
 export const MOBILE_API_ROUTES = [

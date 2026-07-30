@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { requireActionPermission } from '@/lib/action-permissions'
 import { inventoryService } from '@/services/inventory.service'
 import { inventoryLogService } from '@/services/inventory-log.service'
+import { getShanghaiDateRange } from '@/lib/shanghai-time'
 
 // Zod 验证 Schema
 const adjustStockSchema = z.object({
@@ -86,11 +87,16 @@ export async function getInventoryLogs(params: {
 }): Promise<ActionResponse> {
   try {
     await requireActionPermission('stock:read')
-    // 转换日期字符串为 Date 对象
+    const dateRange = getShanghaiDateRange(params.startDate, params.endDate)
     const parsedParams = {
-      ...params,
-      startDate: params.startDate ? new Date(params.startDate) : undefined,
-      endDate: params.endDate ? new Date(params.endDate) : undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+      warehouseId: params.warehouseId,
+      goodsId: params.goodsId,
+      changeTypes: params.changeTypes,
+      operatorId: params.operatorId,
+      startDate: dateRange.start,
+      endDateExclusive: dateRange.endExclusive,
     }
 
     const result = await inventoryLogService.list(parsedParams)

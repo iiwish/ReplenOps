@@ -3,7 +3,10 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { containerTrackingService } from '@/services/container-tracking.service'
+import { requireActionPermission } from '@/lib/action-permissions'
+import { getShanghaiDateRange } from '@/lib/shanghai-time'
 import { getCurrentUser } from '@/lib/session.server'
+import { assertCanOperateStore } from '@/lib/store-access'
 
 interface ActionResponse<T = unknown> {
   success: boolean
@@ -45,13 +48,11 @@ export async function batchReturnContainers(
   try {
     const user = await getCurrentUser()
     if (!user) {
-      return {
-        success: false,
-        message: '请先登录',
-      }
+      throw new Error('请先登录')
     }
 
     const validatedData = batchReturnSchema.parse(formData)
+    await assertCanOperateStore(user, Number.parseInt(validatedData.storeId, 10))
 
     const results = await containerTrackingService.batchReturnContainers({
       storeId: validatedData.storeId,
@@ -90,13 +91,15 @@ export async function getReturnLogs(
   params: z.infer<typeof getReturnLogsSchema>
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const validatedParams = getReturnLogsSchema.parse(params)
+    const range = getShanghaiDateRange(validatedParams.dateFrom, validatedParams.dateTo)
 
     const result = await containerTrackingService.getReturnLogs({
       storeId: validatedParams.storeId,
       containerId: validatedParams.containerId,
-      dateFrom: validatedParams.dateFrom ? new Date(validatedParams.dateFrom) : undefined,
-      dateTo: validatedParams.dateTo ? new Date(validatedParams.dateTo) : undefined,
+      dateFrom: range.start,
+      dateToExclusive: range.endExclusive,
       page: validatedParams.page,
       pageSize: validatedParams.pageSize,
     })
@@ -128,6 +131,11 @@ export async function getReturnableContainers(
 ): Promise<ActionResponse> {
   try {
     const validatedParams = getReturnableContainersSchema.parse(params)
+    const user = await getCurrentUser()
+    if (!user) {
+      throw new Error('请先登录')
+    }
+    await assertCanOperateStore(user, Number.parseInt(validatedParams.storeId, 10))
 
     const result = await containerTrackingService.getReturnableContainers(validatedParams.storeId)
 

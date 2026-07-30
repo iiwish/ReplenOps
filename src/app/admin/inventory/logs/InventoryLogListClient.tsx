@@ -34,6 +34,15 @@ interface Props {
   initialData: PaginatedInventoryLogResult
   warehouses: Array<{ id: string; name: string }>
   operators: Array<{ id: string; username: string }>
+  initialFilters: {
+    warehouseId?: string
+    goodsId?: string
+    changeTypes: string[]
+    startDate?: string
+    endDate?: string
+    operatorId?: string
+  }
+  canAdjustInventory: boolean
 }
 
 type InventoryLogRecord = PaginatedInventoryLogResult['data'][number]
@@ -62,17 +71,25 @@ export default function InventoryLogListClient({
   initialData,
   warehouses,
   operators,
+  initialFilters,
+  canAdjustInventory,
 }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   // 筛选状态
   const [filters, setFilters] = useState({
-    warehouseId: undefined as string | undefined,
-    goodsId: undefined as string | undefined,
-    changeTypes: [] as string[],
-    dateRange: null as [dayjs.Dayjs, dayjs.Dayjs] | null,
-    operatorId: undefined as string | undefined,
+    warehouseId: initialFilters.warehouseId,
+    goodsId: initialFilters.goodsId,
+    changeTypes: initialFilters.changeTypes,
+    dateRange:
+      initialFilters.startDate && initialFilters.endDate
+        ? ([dayjs(initialFilters.startDate), dayjs(initialFilters.endDate)] as [
+            dayjs.Dayjs,
+            dayjs.Dayjs,
+          ])
+        : null,
+    operatorId: initialFilters.operatorId,
   })
 
   // 构建查询字符串
@@ -125,6 +142,11 @@ export default function InventoryLogListClient({
     setLoading(true)
     router.refresh()
     setTimeout(() => setLoading(false), 500)
+  }
+
+  const handleExport = () => {
+    const query = buildQueryString()
+    window.location.href = `/api/inventory/logs/export${query ? `?${query}` : ''}`
   }
 
   // 分页处理
@@ -275,17 +297,15 @@ export default function InventoryLogListClient({
           <Space>
             <Button
               icon={<FileExcelOutlined />}
-              disabled
-              title="导出功能待实现"
+              onClick={handleExport}
             >
               导出
             </Button>
-            <Button
-              type="link"
-              href="/admin/inventory/adjustment"
-            >
-              手动调整库存
-            </Button>
+            {canAdjustInventory && (
+              <Button type="link" href="/admin/inventory/adjustment">
+                手动调整库存
+              </Button>
+            )}
             <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
               刷新
             </Button>
