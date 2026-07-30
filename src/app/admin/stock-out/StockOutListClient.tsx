@@ -349,8 +349,8 @@ export default function StockOutListClient({
   return (
     <div>
       <Card>
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <Space size="middle">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             <Search
               placeholder="搜索单号或订单号"
               allowClear
@@ -390,7 +390,7 @@ export default function StockOutListClient({
               onChange={handleDateRangeChange}
               placeholder={['创建日期起', '创建日期止']}
             />
-          </Space>
+          </div>
           {canReviewOrders && (
             <Link href={'/admin/order-approval' as Route}>
               <Button icon={<AuditOutlined />}>待审批订单</Button>

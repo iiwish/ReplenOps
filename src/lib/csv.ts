@@ -1,5 +1,6 @@
 export function escapeCsvCell(value: string | number | null | undefined): string {
-  const text = value === null || value === undefined ? '' : String(value)
+  const rawText = value === null || value === undefined ? '' : String(value)
+  const text = typeof value === 'string' && /^[\t\r ]*[=+\-@]/.test(value) ? `'${rawText}` : rawText
   if (text.includes(',') || text.includes('"') || text.includes('\n')) {
     return `"${text.replaceAll('"', '""')}"`
   }

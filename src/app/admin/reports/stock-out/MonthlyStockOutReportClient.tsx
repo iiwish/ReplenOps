@@ -6,11 +6,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Alert,
+  App,
   Button,
   Col,
   DatePicker,
   Input,
-  message,
   Row,
   Segmented,
   Select,
@@ -47,6 +47,7 @@ export default function MonthlyStockOutReportClient({
   filters,
 }: MonthlyStockOutReportClientProps) {
   const router = useRouter()
+  const { message } = App.useApp()
   const [month, setMonth] = useState(filters.month)
   const [keyword, setKeyword] = useState(filters.keyword ?? '')
   const [status, setStatus] = useState(filters.status)
