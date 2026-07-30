@@ -110,7 +110,7 @@ export default async function DashboardPage() {
       <Card title="快捷操作" variant="borderless" style={{ marginTop: 16 }}>
         <QuickActions
           actions={[
-            { icon: '📦', title: '新增入库', path: '/admin/stock-in' },
+            { icon: '📦', title: '新增入库', path: '/admin/stock-in/new' },
             { icon: '🛒', title: '订单管理', path: '/admin/orders' },
             { icon: '📊', title: '库存查询', path: '/admin/inventory/query' },
             { icon: '📦', title: '包装物管理', path: '/admin/containers' },

@@ -1,10 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { Route } from 'next'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Dayjs } from 'dayjs'
-import { Table, Button, Input, Space, Tag, Modal, message, Card, Select, DatePicker } from 'antd'
 import {
+  Button,
+  Card,
+  DatePicker,
+  Empty,
+  Input,
+  message,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+} from 'antd'
+import {
+  AuditOutlined,
   EyeOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -22,6 +37,15 @@ const { RangePicker } = DatePicker
 interface StockOutListClientProps {
   initialData: PaginatedStockOutResult
   warehouses: Array<{ id: string; code: string; name: string }>
+  initialFilters: {
+    keyword?: string
+    status?: string
+    warehouseId?: string
+    startDate?: string
+    endDate?: string
+  }
+  canReviewOrders: boolean
+  canWriteStock: boolean
 }
 
 type StockOutRecord = PaginatedStockOutResult['data'][number]
@@ -32,55 +56,80 @@ const statusMap = {
   CANCELLED: { text: '已取消', color: 'default', icon: <CloseCircleOutlined /> },
 }
 
-export default function StockOutListClient({ initialData, warehouses }: StockOutListClientProps) {
+export default function StockOutListClient({
+  initialData,
+  warehouses,
+  initialFilters,
+  canReviewOrders,
+  canWriteStock,
+}: StockOutListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [searchKeyword, setSearchKeyword] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState<string>()
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>()
-  const [dateRange, setDateRange] = useState<[string, string] | null>(null)
+  const [searchKeyword, setSearchKeyword] = useState(initialFilters.keyword ?? '')
+  const [selectedStatus, setSelectedStatus] = useState(initialFilters.status)
+  const [selectedWarehouse, setSelectedWarehouse] = useState(initialFilters.warehouseId)
+  const [dateRange, setDateRange] = useState<[string, string] | null>(
+    initialFilters.startDate && initialFilters.endDate
+      ? [initialFilters.startDate, initialFilters.endDate]
+      : null
+  )
+
+  useEffect(() => {
+    setSearchKeyword(initialFilters.keyword ?? '')
+    setSelectedStatus(initialFilters.status)
+    setSelectedWarehouse(initialFilters.warehouseId)
+    setDateRange(
+      initialFilters.startDate && initialFilters.endDate
+        ? [initialFilters.startDate, initialFilters.endDate]
+        : null
+    )
+  }, [initialFilters])
 
   const handleSearch = (value: string) => {
     setSearchKeyword(value)
-    buildUrl({ keyword: value })
+    buildUrl({ keyword: value || undefined, page: '1' })
   }
 
-  const handleStatusChange = (value: string) => {
+  const handleStatusChange = (value: string | undefined) => {
     setSelectedStatus(value)
-    buildUrl({ status: value })
+    buildUrl({ status: value, page: '1' })
   }
 
-  const handleWarehouseChange = (value: string) => {
+  const handleWarehouseChange = (value: string | undefined) => {
     setSelectedWarehouse(value)
-    buildUrl({ warehouseId: value })
+    buildUrl({ warehouseId: value, page: '1' })
   }
 
   const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
     if (dates?.[0] && dates?.[1]) {
       const range: [string, string] = [dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')]
       setDateRange(range)
-      buildUrl({ startDate: range[0], endDate: range[1] })
+      buildUrl({ startDate: range[0], endDate: range[1], page: '1' })
     } else {
       setDateRange(null)
-      buildUrl({ startDate: undefined, endDate: undefined })
+      buildUrl({ startDate: undefined, endDate: undefined, page: '1' })
     }
   }
 
   const buildUrl = (updates: Record<string, string | undefined>) => {
     const params = new URLSearchParams()
+    const hasUpdate = (key: string) => Object.prototype.hasOwnProperty.call(updates, key)
 
-    const currentKeyword = updates.keyword !== undefined ? updates.keyword : searchKeyword
-    const currentStatus = updates.status !== undefined ? updates.status : selectedStatus
-    const currentWarehouse =
-      updates.warehouseId !== undefined ? updates.warehouseId : selectedWarehouse
-    const currentStartDate = updates.startDate !== undefined ? updates.startDate : dateRange?.[0]
-    const currentEndDate = updates.endDate !== undefined ? updates.endDate : dateRange?.[1]
+    const currentKeyword = hasUpdate('keyword') ? updates.keyword : searchKeyword
+    const currentStatus = hasUpdate('status') ? updates.status : selectedStatus
+    const currentWarehouse = hasUpdate('warehouseId') ? updates.warehouseId : selectedWarehouse
+    const currentStartDate = hasUpdate('startDate') ? updates.startDate : dateRange?.[0]
+    const currentEndDate = hasUpdate('endDate') ? updates.endDate : dateRange?.[1]
+    const currentPage = updates.page ?? String(initialData.page)
+    const currentPageSize = updates.pageSize ?? String(initialData.pageSize)
 
     if (currentKeyword) params.set('keyword', currentKeyword)
     if (currentStatus) params.set('status', currentStatus)
     if (currentWarehouse) params.set('warehouseId', currentWarehouse)
     if (currentStartDate) params.set('startDate', currentStartDate)
     if (currentEndDate) params.set('endDate', currentEndDate)
+    if (currentPage !== '1') params.set('page', currentPage)
+    if (currentPageSize !== '20') params.set('pageSize', currentPageSize)
 
     router.push(`/admin/stock-out?${params.toString()}`)
   }
@@ -133,6 +182,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       onOk: async () => {
         if (!cancelReason || cancelReason.trim() === '') {
           message.error('请填写取消原因')
+          return Promise.reject()
         }
 
         setLoading(true)
@@ -160,7 +210,9 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       key: 'code',
       width: 150,
       render: (text, record) => (
-        <a onClick={() => router.push(`/admin/stock-out/${record.id}`)}>{text}</a>
+        <Link className="text-blue-600 hover:underline" href={`/admin/stock-out/${record.id}`}>
+          {text}
+        </Link>
       ),
     },
     {
@@ -168,6 +220,17 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       dataIndex: 'orderCode',
       key: 'orderCode',
       width: 150,
+      render: (text, record) => (
+        <Link className="text-blue-600 hover:underline" href={`/admin/orders/${record.orderId}`}>
+          {text}
+        </Link>
+      ),
+    },
+    {
+      title: '门店',
+      dataIndex: 'storeName',
+      key: 'storeName',
+      width: 140,
     },
     {
       title: '仓库',
@@ -181,7 +244,11 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       key: 'status',
       width: 100,
       render: (status) => {
-        const config = statusMap[status as keyof typeof statusMap]
+        const config = statusMap[status as keyof typeof statusMap] ?? {
+          text: status,
+          color: 'default',
+          icon: null,
+        }
         return (
           <Tag color={config.color} icon={config.icon}>
             {config.text}
@@ -196,6 +263,21 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
       width: 100,
       align: 'right',
       render: (value) => `¥${value.toFixed(2)}`,
+    },
+    {
+      title: '出库数量',
+      dataIndex: 'totalQuantity',
+      key: 'totalQuantity',
+      width: 100,
+      align: 'right',
+    },
+    {
+      title: '领用金额',
+      dataIndex: 'issueAmount',
+      key: 'issueAmount',
+      width: 110,
+      align: 'right',
+      render: (value: number) => `¥${value.toFixed(2)}`,
     },
     {
       title: '完成时间',
@@ -228,7 +310,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
             >
               查看
             </Button>
-            {status === 'PENDING' && (
+            {canWriteStock && status === 'PENDING' && (
               <>
                 <Button
                   type="link"
@@ -258,43 +340,54 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
   return (
     <div>
       <Card>
-        <Space style={{ marginBottom: 16 }} size="middle">
-          <Search
-            placeholder="搜索单号或订单号"
-            allowClear
-            defaultValue={searchKeyword}
-            style={{ width: 200 }}
-            onSearch={handleSearch}
-            enterButton={<SearchOutlined />}
-          />
-          <Select
-            placeholder="选择状态"
-            allowClear
-            style={{ width: 120 }}
-            onChange={handleStatusChange}
-          >
-            <Select.Option value="PENDING">待出库</Select.Option>
-            <Select.Option value="COMPLETED">已出库</Select.Option>
-            <Select.Option value="CANCELLED">已取消</Select.Option>
-          </Select>
-          <Select
-            placeholder="选择仓库"
-            allowClear
-            style={{ width: 150 }}
-            onChange={handleWarehouseChange}
-          >
-            {warehouses.map((wh) => (
-              <Select.Option key={wh.id} value={wh.id}>
-                {wh.name}
-              </Select.Option>
-            ))}
-          </Select>
-          <RangePicker
-            style={{ width: 250 }}
-            onChange={handleDateRangeChange}
-            placeholder={['创建日期起', '创建日期止']}
-          />
-        </Space>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <Space size="middle">
+            <Search
+              placeholder="搜索单号或订单号"
+              allowClear
+              value={searchKeyword}
+              style={{ width: 200 }}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+              onSearch={handleSearch}
+              enterButton={<SearchOutlined />}
+            />
+            <Select
+              placeholder="选择状态"
+              allowClear
+              value={selectedStatus}
+              style={{ width: 120 }}
+              onChange={handleStatusChange}
+            >
+              <Select.Option value="PENDING">待出库</Select.Option>
+              <Select.Option value="COMPLETED">已出库</Select.Option>
+              <Select.Option value="CANCELLED">已取消</Select.Option>
+            </Select>
+            <Select
+              placeholder="选择仓库"
+              allowClear
+              value={selectedWarehouse}
+              style={{ width: 150 }}
+              onChange={handleWarehouseChange}
+            >
+              {warehouses.map((wh) => (
+                <Select.Option key={wh.id} value={wh.id}>
+                  {wh.name}
+                </Select.Option>
+              ))}
+            </Select>
+            <RangePicker
+              style={{ width: 250 }}
+              value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
+              onChange={handleDateRangeChange}
+              placeholder={['创建日期起', '创建日期止']}
+            />
+          </Space>
+          {canReviewOrders && (
+            <Link href={'/admin/order-approval' as Route}>
+              <Button icon={<AuditOutlined />}>待审批订单</Button>
+            </Link>
+          )}
+        </div>
 
         <Table
           columns={columns}
@@ -311,7 +404,21 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
               buildUrl({ page: page.toString(), pageSize: pageSize?.toString() })
             },
           }}
-          scroll={{ x: 1200 }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="订单审批通过后会自动生成待出库单"
+              >
+                {canReviewOrders && (
+                  <Link href={'/admin/order-approval' as Route}>
+                    <Button type="primary">去处理待审批订单</Button>
+                  </Link>
+                )}
+              </Empty>
+            ),
+          }}
+          scroll={{ x: 1500 }}
         />
       </Card>
     </div>

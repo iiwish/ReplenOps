@@ -199,16 +199,16 @@ export class DashboardService {
 
     const orders = await prisma.order.findMany({
       where: {
-        createdAt: { gte: startDate, lte: endDate },
+        orderedAt: { gte: startDate, lte: endDate },
         status: 'COMPLETED',
         isDeleted: false,
         ...(normalizedStoreId !== undefined && { storeId: normalizedStoreId }),
       },
       select: {
-        createdAt: true,
+        orderedAt: true,
       },
       orderBy: {
-        createdAt: 'asc',
+        orderedAt: 'asc',
       },
     })
 
@@ -222,7 +222,7 @@ export class DashboardService {
     }
 
     for (const order of orders) {
-      const dateStr = order.createdAt.toISOString().split('T')[0] ?? ''
+      const dateStr = order.orderedAt.toISOString().split('T')[0] ?? ''
       const existing = trendMap.get(dateStr)
       if (existing !== undefined) {
         existing.count += 1

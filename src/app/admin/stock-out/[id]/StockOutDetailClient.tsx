@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Card,
@@ -30,6 +31,7 @@ import dayjs from 'dayjs'
 
 interface StockOutDetailClientProps {
   stockOut: StockOutDetail
+  canWriteStock: boolean
 }
 
 const statusMap = {
@@ -38,7 +40,10 @@ const statusMap = {
   CANCELLED: { text: '已取消', color: 'default', icon: <CloseCircleOutlined /> },
 }
 
-export default function StockOutDetailClient({ stockOut }: StockOutDetailClientProps) {
+export default function StockOutDetailClient({
+  stockOut,
+  canWriteStock,
+}: StockOutDetailClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -90,6 +95,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
       onOk: async () => {
         if (!cancelReason || cancelReason.trim() === '') {
           message.error('请填写取消原因')
+          return Promise.reject()
         }
 
         setLoading(true)
@@ -170,7 +176,11 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
     },
   ]
 
-  const config = statusMap[stockOut.status as keyof typeof statusMap]
+  const config = statusMap[stockOut.status as keyof typeof statusMap] ?? {
+    text: stockOut.status,
+    color: 'default',
+    icon: null,
+  }
   const totalQuantity = stockOut.items.reduce((sum, item) => sum + item.quantity, 0)
   const totalCostAmount = stockOut.items.reduce((sum, item) => sum + item.costAmount, 0)
 
@@ -180,7 +190,10 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
         <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/admin/stock-out')}>
           返回列表
         </Button>
-        {stockOut.status === 'PENDING' && (
+        <Link href={`/admin/orders/${stockOut.orderId}`}>
+          <Button>查看关联订单</Button>
+        </Link>
+        {canWriteStock && stockOut.status === 'PENDING' && (
           <>
             <Button type="primary" onClick={handleComplete} loading={loading} danger>
               确认出库
@@ -197,7 +210,9 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
           <Card title="基本信息">
             <Descriptions bordered column={2}>
               <Descriptions.Item label="出库单号">{stockOut.code}</Descriptions.Item>
-              <Descriptions.Item label="订单号">{stockOut.orderCode}</Descriptions.Item>
+              <Descriptions.Item label="订单号">
+                <Link href={`/admin/orders/${stockOut.orderId}`}>{stockOut.orderCode}</Link>
+              </Descriptions.Item>
               <Descriptions.Item label="门店名称">{stockOut.storeName}</Descriptions.Item>
               <Descriptions.Item label="仓库名称">{stockOut.warehouseName}</Descriptions.Item>
               <Descriptions.Item label="状态">
@@ -291,7 +306,7 @@ export default function StockOutDetailClient({ stockOut }: StockOutDetailClientP
             <Card title="操作说明" style={{ marginBottom: 16 }}>
               <Alert
                 message="出库已完成"
-                description="此出库单已完成，库存已扣减，出库成本已记录。"
+                description="库存已扣减并记录成本。如需撤销，请进入关联订单执行撤销。"
                 type="success"
                 showIcon
               />
