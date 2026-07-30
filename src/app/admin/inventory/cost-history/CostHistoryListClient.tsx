@@ -3,23 +3,8 @@
 import type { Route } from 'next'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Card,
-  Table,
-  Button,
-  Select,
-  DatePicker,
-  Space,
-  Typography,
-  Row,
-  Col,
-  Input,
-} from 'antd'
-import {
-  FilterOutlined,
-  ReloadOutlined,
-  FileExcelOutlined,
-} from '@ant-design/icons'
+import { Card, Table, Button, Select, DatePicker, Space, Typography, Row, Col, Input } from 'antd'
+import { FilterOutlined, ReloadOutlined, FileExcelOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PaginatedCostHistoryResult } from '@/services/cost.service'
 import dayjs from 'dayjs'
@@ -31,30 +16,36 @@ const { Text } = Typography
 interface Props {
   initialData: PaginatedCostHistoryResult
   warehouses: Array<{ id: string; name: string }>
+  initialFilters: {
+    warehouseId?: string
+    goodsId?: string
+    startDate?: string
+    endDate?: string
+  }
 }
 
 // 关联单据类型配置
-const REFERENCE_TYPE_CONFIG: Record<
-  string,
-  { label: string; routePrefix: string }
-> = {
+const REFERENCE_TYPE_CONFIG: Record<string, { label: string; routePrefix: string }> = {
   STOCK_IN: { label: '入库单', routePrefix: '/admin/stock-in' },
   STOCK_OUT: { label: '出库单', routePrefix: '/admin/stock-out' },
   ADJUSTMENT: { label: '库存调整', routePrefix: '/admin/inventory/adjustment' },
 }
 
-export default function CostHistoryListClient({
-  initialData,
-  warehouses,
-}: Props) {
+export default function CostHistoryListClient({ initialData, warehouses, initialFilters }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   // 筛选状态
   const [filters, setFilters] = useState({
-    warehouseId: undefined as string | undefined,
-    goodsId: undefined as string | undefined,
-    dateRange: null as [dayjs.Dayjs, dayjs.Dayjs] | null,
+    warehouseId: initialFilters.warehouseId,
+    goodsId: initialFilters.goodsId,
+    dateRange:
+      initialFilters.startDate && initialFilters.endDate
+        ? ([dayjs(initialFilters.startDate), dayjs(initialFilters.endDate)] as [
+            dayjs.Dayjs,
+            dayjs.Dayjs,
+          ])
+        : null,
   })
 
   // 构建查询字符串
@@ -113,10 +104,7 @@ export default function CostHistoryListClient({
   }
 
   // 渲染成本变动（带颜色）
-  const renderCostChange = (
-    costChange: number,
-    costChangePercent: number
-  ) => {
+  const renderCostChange = (costChange: number, costChangePercent: number) => {
     const isPositive = costChange > 0
     const color = isPositive ? '#ff4d4f' : costChange < 0 ? '#52c41a' : undefined
     const prefix = isPositive ? '+' : ''
@@ -153,10 +141,9 @@ export default function CostHistoryListClient({
     )
   }
 
-  // 导出功能
   const handleExport = () => {
-    // TODO: 实现导出功能
-    console.log('导出成本历史')
+    const query = buildQueryString()
+    window.location.href = `/api/inventory/cost-history/export${query ? `?${query}` : ''}`
   }
 
   // 表格列定义
@@ -207,8 +194,7 @@ export default function CostHistoryListClient({
       key: 'costChange',
       width: 140,
       align: 'right',
-      render: (_, record) =>
-        renderCostChange(record.costChange, record.costChangePercent),
+      render: (_, record) => renderCostChange(record.costChange, record.costChangePercent),
     },
     {
       title: '变动前数量',
@@ -246,8 +232,7 @@ export default function CostHistoryListClient({
       title: '关联单据',
       key: 'reference',
       width: 120,
-      render: (_, record) =>
-        renderReference(record.referenceType, record.referenceId),
+      render: (_, record) => renderReference(record.referenceType, record.referenceId),
     },
   ]
 
@@ -266,11 +251,7 @@ export default function CostHistoryListClient({
               <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
                 刷新
               </Button>
-              <Button
-                icon={<FileExcelOutlined />}
-                onClick={handleExport}
-                type="primary"
-              >
+              <Button icon={<FileExcelOutlined />} onClick={handleExport} type="primary">
                 导出
               </Button>
             </Space>
@@ -282,17 +263,13 @@ export default function CostHistoryListClient({
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8} lg={6}>
               <div>
-                <Text style={{ display: 'block', marginBottom: 8 }}>
-                  仓库
-                </Text>
+                <Text style={{ display: 'block', marginBottom: 8 }}>仓库</Text>
                 <Select
                   placeholder="全部仓库"
                   allowClear
                   style={{ width: '100%' }}
                   value={filters.warehouseId}
-                  onChange={(value) =>
-                    setFilters({ ...filters, warehouseId: value })
-                  }
+                  onChange={(value) => setFilters({ ...filters, warehouseId: value })}
                   options={warehouses.map((w) => ({
                     label: w.name,
                     value: w.id,
@@ -302,24 +279,18 @@ export default function CostHistoryListClient({
             </Col>
             <Col xs={24} sm={12} md={8} lg={6}>
               <div>
-                <Text style={{ display: 'block', marginBottom: 8 }}>
-                  商品ID
-                </Text>
+                <Text style={{ display: 'block', marginBottom: 8 }}>商品ID</Text>
                 <Input
                   placeholder="请输入商品ID"
                   allowClear
                   value={filters.goodsId}
-                  onChange={(e) =>
-                    setFilters({ ...filters, goodsId: e.target.value || undefined })
-                  }
+                  onChange={(e) => setFilters({ ...filters, goodsId: e.target.value || undefined })}
                 />
               </div>
             </Col>
             <Col xs={24} sm={12} md={8} lg={6}>
               <div>
-                <Text style={{ display: 'block', marginBottom: 8 }}>
-                  时间范围
-                </Text>
+                <Text style={{ display: 'block', marginBottom: 8 }}>时间范围</Text>
                 <RangePicker
                   style={{ width: '100%' }}
                   value={filters.dateRange}
@@ -335,11 +306,7 @@ export default function CostHistoryListClient({
             <Col xs={24} sm={12} md={8} lg={6}>
               <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
                 <Space>
-                  <Button
-                    type="primary"
-                    icon={<FilterOutlined />}
-                    onClick={handleFilter}
-                  >
+                  <Button type="primary" icon={<FilterOutlined />} onClick={handleFilter}>
                     筛选
                   </Button>
                   <Button onClick={handleReset}>重置</Button>

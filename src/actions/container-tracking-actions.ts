@@ -1,8 +1,8 @@
 'use server'
 
 import { z } from 'zod'
-import { getCurrentUser } from '@/lib/session.server'
 import { containerTrackingService } from '@/services/container-tracking.service'
+import { requireActionPermission } from '@/lib/action-permissions'
 
 interface ActionResponse<T = unknown> {
   success: boolean
@@ -22,9 +22,10 @@ const returnContainerSchema = z.object({
 })
 
 export async function listTracking(
-  params?: z.infer<typeof listTrackingSchema>
+  params: z.infer<typeof listTrackingSchema> = {}
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const validatedParams = listTrackingSchema.parse(params)
 
     const result = await containerTrackingService.list(validatedParams)
@@ -50,6 +51,7 @@ export async function listTracking(
 
 export async function getTrackingLogs(trackingId: string): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const logs = await containerTrackingService.getLogs(trackingId)
 
     return {
@@ -75,13 +77,7 @@ export async function returnContainer(
   formData: z.infer<typeof returnContainerSchema>
 ): Promise<ActionResponse> {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return {
-        success: false,
-        message: '请先登录',
-      }
-    }
+    const user = await requireActionPermission('stock:write')
 
     const validatedData = returnContainerSchema.parse(formData)
 

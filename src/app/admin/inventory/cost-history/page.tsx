@@ -50,6 +50,12 @@ export default async function CostHistoryPage({
         id: String(warehouse.id),
         name: warehouse.name,
       }))}
+      initialFilters={{
+        warehouseId: params.warehouseId,
+        goodsId: params.goodsId,
+        startDate: params.startDate,
+        endDate: params.endDate,
+      }}
     />
   )
 }

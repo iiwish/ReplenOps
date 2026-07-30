@@ -2,6 +2,9 @@
 
 import { z } from 'zod'
 import { containerTrackingService } from '@/services/container-tracking.service'
+import { requireActionPermission } from '@/lib/action-permissions'
+import { getCurrentUser } from '@/lib/session.server'
+import { assertCanReadStore, canReadAllStores } from '@/lib/store-access'
 
 interface ActionResponse<T = unknown> {
   success: boolean
@@ -35,6 +38,7 @@ export async function getTrackingSummary(
   params: z.infer<typeof getSummarySchema>
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const validatedParams = getSummarySchema.parse(params)
 
     const result = await containerTrackingService.getSummary(validatedParams)
@@ -66,6 +70,15 @@ export async function listTracking(
 ): Promise<ActionResponse> {
   try {
     const validatedParams = listTrackingSchema.parse(params)
+    const user = await getCurrentUser()
+    if (!user) {
+      throw new Error('请先登录')
+    }
+    if (validatedParams.storeId) {
+      await assertCanReadStore(user, Number.parseInt(validatedParams.storeId, 10))
+    } else if (!canReadAllStores(user)) {
+      throw new Error('请选择有权访问的门店')
+    }
 
     const result = await containerTrackingService.listTracking(validatedParams)
 
@@ -95,6 +108,7 @@ export async function getAbnormalTrackings(
   params: z.infer<typeof getAbnormalTrackingSchema>
 ): Promise<ActionResponse> {
   try {
+    await requireActionPermission('stock:read')
     const validatedParams = getAbnormalTrackingSchema.parse(params)
 
     const result = await containerTrackingService.getAbnormalTrackings(validatedParams.days)

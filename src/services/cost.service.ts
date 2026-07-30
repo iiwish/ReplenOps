@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { getShanghaiDateRange } from '@/lib/shanghai-time'
 
 // 成本历史列表参数接口
 export interface ListCostHistoryParams {
@@ -52,17 +53,8 @@ export class CostService {
   /**
    * 获取成本历史列表（分页）
    */
-  async listHistory(
-    params: ListCostHistoryParams = {}
-  ): Promise<PaginatedCostHistoryResult> {
-    const {
-      page = 1,
-      pageSize = 20,
-      warehouseId,
-      goodsId,
-      startDate,
-      endDate,
-    } = params
+  async listHistory(params: ListCostHistoryParams = {}): Promise<PaginatedCostHistoryResult> {
+    const { page = 1, pageSize = 20, warehouseId, goodsId, startDate, endDate } = params
 
     // 构建查询条件
     const where: Prisma.CostHistoryWhereInput = {}
@@ -79,14 +71,10 @@ export class CostService {
 
     // 日期范围筛选
     if (startDate || endDate) {
-      where.createdAt = {}
-      if (startDate) {
-        where.createdAt.gte = new Date(startDate)
-      }
-      if (endDate) {
-        const end = new Date(endDate)
-        end.setHours(23, 59, 59, 999)
-        where.createdAt.lte = end
+      const range = getShanghaiDateRange(startDate, endDate)
+      where.createdAt = {
+        ...(range.start ? { gte: range.start } : {}),
+        ...(range.endExclusive ? { lt: range.endExclusive } : {}),
       }
     }
 
@@ -132,8 +120,7 @@ export class CostService {
       const beforeCost = Number(item.beforeCost)
       const afterCost = Number(item.afterCost)
       const costChange = afterCost - beforeCost
-      const costChangePercent =
-        beforeCost > 0 ? (costChange / beforeCost) * 100 : 0
+      const costChangePercent = beforeCost > 0 ? (costChange / beforeCost) * 100 : 0
 
       return {
         id: String(item.id),
@@ -208,10 +195,7 @@ export class CostService {
    * @param goodsId 商品ID
    * @returns 最新成本记录，如果不存在返回null
    */
-  async getLatestCost(
-    warehouseId: string,
-    goodsId: string
-  ): Promise<CostHistoryListItem | null> {
+  async getLatestCost(warehouseId: string, goodsId: string): Promise<CostHistoryListItem | null> {
     const latest = await prisma.costHistory.findFirst({
       where: {
         warehouseId: Number.parseInt(warehouseId, 10),
