@@ -3,21 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Dayjs } from 'dayjs'
-import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Modal,
-  message,
-  Card,
-  Select,
-  DatePicker,
-  Statistic,
-  Row,
-  Col,
-} from 'antd'
+import { Table, Button, Input, Space, Tag, Modal, message, Card, Select, DatePicker } from 'antd'
 import {
   EyeOutlined,
   CheckCircleOutlined,
@@ -269,47 +255,8 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
     },
   ]
 
-  const totalCost = initialData.data.reduce((sum, item) => sum + item.totalCost, 0)
-
   return (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="总成本"
-              value={totalCost}
-              prefix="¥"
-              precision={2}
-              styles={{ content: { color: '#3f8600' } }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="记录数" value={initialData.total} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="待出库"
-              value={initialData.data.filter((item) => item.status === 'PENDING').length}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="已出库"
-              value={initialData.data.filter((item) => item.status === 'COMPLETED').length}
-              styles={{ content: { color: '#3f8600' } }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       <Card>
         <Space style={{ marginBottom: 16 }} size="middle">
           <Search
@@ -345,7 +292,7 @@ export default function StockOutListClient({ initialData, warehouses }: StockOut
           <RangePicker
             style={{ width: 250 }}
             onChange={handleDateRangeChange}
-            placeholder={['开始日期', '结束日期']}
+            placeholder={['创建日期起', '创建日期止']}
           />
         </Space>
 

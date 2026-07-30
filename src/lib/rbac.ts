@@ -66,6 +66,7 @@ export const ADMIN_API_ROUTES = [
   '/api/users',
   '/api/ordering-schedule',
   '/api/reports/inventory',
+  '/api/reports/stock-out',
 ]
 
 export const MOBILE_API_ROUTES = [
@@ -183,7 +184,10 @@ export function hasPermission(role: UserRole | UserRole[], pathname: string): bo
         break
       case 'api':
         if (apiPermissionType === 'admin' && permissions.canAccessAdmin) return true
-        if (apiPermissionType === 'mobile' && (permissions.canAccessMobile || permissions.canAccessAdmin)) {
+        if (
+          apiPermissionType === 'mobile' &&
+          (permissions.canAccessMobile || permissions.canAccessAdmin)
+        ) {
           return true
         }
         if (apiPermissionType === 'public') return true
@@ -210,10 +214,7 @@ export function getDefaultRoute(role: UserRole): string {
  * @param attemptedPath 尝试访问的路径
  * @returns 重定向路由
  */
-export function getRedirectRoute(
-  role: UserRole | UserRole[],
-  attemptedPath: string
-): string {
+export function getRedirectRoute(role: UserRole | UserRole[], attemptedPath: string): string {
   // 如果用户有权限访问，则返回原路径
   if (hasPermission(role, attemptedPath)) {
     return attemptedPath

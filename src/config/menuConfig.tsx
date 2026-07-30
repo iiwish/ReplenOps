@@ -114,6 +114,11 @@ export const menuItems: MenuItemConfig[] = [
         label: '库存报表',
         path: '/admin/reports/inventory',
       },
+      {
+        key: 'stock-out-report',
+        label: '月度出库报表',
+        path: '/admin/reports/stock-out',
+      },
     ],
   },
   {
