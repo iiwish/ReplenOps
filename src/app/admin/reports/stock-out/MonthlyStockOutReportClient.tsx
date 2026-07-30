@@ -12,14 +12,15 @@ import {
   Input,
   message,
   Row,
+  Segmented,
   Select,
-  Space,
   Statistic,
   Table,
   Tag,
+  Tooltip,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { formatShanghaiDateTime, getShanghaiMonth } from '@/lib/shanghai-time'
 import type {
@@ -181,24 +182,44 @@ export default function MonthlyStockOutReportClient({
   ]
 
   const { summary } = initialData
+  const previousMonth = getShanghaiMonth(-1)
+  const currentMonth = getShanghaiMonth(0)
+  const quickMonth =
+    month === previousMonth ? 'previous' : month === currentMonth ? 'current' : undefined
 
   return (
     <div className="space-y-5 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Space wrap>
-          <Button onClick={() => applyMonth(getShanghaiMonth(-1))}>上月</Button>
-          <Button onClick={() => applyMonth(getShanghaiMonth(0))}>本月</Button>
-          <DatePicker
-            picker="month"
-            allowClear={false}
-            value={dayjs(`${month}-01`)}
-            onChange={(value) => value && setMonth(value.format('YYYY-MM'))}
-          />
+      <div className="border-b border-gray-200 pb-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="shrink-0 text-sm font-medium text-gray-700">统计月份</span>
+            <Segmented
+              value={quickMonth}
+              options={[
+                { label: '上月', value: 'previous' },
+                { label: '本月', value: 'current' },
+              ]}
+              onChange={(value) => applyMonth(value === 'previous' ? previousMonth : currentMonth)}
+            />
+            <DatePicker
+              className="w-[132px]"
+              picker="month"
+              allowClear={false}
+              value={dayjs(`${month}-01`)}
+              onChange={(value) => value && applyMonth(value.format('YYYY-MM'))}
+            />
+          </div>
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+            导出 Excel
+          </Button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-[minmax(120px,0.8fr)_minmax(130px,1fr)_minmax(150px,1.1fr)_minmax(180px,1.5fr)_auto] gap-2">
           <Select
+            className="w-full"
             allowClear
-            placeholder="全部出库状态"
+            placeholder="全部状态"
             value={status}
-            style={{ width: 140 }}
             onChange={setStatus}
             options={[
               { value: 'COMPLETED', label: '已出库' },
@@ -206,12 +227,12 @@ export default function MonthlyStockOutReportClient({
             ]}
           />
           <Select
+            className="w-full"
             allowClear
             showSearch
             optionFilterProp="label"
             placeholder="全部仓库"
             value={warehouseId}
-            style={{ width: 160 }}
             onChange={setWarehouseId}
             options={options.warehouses.map((item) => ({
               value: item.id,
@@ -219,12 +240,12 @@ export default function MonthlyStockOutReportClient({
             }))}
           />
           <Select
+            className="w-full"
             allowClear
             showSearch
             optionFilterProp="label"
             placeholder="全部门店"
             value={storeId}
-            style={{ width: 180 }}
             onChange={setStoreId}
             options={options.stores.map((item) => ({
               value: item.id,
@@ -232,21 +253,23 @@ export default function MonthlyStockOutReportClient({
             }))}
           />
           <Input
+            className="w-full"
             allowClear
+            prefix={<SearchOutlined className="text-gray-400" />}
             placeholder="出库单号或订单号"
             value={keyword}
-            style={{ width: 210 }}
             onChange={(event) => setKeyword(event.target.value)}
             onPressEnter={applyFilters}
           />
-          <Button type="primary" icon={<SearchOutlined />} onClick={applyFilters}>
-            查询
-          </Button>
-          <Button onClick={resetFilters}>重置</Button>
-        </Space>
-        <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
-          导出 Excel
-        </Button>
+          <div className="flex items-center gap-2">
+            <Button type="primary" icon={<SearchOutlined />} onClick={applyFilters}>
+              查询
+            </Button>
+            <Tooltip title="重置筛选">
+              <Button aria-label="重置筛选" icon={<ReloadOutlined />} onClick={resetFilters} />
+            </Tooltip>
+          </div>
+        </div>
       </div>
 
       <div className="border-y border-gray-200 bg-white px-4 py-5">
