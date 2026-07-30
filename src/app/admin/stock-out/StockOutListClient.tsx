@@ -179,26 +179,29 @@ export default function StockOutListClient({
       okText: '确认取消',
       cancelText: '取消',
       okButtonProps: { danger: true },
-      onOk: async () => {
+      onOk: (close: () => void) => {
         if (!cancelReason || cancelReason.trim() === '') {
           message.error('请填写取消原因')
-          return Promise.reject()
+          return
         }
 
         setLoading(true)
-        try {
-          const result = await cancelStockOut(record.id, { reason: cancelReason })
-          if (result.success) {
-            message.success(result.message)
-            router.refresh()
-          } else {
-            message.error(result.message || '取消失败')
+        void (async () => {
+          try {
+            const result = await cancelStockOut(record.id, { reason: cancelReason })
+            if (result.success) {
+              close()
+              message.success(result.message)
+              router.refresh()
+            } else {
+              message.error(result.message || '取消失败')
+            }
+          } catch {
+            message.error('取消失败，请重试')
+          } finally {
+            setLoading(false)
           }
-        } catch {
-          message.error('取消失败，请重试')
-        } finally {
-          setLoading(false)
-        }
+        })()
       },
     })
   }
@@ -220,11 +223,17 @@ export default function StockOutListClient({
       dataIndex: 'orderCode',
       key: 'orderCode',
       width: 150,
-      render: (text, record) => (
-        <Link className="text-blue-600 hover:underline" href={`/admin/orders/${record.orderId}`}>
-          {text}
-        </Link>
-      ),
+      render: (text, record) =>
+        record.orderIsDeleted ? (
+          <Space size={4}>
+            <span>{text}</span>
+            <Tag>订单已删除</Tag>
+          </Space>
+        ) : (
+          <Link className="text-blue-600 hover:underline" href={`/admin/orders/${record.orderId}`}>
+            {text}
+          </Link>
+        ),
     },
     {
       title: '门店',

@@ -92,26 +92,29 @@ export default function StockOutDetailClient({
       okText: '确认取消',
       cancelText: '取消',
       okButtonProps: { danger: true },
-      onOk: async () => {
+      onOk: (close: () => void) => {
         if (!cancelReason || cancelReason.trim() === '') {
           message.error('请填写取消原因')
-          return Promise.reject()
+          return
         }
 
         setLoading(true)
-        try {
-          const result = await cancelStockOut(stockOut.id, { reason: cancelReason })
-          if (result.success) {
-            message.success(result.message)
-            router.refresh()
-          } else {
-            message.error(result.message || '取消失败')
+        void (async () => {
+          try {
+            const result = await cancelStockOut(stockOut.id, { reason: cancelReason })
+            if (result.success) {
+              close()
+              message.success(result.message)
+              router.refresh()
+            } else {
+              message.error(result.message || '取消失败')
+            }
+          } catch {
+            message.error('取消失败，请重试')
+          } finally {
+            setLoading(false)
           }
-        } catch {
-          message.error('取消失败，请重试')
-        } finally {
-          setLoading(false)
-        }
+        })()
       },
     })
   }
@@ -190,9 +193,11 @@ export default function StockOutDetailClient({
         <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/admin/stock-out')}>
           返回列表
         </Button>
-        <Link href={`/admin/orders/${stockOut.orderId}`}>
-          <Button>查看关联订单</Button>
-        </Link>
+        {!stockOut.orderIsDeleted && (
+          <Link href={`/admin/orders/${stockOut.orderId}`}>
+            <Button>查看关联订单</Button>
+          </Link>
+        )}
         {canWriteStock && stockOut.status === 'PENDING' && (
           <>
             <Button type="primary" onClick={handleComplete} loading={loading} danger>
@@ -211,7 +216,14 @@ export default function StockOutDetailClient({
             <Descriptions bordered column={2}>
               <Descriptions.Item label="出库单号">{stockOut.code}</Descriptions.Item>
               <Descriptions.Item label="订单号">
-                <Link href={`/admin/orders/${stockOut.orderId}`}>{stockOut.orderCode}</Link>
+                {stockOut.orderIsDeleted ? (
+                  <Space size={4}>
+                    <span>{stockOut.orderCode}</span>
+                    <Tag>订单已删除</Tag>
+                  </Space>
+                ) : (
+                  <Link href={`/admin/orders/${stockOut.orderId}`}>{stockOut.orderCode}</Link>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="门店名称">{stockOut.storeName}</Descriptions.Item>
               <Descriptions.Item label="仓库名称">{stockOut.warehouseName}</Descriptions.Item>
