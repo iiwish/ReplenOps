@@ -369,10 +369,21 @@ export async function deleteStockIn(id: string): Promise<ActionResponse> {
 /**
  * 搜索商品（用于商品选择器）
  */
-export async function searchGoods(keyword: string = ''): Promise<ActionResponse> {
+export async function searchGoods(
+  keyword: string = '',
+  page: number = 1,
+  pageSize: number = 20
+): Promise<ActionResponse> {
   try {
     await requireActionPermission('stock:write')
-    const goods = await stockInService.searchGoods(keyword)
+    const params = z
+      .object({
+        keyword: z.string().trim().max(100, '搜索关键词最多100个字符'),
+        page: z.number().int().min(1),
+        pageSize: z.number().int().min(1).max(50),
+      })
+      .parse({ keyword, page, pageSize })
+    const goods = await stockInService.searchGoods(params.keyword, params.page, params.pageSize)
 
     return {
       success: true,

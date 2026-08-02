@@ -18,10 +18,7 @@ import {
   Alert,
   Divider,
 } from 'antd'
-import {
-  SaveOutlined,
-  CloseOutlined,
-} from '@ant-design/icons'
+import { SaveOutlined, CloseOutlined } from '@ant-design/icons'
 import { adjustStock, getInventoryInfo } from '@/actions/inventory-actions'
 import { searchGoods } from '@/actions/stock-in-actions'
 
@@ -148,12 +145,10 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
       } else {
         if (result.errors) {
           // 显示字段级错误
-          const fieldErrors = Object.entries(result.errors).map(
-            ([field, errors]) => ({
-              name: field,
-              errors: errors,
-            })
-          )
+          const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
+            name: field,
+            errors: errors,
+          }))
           form.setFields(fieldErrors)
         } else {
           message.error(result.message || '库存调整失败')
@@ -198,6 +193,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
         <Form
           form={form}
           layout="vertical"
+          initialValues={{ warehouseId: warehouses[0]?.id }}
           onFinish={handleSubmit}
           autoComplete="off"
         >
@@ -236,9 +232,7 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
                   onSearch={handleSearchGoods}
                   onChange={handleGoodsChange}
                   loading={searchingGoods}
-                  notFoundContent={
-                    searchingGoods ? <Spin size="small" /> : '请输入关键词搜索'
-                  }
+                  notFoundContent={searchingGoods ? <Spin size="small" /> : '请输入关键词搜索'}
                   options={goodsOptions.map((g) => ({
                     label: `${g.name} (${g.code})`,
                     value: g.id,
@@ -313,7 +307,9 @@ export default function InventoryAdjustmentClient({ warehouses }: Props) {
                         suffix={currentInventory.goodsUnit}
                         prefix={changeQty > 0 ? '+' : ''}
                         styles={{
-                          content: { color: changeQty > 0 ? '#52c41a' : changeQty < 0 ? '#ff4d4f' : '#000' },
+                          content: {
+                            color: changeQty > 0 ? '#52c41a' : changeQty < 0 ? '#ff4d4f' : '#000',
+                          },
                         }}
                       />
                     </div>

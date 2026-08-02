@@ -30,6 +30,7 @@ interface ReportChartProps {
   title?: string
   height?: number
   colors?: string[]
+  valueFormatter?: (value: number) => string
 }
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00c49f']
@@ -42,7 +43,13 @@ export function ReportChart({
   title,
   height = 300,
   colors = COLORS,
+  valueFormatter,
 }: ReportChartProps) {
+  const tooltipFormatter = valueFormatter
+    ? (value: string | number | readonly (string | number)[] | undefined) =>
+        valueFormatter(Number(Array.isArray(value) ? value[0] : (value ?? 0)))
+    : undefined
+
   if (type === 'line') {
     return (
       <div>
@@ -52,7 +59,7 @@ export function ReportChart({
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey={nameKey} />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Legend />
             <Line type="monotone" dataKey={dataKey} stroke="#8884d8" strokeWidth={2} />
           </LineChart>
@@ -70,7 +77,7 @@ export function ReportChart({
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey={nameKey} />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Legend />
             <Bar dataKey={dataKey} fill="#8884d8" />
           </BarChart>
@@ -99,7 +106,7 @@ export function ReportChart({
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}
           </Pie>
-          <Tooltip />
+          <Tooltip formatter={tooltipFormatter} />
           <Legend />
         </PieChart>
       </ResponsiveContainer>

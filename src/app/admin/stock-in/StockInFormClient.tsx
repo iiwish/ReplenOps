@@ -1,24 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Form,
-  Input,
-  InputNumber,
-  Button,
-  Card,
-  message,
-  Space,
-  Select,
-  Table,
-  Modal,
-} from 'antd'
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-} from '@ant-design/icons'
+import { Form, Input, InputNumber, Button, Card, message, Space, Select, Table, Modal } from 'antd'
+import { PlusOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { createStockIn, updateStockIn, searchGoods } from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -77,28 +62,53 @@ export default function StockInFormClient({
   const [goodsSearchKeyword, setGoodsSearchKeyword] = useState('')
   const [goodsOptions, setGoodsOptions] = useState<GoodsOption[]>([])
   const [goodsLoading, setGoodsLoading] = useState(false)
+  const [goodsPage, setGoodsPage] = useState(1)
+  const [goodsHasMore, setGoodsHasMore] = useState(true)
+  const goodsRequestId = useRef(0)
 
-  // 搜索商品
-  const handleSearchGoods = async (keyword: string) => {
-    if (!keyword || keyword.trim() === '') {
-      setGoodsOptions([])
-      return
-    }
-
+  const loadGoods = useCallback(async (keyword: string, page: number, append: boolean) => {
+    const requestId = ++goodsRequestId.current
     setGoodsLoading(true)
     try {
-      const result = await searchGoods(keyword)
+      const result = await searchGoods(keyword, page, 20)
+      if (requestId !== goodsRequestId.current) return
+
       if (result.success && result.data) {
-        setGoodsOptions(result.data as GoodsOption[])
+        const nextGoods = result.data as GoodsOption[]
+        setGoodsOptions((current) => (append ? [...current, ...nextGoods] : nextGoods))
+        setGoodsPage(page)
+        setGoodsHasMore(nextGoods.length === 20)
       } else {
         message.error(result.message || '搜索商品失败')
-        setGoodsOptions([])
+        if (!append) setGoodsOptions([])
       }
     } catch {
+      if (requestId !== goodsRequestId.current) return
       message.error('搜索商品失败')
-      setGoodsOptions([])
+      if (!append) setGoodsOptions([])
     } finally {
-      setGoodsLoading(false)
+      if (requestId === goodsRequestId.current) setGoodsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!goodsModalVisible) return
+
+    const timer = window.setTimeout(
+      () => {
+        void loadGoods(goodsSearchKeyword.trim(), 1, false)
+      },
+      goodsSearchKeyword ? 300 : 0
+    )
+
+    return () => window.clearTimeout(timer)
+  }, [goodsModalVisible, goodsSearchKeyword, loadGoods])
+
+  const handleGoodsListScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget
+    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 48
+    if (isNearBottom && goodsHasMore && !goodsLoading) {
+      void loadGoods(goodsSearchKeyword.trim(), goodsPage + 1, true)
     }
   }
 
@@ -286,7 +296,11 @@ export default function StockInFormClient({
         <Form
           form={form}
           layout="vertical"
-          initialValues={initialValues}
+          initialValues={
+            initialValues ?? {
+              warehouseId: warehouses[0]?.id,
+            }
+          }
           onFinish={handleSubmit}
           style={{ maxWidth: 1200 }}
         >
@@ -347,12 +361,7 @@ export default function StockInFormClient({
           </Card>
 
           <Form.Item label="备注" name="remark">
-            <TextArea
-              placeholder="请输入备注信息"
-              rows={4}
-              maxLength={500}
-              showCount
-            />
+            <TextArea placeholder="请输入备注信息" rows={4} maxLength={500} showCount />
           </Form.Item>
 
           <Form.Item>
@@ -379,6 +388,8 @@ export default function StockInFormClient({
           setGoodsModalVisible(false)
           setGoodsSearchKeyword('')
           setGoodsOptions([])
+          setGoodsPage(1)
+          setGoodsHasMore(true)
         }}
         footer={null}
         width={800}
@@ -389,18 +400,10 @@ export default function StockInFormClient({
             prefix={<SearchOutlined />}
             value={goodsSearchKeyword}
             onChange={(e) => setGoodsSearchKeyword(e.target.value)}
-            onPressEnter={() => handleSearchGoods(goodsSearchKeyword)}
             allowClear
           />
-          <Button
-            type="primary"
-            onClick={() => handleSearchGoods(goodsSearchKeyword)}
-            loading={goodsLoading}
-          >
-            搜索
-          </Button>
 
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 400, overflowY: 'auto' }} onScroll={handleGoodsListScroll}>
             {goodsOptions.length > 0 ? (
               <Table
                 columns={[
@@ -435,10 +438,7 @@ export default function StockInFormClient({
                     key: 'action',
                     width: 100,
                     render: (_, record) => (
-                      <Button
-                        type="link"
-                        onClick={() => handleAddGoods(record)}
-                      >
+                      <Button type="link" onClick={() => handleAddGoods(record)}>
                         添加
                       </Button>
                     ),
@@ -447,13 +447,21 @@ export default function StockInFormClient({
                 dataSource={goodsOptions}
                 rowKey="id"
                 pagination={false}
+                loading={goodsLoading && goodsOptions.length === 0}
                 size="small"
               />
             ) : (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-                {goodsSearchKeyword
-                  ? '未找到相关商品，请尝试其他关键词'
-                  : '请输入关键词搜索商品'}
+                {goodsLoading ? '正在加载商品...' : '未找到相关商品，请尝试其他关键词'}
+              </div>
+            )}
+            {goodsOptions.length > 0 && (
+              <div style={{ padding: 12, textAlign: 'center', color: '#8c8c8c' }}>
+                {goodsLoading
+                  ? '正在加载更多...'
+                  : goodsHasMore
+                    ? '继续向下滚动加载更多'
+                    : '已显示全部商品'}
               </div>
             )}
           </div>

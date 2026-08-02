@@ -2,63 +2,78 @@
 
 import Link from 'next/link'
 import type { Route } from 'next'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { ShoppingBag, Package, ClipboardList, Search } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { ShoppingBag, Package, ClipboardList, ScanLine } from 'lucide-react'
 
 interface QuickAction {
   label: string
   href: string
-  icon: React.ReactNode
-  color: string
+  icon: LucideIcon
+  iconClassName: string
+  iconBackgroundClassName: string
 }
 
 const quickActions: QuickAction[] = [
   {
     label: '下单',
     href: '/mobile/order',
-    icon: <ShoppingBag className="h-5 w-5" />,
-    color: 'bg-blue-50 text-blue-600',
+    icon: ShoppingBag,
+    iconClassName: 'text-blue-600',
+    iconBackgroundClassName: 'bg-blue-50 ring-blue-100',
   },
   {
     label: '查库存',
-    href: '/mobile/inventory',
-    icon: <Package className="h-5 w-5" />,
-    color: 'bg-green-50 text-green-600',
+    href: '/mobile/inventory/scan',
+    icon: Package,
+    iconClassName: 'text-emerald-600',
+    iconBackgroundClassName: 'bg-emerald-50 ring-emerald-100',
   },
   {
     label: '我的订单',
     href: '/mobile/orders',
-    icon: <ClipboardList className="h-5 w-5" />,
-    color: 'bg-orange-50 text-orange-600',
+    icon: ClipboardList,
+    iconClassName: 'text-orange-600',
+    iconBackgroundClassName: 'bg-orange-50 ring-orange-100',
   },
   {
     label: '扫码',
-    href: '/mobile/scan',
-    icon: <Search className="h-5 w-5" />,
-    color: 'bg-purple-50 text-purple-600',
+    href: '/mobile/inventory/scan',
+    icon: ScanLine,
+    iconClassName: 'text-violet-600',
+    iconBackgroundClassName: 'bg-violet-50 ring-violet-100',
   },
 ]
 
 export function QuickActions() {
   return (
-    <Card className="p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-800">快速入口</h3>
+    <section aria-labelledby="mobile-quick-actions-heading">
+      <div className="mb-2.5 flex items-center justify-between">
+        <h2 id="mobile-quick-actions-heading" className="text-base font-semibold text-gray-950">
+          快速入口
+        </h2>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {quickActions.map((action, index) => (
-          <Link key={index} href={action.href as Route}>
-            <Button
-              variant="outline"
-              className={`flex h-24 flex-col items-center justify-center gap-2 ${action.color}`}
+      <div className="grid grid-cols-4 gap-2">
+        {quickActions.map((action) => {
+          const Icon = action.icon
+
+          return (
+            <Link
+              key={action.label}
+              href={action.href as Route}
+              className="flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-2 rounded-lg border border-gray-200/80 bg-white px-1.5 py-2.5 text-gray-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 active:bg-gray-50"
             >
-              {action.icon}
-              <span className="text-sm font-medium">{action.label}</span>
-            </Button>
-          </Link>
-        ))}
+              <span
+                className={`flex h-9 w-9 items-center justify-center rounded-lg ring-1 ${action.iconBackgroundClassName}`}
+              >
+                <Icon className={`h-5 w-5 ${action.iconClassName}`} />
+              </span>
+              <span className="w-full whitespace-nowrap text-center text-xs font-medium leading-4">
+                {action.label}
+              </span>
+            </Link>
+          )
+        })}
       </div>
-    </Card>
+    </section>
   )
 }

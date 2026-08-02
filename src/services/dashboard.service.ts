@@ -141,7 +141,7 @@ export class DashboardService {
         title: '包装物待归还',
         description: '有包装物需归还',
         count: containerTrackings.length,
-        link: '/mobile/containers',
+        link: '/mobile/container-return',
       },
       lowStockItems: {
         id: 'low-stock',
@@ -149,7 +149,7 @@ export class DashboardService {
         title: '库存预警',
         description: '部分商品库存不足',
         count: filteredLowStockItems.length,
-        link: '/mobile/inventory',
+        link: '/mobile/inventory/scan',
       },
     }
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -23,6 +24,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ExclamationCircleOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { completeStockOut, cancelStockOut } from '@/actions/stock-out-actions'
@@ -59,8 +61,14 @@ export default function StockOutDetailClient({
         try {
           const result = await completeStockOut(stockOut.id)
           if (result.success) {
-            message.success(result.message)
             router.refresh()
+            Modal.confirm({
+              title: '出库完成',
+              content: '库存已扣减。是否立即打印出库单进行复核？',
+              okText: '打印出库单',
+              cancelText: '稍后打印',
+              onOk: () => window.open(`/admin/stock-out/${stockOut.id}/print`, '_blank'),
+            })
           } else {
             message.error(result.message || '出库失败')
           }
@@ -198,6 +206,9 @@ export default function StockOutDetailClient({
             <Button>查看关联订单</Button>
           </Link>
         )}
+        <Link href={`/admin/stock-out/${stockOut.id}/print` as Route} target="_blank">
+          <Button icon={<PrinterOutlined />}>打印出库单</Button>
+        </Link>
         {canWriteStock && stockOut.status === 'PENDING' && (
           <>
             <Button type="primary" onClick={handleComplete} loading={loading} danger>
