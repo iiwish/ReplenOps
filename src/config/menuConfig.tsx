@@ -1,5 +1,6 @@
 import {
   BarChartOutlined,
+  AppstoreOutlined,
   ContainerOutlined,
   DashboardOutlined,
   InboxOutlined,
@@ -28,6 +29,40 @@ export const menuItems: MenuItemConfig[] = [
     path: '/admin/dashboard',
   },
   {
+    key: 'goods-center',
+    label: '商品管理',
+    icon: <AppstoreOutlined />,
+    children: [
+      {
+        key: 'goods',
+        label: '商品档案',
+        path: '/admin/goods',
+      },
+      {
+        key: 'goods-category',
+        label: '商品分类',
+        path: '/admin/goods-category',
+      },
+    ],
+  },
+  {
+    key: 'orders',
+    label: '订单管理',
+    icon: <ShoppingCartOutlined />,
+    children: [
+      {
+        key: 'order-list',
+        label: '订单列表',
+        path: '/admin/orders',
+      },
+      {
+        key: 'order-approval',
+        label: '订单审批',
+        path: '/admin/order-approval',
+      },
+    ],
+  },
+  {
     key: 'inventory',
     label: '库存管理',
     icon: <InboxOutlined />,
@@ -36,16 +71,6 @@ export const menuItems: MenuItemConfig[] = [
         key: 'warehouse',
         label: '仓库管理',
         path: '/admin/warehouse',
-      },
-      {
-        key: 'goods',
-        label: '商品管理',
-        path: '/admin/goods',
-      },
-      {
-        key: 'goods-category',
-        label: '商品分类',
-        path: '/admin/goods-category',
       },
       {
         key: 'inventory-query',
@@ -93,23 +118,6 @@ export const menuItems: MenuItemConfig[] = [
         key: 'store-admins',
         label: '门店管理员',
         path: '/admin/store-admins',
-      },
-    ],
-  },
-  {
-    key: 'orders',
-    label: '订单管理',
-    icon: <ShoppingCartOutlined />,
-    children: [
-      {
-        key: 'order-list',
-        label: '订单列表',
-        path: '/admin/orders',
-      },
-      {
-        key: 'order-approval',
-        label: '订单审批',
-        path: '/admin/order-approval',
       },
     ],
   },
@@ -250,6 +258,31 @@ export function getKeyToLabelMap(items: MenuItemConfig[]): Map<string, string> {
   return map
 }
 
+export function getOpenKeysForPath(pathname: string, items: MenuItemConfig[]): string[] {
+  const openKeys: string[] = []
+
+  function visit(menuItems: MenuItemConfig[]): boolean {
+    for (const item of menuItems) {
+      const matchesPath =
+        item.path && (item.path === pathname || pathname.startsWith(`${item.path}/`))
+      const matchesChild = item.children ? visit(item.children) : false
+
+      if (matchesChild && item.children) {
+        openKeys.push(item.key)
+      }
+
+      if (matchesPath || matchesChild) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  visit(items)
+  return openKeys
+}
+
 // 根据路径获取面包屑路径
 export function getBreadcrumbItems(
   pathname: string,
@@ -261,7 +294,7 @@ export function getBreadcrumbItems(
     for (const item of items) {
       const newPath = [...currentPath, item]
 
-      if (item.path === pathname) {
+      if (item.path && (item.path === pathname || pathname.startsWith(`${item.path}/`))) {
         breadcrumbs.push(
           ...newPath.map((p) => ({
             key: p.key,

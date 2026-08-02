@@ -5,13 +5,18 @@ export interface InventoryReportData {
     id: string
     goodsCode: string
     goodsName: string
+    goodsSpec: string | null
+    goodsUnit: string
     categoryName: string
     warehouseName: string
     quantity: number
     availableQuantity: number
     avgCost: number
     totalCost: number
+    minStock: number
+    shortageQuantity: number
   }>
+  lowStockItems: InventoryReportData['inventory']
   summary: {
     totalQty: number
     totalAmount: number
@@ -22,7 +27,11 @@ export interface InventoryReportData {
 export class ReportService {
   async getInventoryReport(): Promise<InventoryReportData> {
     const inventory = await prisma.inventory.findMany({
-      where: { quantity: { gt: 0 } },
+      where: {
+        isDeleted: false,
+        goods: { isDeleted: false, isActive: true },
+        warehouse: { isDeleted: false, isActive: true },
+      },
       include: {
         goods: {
           include: { category: true },
@@ -35,24 +44,29 @@ export class ReportService {
       id: String(item.id),
       goodsCode: item.goods.code,
       goodsName: item.goods.name,
+      goodsSpec: item.goods.spec,
+      goodsUnit: item.goods.unit,
       categoryName: item.goods.category.name,
       warehouseName: item.warehouse.name,
       quantity: Number(item.quantity),
       availableQuantity: Number(item.availableQuantity),
       avgCost: Number(item.avgCost),
       totalCost: Number(item.totalCost),
+      minStock: Number(item.goods.minStock),
+      shortageQuantity: Math.max(Number(item.goods.minStock) - Number(item.availableQuantity), 0),
     }))
 
-    const lowStockCount = inventory.filter(
-      (item) => Number(item.availableQuantity) < Number(item.goods.minStock)
-    ).length
+    const lowStockItems = inventoryData
+      .filter((item) => item.availableQuantity < item.minStock)
+      .sort((a, b) => b.shortageQuantity - a.shortageQuantity)
 
     return {
       inventory: inventoryData,
+      lowStockItems,
       summary: {
         totalQty: inventoryData.reduce((sum, item) => sum + item.quantity, 0),
         totalAmount: inventoryData.reduce((sum, item) => sum + item.totalCost, 0),
-        lowStockCount,
+        lowStockCount: lowStockItems.length,
       },
     }
   }
