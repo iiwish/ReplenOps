@@ -3,10 +3,11 @@
 import type { Route } from 'next'
 import { Layout, Menu } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   getKeyToPathMap,
   getMenuItems,
+  getOpenKeysForPath,
   getPathToKeyMap,
   menuItems,
 } from '@/config/menuConfig'
@@ -30,25 +31,20 @@ export default function AppSidebar({ collapsed }: AppSidebarProps) {
 
   // 获取当前选中的菜单项
   const selectedKey = useMemo(() => {
-    return pathToKeyMap.get(pathname) || ''
+    const matchedPath = [...pathToKeyMap.keys()]
+      .sort((a, b) => b.length - a.length)
+      .find((path) => path === pathname || pathname.startsWith(`${path}/`))
+
+    return matchedPath ? pathToKeyMap.get(matchedPath) || '' : ''
   }, [pathname, pathToKeyMap])
 
   // 获取当前展开的子菜单
-  const defaultOpenKeys = useMemo(() => {
-    const keys: string[] = []
-    // 如果当前路径匹配某个子菜单项，则展开其父菜单
-    for (const item of menuItems) {
-      if (item.children) {
-        const hasMatchingChild = item.children.some(
-          (child) => child.path === pathname
-        )
-        if (hasMatchingChild) {
-          keys.push(item.key)
-        }
-      }
-    }
-    return keys
-  }, [pathname])
+  const routeOpenKeys = useMemo(() => getOpenKeysForPath(pathname, menuItems), [pathname])
+  const [userOpenKeys, setUserOpenKeys] = useState<string[]>([])
+  const openKeys = useMemo(
+    () => [...new Set([...userOpenKeys, ...routeOpenKeys])],
+    [routeOpenKeys, userOpenKeys]
+  )
 
   // 处理菜单点击
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -100,7 +96,8 @@ export default function AppSidebar({ collapsed }: AppSidebarProps) {
         theme="dark"
         mode="inline"
         selectedKeys={[selectedKey]}
-        defaultOpenKeys={defaultOpenKeys}
+        openKeys={openKeys}
+        onOpenChange={setUserOpenKeys}
         items={items}
         onClick={handleMenuClick}
         style={{ borderRight: 0 }}

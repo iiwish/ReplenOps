@@ -146,8 +146,14 @@ export default function StockOutListClient({
         try {
           const result = await completeStockOut(record.id)
           if (result.success) {
-            message.success(result.message)
             router.refresh()
+            Modal.confirm({
+              title: '出库完成',
+              content: '库存已扣减。是否立即打印出库单进行复核？',
+              okText: '打印出库单',
+              cancelText: '稍后打印',
+              onOk: () => window.open(`/admin/stock-out/${record.id}/print`, '_blank'),
+            })
           } else {
             message.error(result.message || '出库失败')
           }

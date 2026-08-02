@@ -2,11 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Table, Statistic, Row, Col, message, Button, Space } from 'antd'
-import { Package, AlertTriangle, DollarSign } from 'lucide-react'
+import { Package, AlertTriangle } from 'lucide-react'
 import { ReportChart } from '@/components/admin/reports/ReportChart'
 import type { InventoryReportData } from '@/services/report.service'
 
 type InventoryReportItem = InventoryReportData['inventory'][number]
+
+const formatAmount = (value: number) =>
+  `¥${value.toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 
 export default function InventoryReportPage() {
   const [loading, setLoading] = useState(false)
@@ -93,9 +99,8 @@ export default function InventoryReportPage() {
       dataIndex: 'availableQuantity',
       key: 'availableQuantity',
       render: (value: number, record: InventoryReportItem) => {
-        const minStock = record.quantity - record.availableQuantity
         return (
-          <span className={value < minStock ? 'font-semibold text-red-600' : ''}>
+          <span className={value < record.minStock ? 'font-semibold text-red-600' : ''}>
             {value.toLocaleString()}
           </span>
         )
@@ -105,13 +110,40 @@ export default function InventoryReportPage() {
       title: '平均成本',
       dataIndex: 'avgCost',
       key: 'avgCost',
-      render: (value: number) => `¥${value.toFixed(2)}`,
+      render: (value: number) => formatAmount(value),
     },
     {
       title: '库存金额',
       dataIndex: 'totalCost',
       key: 'totalCost',
-      render: (value: number) => `¥${value.toLocaleString()}`,
+      render: (value: number) => formatAmount(value),
+    },
+  ]
+
+  const lowStockColumns = [
+    { title: '商品编码', dataIndex: 'goodsCode', key: 'goodsCode' },
+    { title: '商品名称', dataIndex: 'goodsName', key: 'goodsName' },
+    {
+      title: '规格',
+      dataIndex: 'goodsSpec',
+      key: 'goodsSpec',
+      render: (value: string | null) => value || '-',
+    },
+    { title: '单位', dataIndex: 'goodsUnit', key: 'goodsUnit' },
+    { title: '分类', dataIndex: 'categoryName', key: 'categoryName' },
+    { title: '仓库', dataIndex: 'warehouseName', key: 'warehouseName' },
+    {
+      title: '可用库存',
+      dataIndex: 'availableQuantity',
+      key: 'availableQuantity',
+      render: (value: number) => <span className="font-semibold text-red-600">{value}</span>,
+    },
+    { title: '预警值', dataIndex: 'minStock', key: 'minStock' },
+    {
+      title: '缺口',
+      dataIndex: 'shortageQuantity',
+      key: 'shortageQuantity',
+      render: (value: number) => <span className="font-semibold text-red-600">{value}</span>,
     },
   ]
 
@@ -144,9 +176,9 @@ export default function InventoryReportPage() {
             <Statistic
               title="库存总金额"
               value={data?.summary.totalAmount || 0}
+              precision={2}
+              prefix="¥"
               styles={{ content: { color: '#3f8600' } }}
-              prefix={<DollarSign className="h-4 w-4" />}
-              suffix="¥"
             />
           </Col>
           <Col span={6}>
@@ -173,6 +205,24 @@ export default function InventoryReportPage() {
       </Card>
 
       <Card className="mb-6">
+        <Table
+          title={() => (
+            <Space>
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <strong>预警商品明细</strong>
+            </Space>
+          )}
+          columns={lowStockColumns}
+          dataSource={data?.lowStockItems || []}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+          locale={{ emptyText: '当前没有库存预警商品' }}
+          scroll={{ x: 900 }}
+        />
+      </Card>
+
+      <Card className="mb-6">
         <ReportChart
           type="pie"
           data={categoryData}
@@ -180,6 +230,7 @@ export default function InventoryReportPage() {
           nameKey="name"
           title="库存分布（按分类）"
           height={300}
+          valueFormatter={formatAmount}
         />
       </Card>
 

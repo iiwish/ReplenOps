@@ -174,77 +174,82 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-6">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-6 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="text-sm opacity-80">你好,</div>
-            <div className="text-xl font-bold">{user?.name || '用户'}</div>
+    <div className="min-h-full bg-[#f6f7f9] pb-6">
+      <header className="border-b border-gray-100 bg-white px-4 pb-4 pt-5">
+        <div className="mx-auto flex max-w-xl items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-blue-600">工作台</div>
+            <div className="mt-1 truncate text-xl font-semibold leading-7 text-gray-950">
+              你好，{user?.name || '用户'}
+            </div>
             {availableStores.length > 0 && (
-              <div className="mt-2">
+              <div className="mt-2.5">
                 <StoreSelector />
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-white hover:bg-white/20"
+              className="h-10 w-10 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
               onClick={handleRefresh}
               disabled={refreshing}
+              aria-label="刷新首页数据"
+              title="刷新"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-[18px] w-[18px] ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-white hover:bg-white/20"
+              className="h-10 w-10 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
               onClick={handleLogout}
+              aria-label="退出登录"
+              title="退出登录"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-[18px] w-[18px]" />
             </Button>
           </div>
         </div>
+      </header>
+
+      <div className="mx-auto max-w-xl pt-3">
+        <OrderingReminder />
       </div>
 
-      <OrderingReminder />
-
-      <div className="space-y-4 px-4 pt-2">
-        <div className="grid grid-cols-2 gap-4">
-          <StatCard
-            icon={ShoppingBag}
-            title="今日订单"
-            value={data.stats.orderCount}
-            color="blue"
-          />
-          <StatCard
-            icon={Boxes}
-            title="待归还包装物"
-            value={data.stats.containerToReturnCount}
-            color="green"
-          />
-        </div>
-
-        {data.stats.pendingCount > 0 && (
-          <StatCard
-            icon={Clock}
-            title="待审批订单"
-            value={data.stats.pendingCount}
-            subtitle="需尽快处理"
-            color="orange"
-          />
-        )}
-
-        {data.stats.lowStockCount > 0 && (
-          <StatCard
-            icon={AlertTriangle}
-            title="库存预警"
-            value={data.stats.lowStockCount}
-            subtitle="部分商品库存不足"
-            color="red"
-          />
-        )}
+      <div className="mx-auto max-w-xl space-y-5 px-4">
+        <section aria-labelledby="mobile-overview-heading">
+          <h2 id="mobile-overview-heading" className="mb-2.5 text-base font-semibold text-gray-950">
+            今日概览
+          </h2>
+          <div className="grid auto-rows-fr grid-cols-2 gap-2.5">
+            <StatCard
+              icon={ShoppingBag}
+              title="今日订单"
+              value={data.stats.orderCount}
+              color="blue"
+            />
+            <StatCard
+              icon={Boxes}
+              title="待归还包装物"
+              value={data.stats.containerToReturnCount}
+              color="green"
+            />
+            <StatCard
+              icon={Clock}
+              title="待审批订单"
+              value={data.stats.pendingCount}
+              color="orange"
+            />
+            <StatCard
+              icon={AlertTriangle}
+              title="库存预警"
+              value={data.stats.lowStockCount}
+              color="red"
+            />
+          </div>
+        </section>
 
         <TodoList items={data.todos} />
 
