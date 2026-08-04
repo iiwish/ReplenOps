@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ArrowLeft, Trash2, Loader2 } from 'lucide-react'
-import { useCartStore } from '@/lib/stores/cart.store'
+import { hydrateCartStore, useCartStore } from '@/lib/stores/cart.store'
 import { QuantityInput } from '@/components/mobile/order/QuantityInput'
+import { ProductImage } from '@/components/mobile/order/ProductImage'
 import { toast } from '@/hooks/use-toast'
 import { createOrder } from '@/actions/order-actions'
 
@@ -20,13 +20,26 @@ interface CartConfirmClientProps {
 export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { items, removeItem, updateQuantity, getTotalAmount, getTotalQuantity, clear } = useCartStore()
+  const {
+    items,
+    hasHydrated,
+    removeItem,
+    updateQuantity,
+    getTotalAmount,
+    getTotalQuantity,
+    clear,
+  } = useCartStore()
 
-  const totalAmount = getTotalAmount()
-  const totalQuantity = getTotalQuantity()
+  const visibleItems = hasHydrated ? items : []
+  const totalAmount = hasHydrated ? getTotalAmount() : 0
+  const totalQuantity = hasHydrated ? getTotalQuantity() : 0
+
+  useEffect(() => {
+    void hydrateCartStore()
+  }, [])
 
   const handleSubmitOrder = async () => {
-    if (items.length === 0) {
+    if (visibleItems.length === 0) {
       toast({
         title: '购物车为空',
         description: '请先添加商品到购物车',
@@ -39,7 +52,7 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
 
     try {
       // 检查所有商品库存是否充足（防超卖）
-      const insufficientStock = items.find(
+      const insufficientStock = visibleItems.find(
         (item) => item.quantity > item.availableQty
       )
 
@@ -56,7 +69,7 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
       // 调用创建订单 API
       const result = await createOrder({
         storeId,
-        items: items.map((item) => ({
+        items: visibleItems.map((item) => ({
           goodsId: item.goodsId,
           quantity: item.quantity,
           unitPrice: item.price,
@@ -99,7 +112,7 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
     }
   }
 
-  if (items.length === 0) {
+  if (visibleItems.length === 0) {
     return (
       <div className="flex flex-col h-full">
         {/* 顶部导航栏 */}
@@ -143,7 +156,7 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
         </Button>
         <h1 className="text-lg font-semibold">确认订单</h1>
         <div className="flex-1" />
-        {items.length > 0 && (
+        {visibleItems.length > 0 && (
           <Button
             variant="ghost"
             size="sm"
@@ -164,26 +177,18 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
               <CardTitle className="text-base">商品清单</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {items.map((item, index) => (
+              {visibleItems.map((item, index) => (
                 <div key={item.goodsId}>
                   {index > 0 && <Separator className="my-3" />}
 
                   <div className="flex gap-3">
                     {/* 商品图片 */}
-                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                      {item.imageUrl ? (
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                          无图
-                        </div>
-                      )}
-                    </div>
+                    <ProductImage
+                      src={item.imageUrl}
+                      alt={item.name}
+                      sizes="80px"
+                      className="h-20 w-20 shrink-0"
+                    />
 
                     {/* 商品信息 */}
                     <div className="flex-1 flex flex-col justify-between">
@@ -247,7 +252,7 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">商品种类</span>
-                <span className="font-medium">{items.length} 种</span>
+                <span className="font-medium">{visibleItems.length} 种</span>
               </div>
               <Separator />
               <div className="flex justify-between">
@@ -269,7 +274,7 @@ export default function CartConfirmClient({ storeId }: CartConfirmClientProps) {
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">
-              共 {items.length} 件商品
+              共 {visibleItems.length} 件商品
             </span>
             <span className="text-xl font-bold text-primary">
               ¥{totalAmount.toFixed(2)}

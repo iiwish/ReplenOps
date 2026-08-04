@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         stats,
-        todoList: [todoList.pendingOrders, todoList.containersToReturn, todoList.lowStockItems],
+        todoList: [todoList.pendingOrders, todoList.containersToReturn],
       },
     })
   } catch (error) {

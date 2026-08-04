@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import type { LucideIcon } from 'lucide-react'
-import { ShoppingBag, Package, ClipboardList, ScanLine } from 'lucide-react'
+import { ShoppingBag, ClipboardList } from 'lucide-react'
 
 interface QuickAction {
   label: string
@@ -22,25 +22,11 @@ const quickActions: QuickAction[] = [
     iconBackgroundClassName: 'bg-blue-50 ring-blue-100',
   },
   {
-    label: '查库存',
-    href: '/mobile/inventory/scan',
-    icon: Package,
-    iconClassName: 'text-emerald-600',
-    iconBackgroundClassName: 'bg-emerald-50 ring-emerald-100',
-  },
-  {
     label: '我的订单',
     href: '/mobile/orders',
     icon: ClipboardList,
     iconClassName: 'text-orange-600',
     iconBackgroundClassName: 'bg-orange-50 ring-orange-100',
-  },
-  {
-    label: '扫码',
-    href: '/mobile/inventory/scan',
-    icon: ScanLine,
-    iconClassName: 'text-violet-600',
-    iconBackgroundClassName: 'bg-violet-50 ring-violet-100',
   },
 ]
 
@@ -52,7 +38,7 @@ export function QuickActions() {
           快速入口
         </h2>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {quickActions.map((action) => {
           const Icon = action.icon
 

@@ -130,7 +130,7 @@ export async function getOrders(params: {
   page?: number
   pageSize?: number
   keyword?: string
-  status?: string
+  status?: string | string[]
   storeId?: string
   startDate?: string
   endDate?: string

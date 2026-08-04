@@ -7,9 +7,17 @@ interface StatCardProps {
   value: string | number
   subtitle?: string
   color?: string
+  compact?: boolean
 }
 
-export function StatCard({ icon: Icon, title, value, subtitle, color = 'blue' }: StatCardProps) {
+export function StatCard({
+  icon: Icon,
+  title,
+  value,
+  subtitle,
+  color = 'blue',
+  compact = false,
+}: StatCardProps) {
   const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
     blue: { bg: 'bg-blue-50', text: 'text-blue-600', ring: 'ring-blue-100' },
     green: { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-100' },
@@ -21,17 +29,34 @@ export function StatCard({ icon: Icon, title, value, subtitle, color = 'blue' }:
   const colors = colorMap[color] || defaultColors
 
   return (
-    <Card className="flex min-h-[108px] flex-col justify-between rounded-lg border-gray-200/80 p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <Card
+      className={`flex flex-col justify-between rounded-lg border-gray-200/80 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+        compact ? 'min-h-[78px] p-2.5' : 'min-h-[108px] p-3.5'
+      }`}
+    >
+      <div className={`flex min-w-0 items-center ${compact ? 'gap-2' : 'gap-2.5'}`}>
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ${colors.bg} ${colors.ring}`}
+          className={`flex shrink-0 items-center justify-center rounded-lg ring-1 ${colors.bg} ${colors.ring} ${
+            compact ? 'h-7 w-7' : 'h-9 w-9'
+          }`}
         >
-          <Icon className={`h-[18px] w-[18px] ${colors.text}`} strokeWidth={2} />
+          <Icon
+            className={`${compact ? 'h-4 w-4' : 'h-[18px] w-[18px]'} ${colors.text}`}
+            strokeWidth={2}
+          />
         </div>
-        <div className="min-w-0 text-sm font-medium leading-5 text-gray-600">{title}</div>
+        <div
+          className={`min-w-0 font-medium text-gray-600 ${compact ? 'text-xs leading-4' : 'text-sm leading-5'}`}
+        >
+          {title}
+        </div>
       </div>
-      <div className="mt-3 flex items-end justify-between gap-2">
-        <div className="text-2xl font-semibold leading-none text-gray-950">{value}</div>
+      <div className={`flex items-end justify-between gap-2 ${compact ? 'mt-2' : 'mt-3'}`}>
+        <div
+          className={`font-semibold leading-none text-gray-950 ${compact ? 'text-xl' : 'text-2xl'}`}
+        >
+          {value}
+        </div>
         {subtitle && <div className="truncate text-right text-xs text-gray-400">{subtitle}</div>}
       </div>
     </Card>
