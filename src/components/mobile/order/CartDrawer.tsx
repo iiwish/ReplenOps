@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import {
   Sheet,
   SheetContent,
@@ -14,36 +13,47 @@ import { Separator } from '@/components/ui/separator'
 import { Trash2 } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cart.store'
 import { QuantityInput } from './QuantityInput'
+import { ProductImage } from './ProductImage'
 
 interface CartDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCheckout: () => void
+  isSubmitting: boolean
 }
 
-export function CartDrawer({ open, onOpenChange, onCheckout }: CartDrawerProps) {
-  const { items, removeItem, updateQuantity, getTotalAmount, getTotalQuantity, clear } = useCartStore()
+export function CartDrawer({ open, onOpenChange, onCheckout, isSubmitting }: CartDrawerProps) {
+  const {
+    items,
+    hasHydrated,
+    removeItem,
+    updateQuantity,
+    getTotalAmount,
+    getTotalQuantity,
+    clear,
+  } = useCartStore()
+
+  const visibleItems = hasHydrated ? items : []
 
   const handleCheckout = () => {
-    onOpenChange(false)
     onCheckout()
   }
 
-  const totalAmount = getTotalAmount()
-  const totalQuantity = getTotalQuantity()
+  const totalAmount = hasHydrated ? getTotalAmount() : 0
+  const totalQuantity = hasHydrated ? getTotalQuantity() : 0
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
-        <SheetHeader className="px-4 py-3 border-b">
-          <div className="flex items-center justify-between">
-            <SheetTitle>购物车 ({items.length})</SheetTitle>
-            {items.length > 0 && (
+        <SheetHeader className="border-b px-4 py-3 pr-14">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <SheetTitle className="min-w-0">购物车 ({visibleItems.length})</SheetTitle>
+            {visibleItems.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clear}
-                className="text-destructive"
+                className="shrink-0 text-destructive"
               >
                 清空
               </Button>
@@ -51,7 +61,7 @@ export function CartDrawer({ open, onOpenChange, onCheckout }: CartDrawerProps) 
           </div>
         </SheetHeader>
 
-        {items.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             购物车是空的
           </div>
@@ -59,23 +69,15 @@ export function CartDrawer({ open, onOpenChange, onCheckout }: CartDrawerProps) 
           <>
             <ScrollArea className="flex-1 px-4">
               <div className="space-y-3 py-4">
-                {items.map((item) => (
+                {visibleItems.map((item) => (
                   <div key={item.goodsId} className="flex gap-3">
                     {/* 商品图片 */}
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                      {item.imageUrl ? (
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                          无图
-                        </div>
-                      )}
-                    </div>
+                    <ProductImage
+                      src={item.imageUrl}
+                      alt={item.name}
+                      sizes="64px"
+                      className="h-16 w-16 shrink-0"
+                    />
 
                     {/* 商品信息 */}
                     <div className="flex-1 flex flex-col justify-between">
@@ -138,6 +140,7 @@ export function CartDrawer({ open, onOpenChange, onCheckout }: CartDrawerProps) 
                   className="w-full min-h-[48px]"
                   size="lg"
                   onClick={handleCheckout}
+                  disabled={isSubmitting}
                 >
                   去结算 ¥{totalAmount.toFixed(2)}
                 </Button>

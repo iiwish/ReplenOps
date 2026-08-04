@@ -24,8 +24,8 @@ export function QuantityInput({
   const [inputValue, setInputValue] = useState(value.toString())
   const [isEditing, setIsEditing] = useState(false)
 
-  const step = measureType === 'INT' ? 1 : 0.1
-  const minValue = measureType === 'INT' ? Math.max(1, min) : Math.max(0.001, min)
+  const step = 1
+  const minValue = Math.max(1, min)
 
   const handleDecrease = () => {
     const newValue = Math.max(minValue, value - step)
@@ -82,21 +82,29 @@ export function QuantityInput({
   const canIncrease = value < max
   const displayValue = isEditing ? inputValue : value.toString()
 
-  // 根据 size 调整按钮和文本大小
-  const buttonSize = size === 'sm' ? 'h-7 w-7 min-h-[36px] min-w-[36px]' : size === 'lg' ? 'h-10 w-10 min-h-[52px] min-w-[52px]' : 'h-8 w-8 min-h-[44px] min-w-[44px]'
+  // 紧凑尺寸用于商品卡片，保留常规尺寸供购物车和确认页使用
+  const buttonSize =
+    size === 'sm'
+      ? 'h-7 w-7 min-h-0 min-w-0'
+      : size === 'lg'
+        ? 'h-10 w-10 min-h-[52px] min-w-[52px]'
+        : 'h-8 w-8 min-h-[44px] min-w-[44px]'
   const textSize = size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base'
-  const inputWidth = size === 'sm' ? 'min-w-[50px]' : size === 'lg' ? 'min-w-[70px]' : 'min-w-[60px]'
+  const inputWidth = size === 'sm' ? 'w-8 min-w-0' : size === 'lg' ? 'w-16 min-w-0' : 'w-12 min-w-0'
+  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center ${size === 'sm' ? 'gap-1' : 'gap-2'}`}>
       <Button
         size="icon"
         variant="outline"
         className={`${buttonSize} rounded-full`}
         onClick={handleDecrease}
         disabled={!canDecrease}
+        aria-label="减少数量"
+        title="减少数量"
       >
-        <Minus className="h-4 w-4" />
+        <Minus className={iconSize} />
       </Button>
       <input
         type="text"
@@ -106,7 +114,7 @@ export function QuantityInput({
         onBlur={handleInputBlur}
         onFocus={handleInputFocus}
         onKeyDown={handleKeyDown}
-        className={`${inputWidth} text-center font-medium bg-transparent border-none outline-none ${textSize}`}
+        className={`${inputWidth} border-none bg-transparent text-center font-medium outline-none ${textSize}`}
       />
       <Button
         size="icon"
@@ -114,8 +122,10 @@ export function QuantityInput({
         className={`${buttonSize} rounded-full`}
         onClick={handleIncrease}
         disabled={!canIncrease}
+        aria-label="增加数量"
+        title="增加数量"
       >
-        <Plus className="h-4 w-4" />
+        <Plus className={iconSize} />
       </Button>
     </div>
   )

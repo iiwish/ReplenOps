@@ -3,18 +3,18 @@
 import { usePathname } from 'next/navigation'
 import MobileHeader from './MobileHeader'
 import MobileTabBar from './MobileTabBar'
+import { cn } from '@/lib/utils'
 
 interface MobileLayoutClientProps {
   children: React.ReactNode
 }
 
-export default function MobileLayoutClient({
-  children,
-}: MobileLayoutClientProps) {
+export default function MobileLayoutClient({ children }: MobileLayoutClientProps) {
   const pathname = usePathname()
 
   // 根据路由决定是否显示 Header
   const showHeader = pathname !== '/mobile/home'
+  const isOrderPage = pathname === '/mobile/order'
 
   // 页面标题映射
   const pageTitles: Record<string, string> = {
@@ -22,6 +22,7 @@ export default function MobileLayoutClient({
     '/mobile/order': '下单',
     '/mobile/orders': '订单',
     '/mobile/profile': '我的',
+    '/mobile/profile/info': '个人信息',
   }
 
   // 获取当前页面标题
@@ -40,12 +41,17 @@ export default function MobileLayoutClient({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex h-screen flex-col bg-background">
       {/* Header - 可选显示 */}
       {showHeader && <MobileHeader title={getPageTitle()} />}
 
-      {/* Content Area - 可滚动 */}
-      <main className="flex-1 overflow-y-auto mobile-scroll pb-16">
+      {/* 下单页由分类和商品列表分别滚动，其他页面保持主内容区滚动。 */}
+      <main
+        className={cn(
+          'min-h-0 flex-1 pb-16',
+          isOrderPage ? 'overflow-hidden' : 'mobile-scroll overflow-y-auto'
+        )}
+      >
         {children}
       </main>
 

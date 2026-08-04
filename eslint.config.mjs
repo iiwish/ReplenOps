@@ -71,7 +71,6 @@ const config = [
       'src/components/admin/containers/TrackingSummary.tsx',
       'src/components/admin/containers/TrackingTable.tsx',
       'src/components/admin/orders/RevokeOrderModal.tsx',
-      'src/components/mobile/order/QRScanner.tsx',
     ],
     rules: {
       'react-hooks/exhaustive-deps': 'off',

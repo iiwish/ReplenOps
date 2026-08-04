@@ -21,16 +21,10 @@ export function CategorySidebar({
 }: CategorySidebarProps) {
   const handleCategoryClick = (categoryId: string) => {
     onCategoryClick(categoryId)
-
-    // 滚动到对应商品区域
-    const element = document.getElementById(`category-${categoryId}`)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
   }
 
   return (
-    <div className="w-24 border-r bg-muted/30">
+    <aside className="h-full w-24 shrink-0 border-r bg-muted/30">
       <ScrollArea className="h-full">
         <div className="py-2">
           {categories.map((category) => {
@@ -41,10 +35,10 @@ export function CategorySidebar({
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
                 className={cn(
-                  'w-full px-3 py-3 text-sm text-center transition-colors min-h-[44px]',
+                  'min-h-[44px] w-full px-3 py-3 text-center text-sm transition-colors',
                   'border-l-2 hover:bg-muted',
                   isActive
-                    ? 'border-primary bg-background text-primary font-medium'
+                    ? 'border-primary bg-background font-medium text-primary'
                     : 'border-transparent text-muted-foreground'
                 )}
               >
@@ -54,6 +48,6 @@ export function CategorySidebar({
           })}
         </div>
       </ScrollArea>
-    </div>
+    </aside>
   )
 }

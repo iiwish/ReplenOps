@@ -9,32 +9,31 @@ import { cn } from '@/lib/utils'
 interface CartFloatingProps {
   onClick: () => void
   onCheckout: () => void
+  isSubmitting: boolean
 }
 
-export function CartFloating({ onClick, onCheckout }: CartFloatingProps) {
-  const { items, getTotalAmount, getTotalQuantity } = useCartStore()
+export function CartFloating({ onClick, onCheckout, isSubmitting }: CartFloatingProps) {
+  const { items, hasHydrated, getTotalAmount, getTotalQuantity } = useCartStore()
 
-  const totalAmount = getTotalAmount()
-  const totalQuantity = getTotalQuantity()
-  const hasItems = items.length > 0
+  const visibleItems = hasHydrated ? items : []
+  const totalAmount = hasHydrated ? getTotalAmount() : 0
+  const totalQuantity = hasHydrated ? getTotalQuantity() : 0
+  const hasItems = visibleItems.length > 0
 
   return (
-    <div className="fixed bottom-20 left-0 right-0 z-20 px-4 pb-4">
+    <div className="fixed bottom-16 left-0 right-0 z-20 px-3 pb-2">
       <div
         className={cn(
-          'relative flex items-center justify-between gap-2 rounded-full border bg-background p-3 shadow-lg transition-all',
-          hasItems && 'border-primary bg-primary/5'
+          'relative flex items-center justify-between gap-2 rounded-lg border bg-background p-2 shadow-[0_-6px_18px_rgba(15,23,42,0.12)] transition-all',
+          hasItems && 'border-primary'
         )}
       >
         {/* 购物车图标和信息 */}
-        <button
-          onClick={onClick}
-          className="flex flex-1 items-center gap-3 min-h-[44px]"
-        >
+        <button onClick={onClick} className="flex min-h-[40px] min-w-0 flex-1 items-center gap-2">
           <div className="relative">
             <ShoppingCart
               className={cn(
-                'h-6 w-6 transition-colors',
+                'h-5 w-5 transition-colors',
                 hasItems ? 'text-primary' : 'text-muted-foreground'
               )}
             />
@@ -50,11 +49,11 @@ export function CartFloating({ onClick, onCheckout }: CartFloatingProps) {
 
           <div className="flex-1 text-left">
             <div className="text-xs text-muted-foreground">
-              {hasItems ? `共 ${items.length} 件商品` : '购物车是空的'}
+              {hasItems ? `共 ${visibleItems.length} 件商品` : '购物车是空的'}
             </div>
             <div
               className={cn(
-                'text-lg font-bold',
+                'text-base font-bold',
                 hasItems ? 'text-primary' : 'text-muted-foreground'
               )}
             >
@@ -70,15 +69,15 @@ export function CartFloating({ onClick, onCheckout }: CartFloatingProps) {
             variant="outline"
             onClick={onClick}
             disabled={!hasItems}
-            className="min-h-[48px] rounded-full px-4"
+            className="min-h-[40px] px-3"
           >
             查看
           </Button>
           <Button
             size="lg"
             onClick={onCheckout}
-            disabled={!hasItems}
-            className="min-h-[48px] rounded-full px-6"
+            disabled={!hasItems || isSubmitting}
+            className="min-h-[40px] px-4"
           >
             结算
           </Button>

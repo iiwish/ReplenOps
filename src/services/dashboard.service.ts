@@ -1,12 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import type { AuthUser } from '@/lib/auth'
 import { assertCanReadStore, canReadAllStores, getAccessibleStoreIds } from '@/lib/store-access'
+import { getShanghaiMonth, getShanghaiMonthRange } from '@/lib/shanghai-time'
 
 export interface TodayStats {
   orderCount: number
   pendingCount: number
   lowStockCount: number
   containerToReturnCount: number
+  monthlyOrderCount: number
+  monthlyPendingCount: number
+  monthlyCompletedCount: number
 }
 
 export interface TodoItem {
@@ -21,7 +25,6 @@ export interface TodoItem {
 export interface TodoList {
   pendingOrders: TodoItem
   containersToReturn: TodoItem
-  lowStockItems: TodoItem
 }
 
 export class DashboardService {
@@ -33,12 +36,21 @@ export class DashboardService {
 
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
+    const monthRange = getShanghaiMonthRange(getShanghaiMonth())
+    const monthOrderScope = {
+      ...(storeScope !== undefined && { storeId: storeScope }),
+      createdAt: { gte: monthRange.start, lt: monthRange.endExclusive },
+      isDeleted: false,
+    }
 
     const [
       orderCountResult,
       pendingCountResult,
       lowStockCountResult,
       containerToReturnCountResult,
+      monthlyOrderCountResult,
+      monthlyPendingCountResult,
+      monthlyCompletedCountResult,
     ] = await Promise.all([
       prisma.order.count({
         where: {
@@ -72,6 +84,21 @@ export class DashboardService {
           currentBorrowed: { gt: 0 },
         },
       }),
+      prisma.order.count({
+        where: monthOrderScope,
+      }),
+      prisma.order.count({
+        where: {
+          ...monthOrderScope,
+          status: { in: ['PENDING', 'APPROVED', 'PROCESSING'] },
+        },
+      }),
+      prisma.order.count({
+        where: {
+          ...monthOrderScope,
+          status: 'COMPLETED',
+        },
+      }),
     ])
 
     const lowStockCount = lowStockCountResult.filter(
@@ -88,6 +115,9 @@ export class DashboardService {
       pendingCount: pendingCountResult,
       lowStockCount,
       containerToReturnCount,
+      monthlyOrderCount: monthlyOrderCountResult,
+      monthlyPendingCount: monthlyPendingCountResult,
+      monthlyCompletedCount: monthlyCompletedCountResult,
     }
   }
 
@@ -112,20 +142,6 @@ export class DashboardService {
       },
     })
 
-    const lowStockItems = await prisma.inventory.findMany({
-      where: {
-        quantity: { gt: 0 },
-      },
-      include: {
-        goods: true,
-        warehouse: true,
-      },
-    })
-
-    const filteredLowStockItems = lowStockItems.filter(
-      (inv) => inv.availableQuantity < inv.goods.minStock
-    )
-
     return {
       pendingOrders: {
         id: 'pending-orders',
@@ -142,14 +158,6 @@ export class DashboardService {
         description: '有包装物需归还',
         count: containerTrackings.length,
         link: '/mobile/container-return',
-      },
-      lowStockItems: {
-        id: 'low-stock',
-        type: 'inventory',
-        title: '库存预警',
-        description: '部分商品库存不足',
-        count: filteredLowStockItems.length,
-        link: '/mobile/inventory/scan',
       },
     }
   }
