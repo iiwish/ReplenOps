@@ -20,37 +20,10 @@ const querySchema = z.object({
   stockStatus: z.enum(['all', 'has_stock', 'zero_stock', 'low_stock']).optional(),
 })
 
-const queryByCodeSchema = z.object({
-  code: z.string().min(1, '商品编码不能为空'),
-})
-
 export async function getInventoryList(params: unknown): Promise<ActionResponse> {
   try {
     const validated = querySchema.parse(params)
     const result = await inventoryQueryService.query(validated)
-    return {
-      success: true,
-      data: result,
-    }
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        message: '表单验证失败',
-        errors: error.flatten().fieldErrors as Record<string, string[]>,
-      }
-    }
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : '查询失败',
-    }
-  }
-}
-
-export async function queryByGoodsCode(params: unknown): Promise<ActionResponse> {
-  try {
-    const validated = queryByCodeSchema.parse(params)
-    const result = await inventoryQueryService.queryByGoodsCode(validated.code)
     return {
       success: true,
       data: result,

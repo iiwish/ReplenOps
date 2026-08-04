@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
+import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN">
       <body>
-        <AntdRegistry hashPriority="low">{children}</AntdRegistry>
+        <AntdRegistry hashPriority="low">
+          {children}
+          <Toaster />
+        </AntdRegistry>
       </body>
     </html>
   )

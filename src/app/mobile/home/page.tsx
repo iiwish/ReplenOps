@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Boxes, Clock, LogOut, RefreshCw, ShoppingBag } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Clock, LogOut, RefreshCw, ShoppingBag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/mobile/dashboard/StatCard'
 import { TodoList } from '@/components/mobile/dashboard/TodoList'
@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { getUserStores } from '@/actions/store-actions'
 import type { StoreInfo } from '@/lib/stores/store-selection.store'
+import Link from 'next/link'
 
 interface UserInfo {
   id: string
@@ -55,8 +56,8 @@ interface DashboardData {
   stats: {
     orderCount: number
     pendingCount: number
-    lowStockCount: number
-    containerToReturnCount: number
+    monthlyOrderCount: number
+    monthlyCompletedCount: number
   }
   todos: Array<{
     key: string
@@ -79,8 +80,8 @@ export default function HomePage() {
     stats: {
       orderCount: 0,
       pendingCount: 0,
-      lowStockCount: 0,
-      containerToReturnCount: 0,
+      monthlyOrderCount: 0,
+      monthlyCompletedCount: 0,
     },
     todos: [],
   })
@@ -126,10 +127,12 @@ export default function HomePage() {
         const dashboardData = result.data as DashboardApiResponse
         setData({
           stats: dashboardData.stats,
-          todos: dashboardData.todoList.map((item, index: number) => ({
-            key: ['order', 'container', 'inventory'][index] ?? `todo-${index}`,
-            todo: item,
-          })),
+          todos: dashboardData.todoList
+            .filter((item) => item.type !== 'inventory')
+            .map((item) => ({
+              key: item.type,
+              todo: item,
+            })),
         })
       }
     } catch (error) {
@@ -214,40 +217,64 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-xl pt-3">
-        <OrderingReminder />
+      <div className="mx-auto max-w-xl px-4 pb-2 pt-3">
+        <OrderingReminder variant="home" />
       </div>
 
       <div className="mx-auto max-w-xl space-y-5 px-4">
         <section aria-labelledby="mobile-overview-heading">
           <h2 id="mobile-overview-heading" className="mb-2.5 text-base font-semibold text-gray-950">
-            今日概览
+            数据概览
           </h2>
           <div className="grid auto-rows-fr grid-cols-2 gap-2.5">
-            <StatCard
-              icon={ShoppingBag}
-              title="今日订单"
-              value={data.stats.orderCount}
-              color="blue"
-            />
-            <StatCard
-              icon={Boxes}
-              title="待归还包装物"
-              value={data.stats.containerToReturnCount}
-              color="green"
-            />
-            <StatCard
-              icon={Clock}
-              title="待审批订单"
-              value={data.stats.pendingCount}
-              color="orange"
-            />
-            <StatCard
-              icon={AlertTriangle}
-              title="库存预警"
-              value={data.stats.lowStockCount}
-              color="red"
-            />
+            <Link
+              href="/mobile/orders"
+              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              <StatCard
+                icon={ShoppingBag}
+                title="今日订单"
+                value={data.stats.orderCount}
+                color="blue"
+                compact
+              />
+            </Link>
+            <Link
+              href="/mobile/orders?status=PENDING"
+              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              <StatCard
+                icon={Clock}
+                title="待审批订单"
+                value={data.stats.pendingCount}
+                color="orange"
+                compact
+              />
+            </Link>
+            <Link
+              href="/mobile/orders"
+              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              <StatCard
+                icon={CalendarDays}
+                title="本月订单"
+                value={data.stats.monthlyOrderCount}
+                color="blue"
+                compact
+              />
+            </Link>
+            <Link
+              href="/mobile/orders?status=COMPLETED"
+              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              <StatCard
+                icon={CheckCircle2}
+                title="本月已完成"
+                value={data.stats.monthlyCompletedCount}
+                color="green"
+                compact
+              />
+            </Link>
           </div>
         </section>
 

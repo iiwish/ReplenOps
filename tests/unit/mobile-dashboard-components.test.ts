@@ -27,9 +27,10 @@ describe('mobile dashboard components', () => {
     const markup = renderToStaticMarkup(createElement(QuickActions))
 
     expect(markup).toContain('href="/mobile/order"')
-    expect(markup.match(/href="\/mobile\/inventory\/scan"/g)).toHaveLength(2)
+    expect(markup).not.toContain('href="/mobile/inventory/scan"')
     expect(markup).toContain('href="/mobile/orders"')
-    expect(markup.match(/min-h-\[82px\]/g)).toHaveLength(4)
+    expect(markup).not.toContain('扫码')
+    expect(markup.match(/min-h-\[82px\]/g)).toHaveLength(2)
   })
 
   it('keeps todo counts and destinations visible in compact rows', () => {
@@ -37,23 +38,23 @@ describe('mobile dashboard components', () => {
       createElement(TodoList, {
         items: [
           {
-            key: 'inventory',
+            key: 'container',
             todo: {
-              id: 'low-stock',
-              type: 'inventory',
-              title: '库存预警',
-              description: '部分商品库存不足',
-              count: 26,
-              link: '/mobile/inventory/scan',
+              id: 'containers-return',
+              type: 'container',
+              title: '包装物待归还',
+              description: '有包装物需归还',
+              count: 2,
+              link: '/mobile/container-return',
             },
           },
         ],
       })
     )
 
-    expect(markup).toContain('href="/mobile/inventory/scan"')
-    expect(markup).toContain('库存预警')
-    expect(markup).toContain('>26<')
+    expect(markup).toContain('href="/mobile/container-return"')
+    expect(markup).toContain('包装物待归还')
+    expect(markup).toContain('>2<')
     expect(markup).toContain('min-h-[72px]')
   })
 })

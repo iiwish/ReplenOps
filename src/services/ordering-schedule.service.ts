@@ -60,8 +60,10 @@ export async function isWithinOrderingTime(): Promise<boolean> {
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
   const startParts = schedule.startTime.split(':').map(Number)
   const endParts = schedule.endTime.split(':').map(Number)
-  const startH = startParts[0] ?? 0, startM = startParts[1] ?? 0
-  const endH = endParts[0] ?? 0, endM = endParts[1] ?? 0
+  const startH = startParts[0] ?? 0,
+    startM = startParts[1] ?? 0
+  const endH = endParts[0] ?? 0,
+    endM = endParts[1] ?? 0
   const startMinutes = startH * 60 + startM
   const endMinutes = endH * 60 + endM
 
@@ -75,14 +77,32 @@ export async function getOrderingStatus(): Promise<{
   isOpen: boolean
   todaySchedule: { startTime: string; endTime: string; isActive: boolean } | null
   nextOrderingTime: { dayOfWeek: number; dayName: string; startTime: string } | null
+  weeklySchedules: Array<{
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    isActive: boolean
+  }>
   currentTime: string
 }> {
   const now = new Date()
   const dayOfWeek = now.getDay()
   const adjustedDay = dayOfWeek === 0 ? 7 : dayOfWeek
 
-  const schedule = await prisma.orderingSchedule.findUnique({
-    where: { dayOfWeek: adjustedDay },
+  const schedules = await prisma.orderingSchedule.findMany({
+    orderBy: { dayOfWeek: 'asc' },
+  })
+  const schedule = schedules.find((item) => item.dayOfWeek === adjustedDay) ?? null
+  const weeklySchedules = Array.from({ length: 7 }, (_, index) => {
+    const day = index + 1
+    const configured = schedules.find((item) => item.dayOfWeek === day)
+
+    return {
+      dayOfWeek: day,
+      startTime: configured?.startTime ?? '--:--',
+      endTime: configured?.endTime ?? '--:--',
+      isActive: configured?.isActive ?? false,
+    }
   })
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
@@ -92,8 +112,10 @@ export async function getOrderingStatus(): Promise<{
   if (schedule && schedule.isActive) {
     const startParts = schedule.startTime.split(':').map(Number)
     const endParts = schedule.endTime.split(':').map(Number)
-    const startH = startParts[0] ?? 0, startM = startParts[1] ?? 0
-    const endH = endParts[0] ?? 0, endM = endParts[1] ?? 0
+    const startH = startParts[0] ?? 0,
+      startM = startParts[1] ?? 0
+    const endH = endParts[0] ?? 0,
+      endM = endParts[1] ?? 0
     const startMinutes = startH * 60 + startM
     const endMinutes = endH * 60 + endM
     isOpen = currentMinutes >= startMinutes && currentMinutes <= endMinutes
@@ -103,12 +125,21 @@ export async function getOrderingStatus(): Promise<{
   let nextOrderingTime: { dayOfWeek: number; dayName: string; startTime: string } | null = null
 
   if (!isOpen) {
-    // 从明天开始往后找最近的可报货日
-    for (let i = 1; i <= 7; i++) {
+    const todayStartParts = schedule?.startTime.split(':').map(Number)
+    const todayStartMinutes = (todayStartParts?.[0] ?? 0) * 60 + (todayStartParts?.[1] ?? 0)
+
+    if (schedule?.isActive && currentMinutes < todayStartMinutes) {
+      nextOrderingTime = {
+        dayOfWeek: adjustedDay,
+        dayName: '今天',
+        startTime: schedule.startTime,
+      }
+    }
+
+    // 当前时间已过今天窗口，或今天没有报货安排，从明天开始找最近的报货日。
+    for (let i = 1; i <= 7 && !nextOrderingTime; i++) {
       const checkDay = ((adjustedDay + i - 1) % 7) + 1
-      const nextSchedule = await prisma.orderingSchedule.findUnique({
-        where: { dayOfWeek: checkDay },
-      })
+      const nextSchedule = schedules.find((item) => item.dayOfWeek === checkDay)
       if (nextSchedule && nextSchedule.isActive) {
         nextOrderingTime = {
           dayOfWeek: checkDay,
@@ -126,6 +157,7 @@ export async function getOrderingStatus(): Promise<{
       ? { startTime: schedule.startTime, endTime: schedule.endTime, isActive: schedule.isActive }
       : null,
     nextOrderingTime,
+    weeklySchedules,
     currentTime: now.toISOString(),
   }
 }
@@ -138,7 +170,10 @@ export const orderingScheduleService = {
     return getSchedule()
   },
 
-  async updateSchedule(dayOfWeek: number, data: { startTime?: string; endTime?: string; isActive?: boolean }) {
+  async updateSchedule(
+    dayOfWeek: number,
+    data: { startTime?: string; endTime?: string; isActive?: boolean }
+  ) {
     return updateSchedule(dayOfWeek, data)
   },
 

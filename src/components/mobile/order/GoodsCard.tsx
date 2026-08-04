@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { QuantityInput } from './QuantityInput'
+import { ProductImage } from './ProductImage'
 import { useCartStore } from '@/lib/stores/cart.store'
 
 interface GoodsCardProps {
@@ -24,98 +23,74 @@ interface GoodsCardProps {
 }
 
 export function GoodsCard({ goods }: GoodsCardProps) {
-  const [quantity, setQuantity] = useState(0)
-  const { addItem, items } = useCartStore()
+  const { addItem, updateQuantity, items } = useCartStore()
 
   const cartItem = items.find((item) => item.goodsId === goods.id)
   const currentQuantity = cartItem?.quantity || 0
 
   const handleAddToCart = () => {
-    if (quantity === 0) {
-      // 首次添加，默认添加最小单位
-      const defaultQty = goods.measureType === 'INT' ? 1 : 0.1
-      setQuantity(defaultQty)
-      addItem({
-        goodsId: goods.id,
-        code: goods.code,
-        name: goods.name,
-        spec: goods.spec,
-        unit: goods.unit,
-        measureType: goods.measureType,
-        price: goods.partnerPrice,
-        quantity: defaultQty,
-        availableQty: goods.availableQty,
-        imageUrl: goods.imageUrl,
-      })
-    } else {
-      // 更新购物车数量
-      addItem({
-        goodsId: goods.id,
-        code: goods.code,
-        name: goods.name,
-        spec: goods.spec,
-        unit: goods.unit,
-        measureType: goods.measureType,
-        price: goods.partnerPrice,
-        quantity: quantity - currentQuantity,
-        availableQty: goods.availableQty,
-        imageUrl: goods.imageUrl,
-      })
-    }
+    // 移动端下单统一按 1 个单位起加购
+    const defaultQty = 1
+    addItem({
+      goodsId: goods.id,
+      code: goods.code,
+      name: goods.name,
+      spec: goods.spec,
+      unit: goods.unit,
+      measureType: goods.measureType,
+      price: goods.partnerPrice,
+      quantity: defaultQty,
+      availableQty: goods.availableQty,
+      imageUrl: goods.imageUrl,
+    })
   }
 
   const handleQuantityChange = (newQuantity: number) => {
-    setQuantity(newQuantity)
+    updateQuantity(goods.id, newQuantity)
   }
 
   const isOutOfStock = goods.availableQty <= 0
+  const displaySpec = goods.spec?.trim()
+  const hasSpec = Boolean(displaySpec && displaySpec !== '/')
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-3">
-        <div className="flex gap-3">
+    <Card className="overflow-hidden rounded-md border-gray-200/80">
+      <CardContent className="p-2.5">
+        <div className="flex gap-2.5">
           {/* 商品图片 */}
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-gray-100">
-            {goods.imageUrl ? (
-              <Image
-                src={goods.imageUrl}
-                alt={goods.name}
-                fill
-                className="object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                暂无图片
-              </div>
-            )}
-          </div>
+          <ProductImage
+            src={goods.imageUrl}
+            alt={goods.name}
+            sizes="64px"
+            className="h-16 w-16 shrink-0"
+          />
 
           {/* 商品信息 */}
           <div className="flex flex-1 flex-col justify-between">
             <div>
-              <h3 className="font-medium text-sm line-clamp-1">{goods.name}</h3>
-              {goods.spec && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {goods.spec}
+              <h3 className="line-clamp-1 text-sm font-medium leading-5">{goods.name}</h3>
+              {hasSpec && (
+                <p className="mt-0.5 line-clamp-1 text-xs leading-4 text-muted-foreground">
+                  {displaySpec}
                 </p>
               )}
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-lg font-bold text-primary">
-                  ¥{goods.partnerPrice.toFixed(2)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  / {goods.unit}
-                </span>
-              </div>
             </div>
 
-            {/* 库存和操作 */}
-            <div className="flex items-center justify-between mt-1">
-              <div className="text-xs text-muted-foreground">
+            {/* 库存优先展示，价格作为辅助信息 */}
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <div
+                className={`min-w-0 truncate text-xs font-medium leading-4 ${
+                  isOutOfStock ? 'text-red-600' : 'text-foreground'
+                }`}
+              >
                 {isOutOfStock ? (
-                  <Badge variant="destructive">缺货</Badge>
+                  <Badge variant="destructive" className="px-1.5 py-0 text-[11px] leading-4">
+                    缺货
+                  </Badge>
                 ) : (
-                  <span>库存: {goods.availableQty} {goods.unit}</span>
+                  <span>
+                    库存 {goods.availableQty} {goods.unit}
+                  </span>
                 )}
               </div>
 
@@ -125,19 +100,25 @@ export function GoodsCard({ goods }: GoodsCardProps) {
                   measureType={goods.measureType}
                   max={goods.availableQty}
                   onChange={handleQuantityChange}
+                  size="sm"
                 />
               ) : (
                 <Button
-                  size="sm"
-                  className="min-h-[44px]"
+                  type="button"
+                  size="icon"
+                  className="h-8 min-h-8 w-8 shrink-0 rounded-full"
                   onClick={handleAddToCart}
                   disabled={isOutOfStock}
+                  aria-label={`加购 ${goods.name}`}
+                  title="加购"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
-                  加购
+                  <Plus className="h-4 w-4" />
                 </Button>
               )}
             </div>
+            <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+              ¥{goods.partnerPrice.toFixed(2)} / {goods.unit}
+            </p>
           </div>
         </div>
       </CardContent>
