@@ -1,8 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { SignJWT } from 'jose'
 import { proxy } from '@/proxy'
-import { getJwtSecret } from '@/lib/jwt-secret'
+
+const authMocks = vi.hoisted(() => ({
+  verifyToken: vi.fn(),
+  refreshAccessToken: vi.fn(),
+}))
+
+vi.mock('@/lib/auth-edge', () => ({
+  verifyToken: authMocks.verifyToken,
+  refreshAccessToken: authMocks.refreshAccessToken,
+}))
 
 const originalEnv = {
   ADMIN_HOSTS: process.env.ADMIN_HOSTS,
@@ -29,28 +37,36 @@ function request(url: string, cookie?: string) {
   })
 }
 
-async function createToken(roles: string[]) {
-  const now = Math.floor(Date.now() / 1000)
-
-  return new SignJWT({
-    userId: 'user-1',
+function authUser(roles: string[]) {
+  return {
+    id: 'user-1',
     username: 'store-user',
+    name: null,
+    email: null,
+    phone: null,
+    avatar: null,
+    isActive: true,
     roles,
-    exp: now + 60 * 60,
-    iat: now,
-  })
-    .setProtectedHeader({ alg: 'HS256' })
-    .sign(getJwtSecret())
+  }
 }
 
 describe('proxy domain routing', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     process.env.ADMIN_HOSTS = 'admin.example.com,admin.test.example.com'
     process.env.MOBILE_HOSTS = 'mobile.example.com,mobile.test.example.com'
     process.env.CANONICAL_ADMIN_HOST = 'admin.test.example.com'
     process.env.CANONICAL_MOBILE_HOST = 'mobile.test.example.com'
     process.env.APP_ENV = 'preview'
     delete process.env.COOKIE_DOMAIN
+    authMocks.verifyToken.mockResolvedValue(authUser(['STORE_ADMIN']))
+    authMocks.refreshAccessToken.mockResolvedValue({
+      access_token: 'rotated-access-token',
+      refresh_token: 'rotated-refresh-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      scope: 'read',
+    })
   })
 
   afterEach(() => {
@@ -96,10 +112,9 @@ describe('proxy domain routing', () => {
   })
 
   it('does not bypass API RBAC after refreshing an expiring access token', async () => {
-    const refreshToken = await createToken(['STORE_ADMIN'])
     const staleSessionCookie = [
       'replenops_access_token=stale-access-token',
-      `replenops_refresh_token=${refreshToken}`,
+      'replenops_refresh_token=valid-refresh-token',
       `replenops_expires_at=${Date.now() - 1000}`,
     ].join('; ')
 
@@ -121,9 +136,8 @@ describe('proxy domain routing', () => {
   })
 
   it('allows store_admin to read ordering schedule status for mobile reminders', async () => {
-    const accessToken = await createToken(['STORE_ADMIN'])
     const sessionCookie = [
-      `replenops_access_token=${accessToken}`,
+      'replenops_access_token=valid-access-token',
       `replenops_expires_at=${Date.now() + 60 * 60 * 1000}`,
     ].join('; ')
 

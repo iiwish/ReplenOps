@@ -1,33 +1,44 @@
-FROM node:22-bookworm-slim AS dependencies
+FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS dependencies
 WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 COPY prisma/schema.prisma ./prisma/schema.prisma
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci --ignore-scripts --no-audit --no-fund --prefer-offline
+RUN npm rebuild --foreground-scripts
 
 FROM dependencies AS builder
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-FROM node:22-bookworm-slim AS runner
+FROM dependencies AS migrator
+RUN groupadd --gid 1001 nodejs \
+  && useradd --uid 1001 --gid nodejs --create-home --shell /usr/sbin/nologin replenops
+COPY --chown=replenops:nodejs prisma ./prisma
+USER replenops
+CMD ["npm", "run", "db:prepare"]
+
+FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --gid 1001 nodejs \
-  && useradd --uid 1001 --gid nodejs --create-home --shell /usr/sbin/nologin replenops
+  && useradd --uid 1001 --gid nodejs --create-home --shell /usr/sbin/nologin replenops \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
-COPY --from=builder --chown=replenops:nodejs /app/package.json /app/package-lock.json ./
-COPY --from=builder --chown=replenops:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=replenops:nodejs /app/.next ./.next
+COPY --from=builder --chown=replenops:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=replenops:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=replenops:nodejs /app/public ./public
-COPY --from=builder --chown=replenops:nodejs /app/prisma ./prisma
 
 USER replenops
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

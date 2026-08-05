@@ -1,6 +1,6 @@
-import { prisma } from '@/lib/prisma'
-import { Prisma, UserRoleEnum } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { Prisma, UserRoleEnum } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 
 export interface UserCreateInput {
   username: string
@@ -36,8 +36,47 @@ export interface UserWithRoles {
   roles: string[]
 }
 
+type UserRecordWithRoles = Prisma.UserGetPayload<{ include: { roles: true } }>
+
+const ROLE_MAPPING: Readonly<Record<string, UserRoleEnum>> = {
+  super_admin: 'SUPER_ADMIN',
+  warehouse_manager: 'WAREHOUSE_MANAGER',
+  store_admin: 'STORE_ADMIN',
+  finance: 'FINANCE',
+  approver: 'APPROVER',
+}
+
+function normalizeRoles(roles: string[]): UserRoleEnum[] {
+  const normalized = roles.map((role) => {
+    const enumRole = ROLE_MAPPING[role.toLowerCase()]
+    if (!enumRole) {
+      throw new Error(`Invalid role: ${role}`)
+    }
+    return enumRole
+  })
+
+  return [...new Set(normalized)]
+}
+
+function toUserWithRoles(user: UserRecordWithRoles): UserWithRoles {
+  return {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    displayName: user.name || user.username,
+    email: user.email,
+    phone: user.phone,
+    avatar: user.avatar,
+    isActive: user.isActive,
+    isDeleted: user.isDeleted,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    roles: user.roles.map((role) => role.role),
+  }
+}
+
 export class UserService {
-  private saltRounds = 10
+  private readonly saltRounds = 10
 
   async findById(id: string): Promise<UserWithRoles | null> {
     const user = await prisma.user.findUnique({
@@ -45,22 +84,7 @@ export class UserService {
       include: { roles: true },
     })
 
-    if (!user) return null
-
-    return {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      displayName: user.name || user.username,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.avatar,
-      isActive: user.isActive,
-      isDeleted: user.isDeleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roles: user.roles.map((r) => r.role),
-    }
+    return user ? toUserWithRoles(user) : null
   }
 
   async findByUsername(username: string): Promise<UserWithRoles | null> {
@@ -69,22 +93,7 @@ export class UserService {
       include: { roles: true },
     })
 
-    if (!user) return null
-
-    return {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      displayName: user.name || user.username,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.avatar,
-      isActive: user.isActive,
-      isDeleted: user.isDeleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roles: user.roles.map((r) => r.role),
-    }
+    return user ? toUserWithRoles(user) : null
   }
 
   async findByIdentifier(identifier: string): Promise<UserWithRoles | null> {
@@ -96,26 +105,12 @@ export class UserService {
       include: { roles: true },
     })
 
-    if (!user) return null
-
-    return {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      displayName: user.name || user.username,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.avatar,
-      isActive: user.isActive,
-      isDeleted: user.isDeleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roles: user.roles.map((r) => r.role),
-    }
+    return user ? toUserWithRoles(user) : null
   }
 
-  async create(input: UserCreateInput): Promise<UserWithRoles> {
+  async create(input: UserCreateInput, roles: string[] = []): Promise<UserWithRoles> {
     const hashedPassword = await bcrypt.hash(input.password, this.saltRounds)
+    const normalizedRoles = normalizeRoles(roles)
 
     const user = await prisma.user.create({
       data: {
@@ -125,28 +120,23 @@ export class UserService {
         email: input.email,
         phone: input.phone,
         avatar: input.avatar,
+        roles: {
+          create: normalizedRoles.map((role) => ({ role })),
+        },
       },
       include: { roles: true },
     })
 
-    return {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      displayName: user.name || user.username,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.avatar,
-      isActive: user.isActive,
-      isDeleted: user.isDeleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roles: user.roles.map((r) => r.role),
-    }
+    return toUserWithRoles(user)
   }
 
-  async update(id: string, input: UserUpdateInput): Promise<UserWithRoles> {
+  async update(id: string, input: UserUpdateInput, roles?: string[]): Promise<UserWithRoles> {
     const updateData: Prisma.UserUpdateInput = {}
+    const revokesSessions =
+      input.username !== undefined ||
+      input.password !== undefined ||
+      input.isActive !== undefined ||
+      roles !== undefined
 
     if (input.username) updateData.username = input.username
     if (input.name) updateData.name = input.name
@@ -157,6 +147,16 @@ export class UserService {
     if (input.password) {
       updateData.password = await bcrypt.hash(input.password, this.saltRounds)
     }
+    if (roles !== undefined) {
+      const normalizedRoles = normalizeRoles(roles)
+      updateData.roles = {
+        deleteMany: {},
+        create: normalizedRoles.map((role) => ({ role })),
+      }
+    }
+    if (revokesSessions) {
+      updateData.sessionVersion = { increment: 1 }
+    }
 
     const user = await prisma.user.update({
       where: { id },
@@ -164,26 +164,16 @@ export class UserService {
       include: { roles: true },
     })
 
-    return {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      displayName: user.name || user.username,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.avatar,
-      isActive: user.isActive,
-      isDeleted: user.isDeleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roles: user.roles.map((r) => r.role),
-    }
+    return toUserWithRoles(user)
   }
 
   async deleteById(id: string): Promise<void> {
     await prisma.user.update({
       where: { id },
-      data: { isDeleted: true },
+      data: {
+        isDeleted: true,
+        sessionVersion: { increment: 1 },
+      },
     })
   }
 
@@ -214,21 +204,7 @@ export class UserService {
       prisma.user.count({ where }),
     ])
 
-    const result = users.map((user) => ({
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      avatar: user.avatar,
-      isActive: user.isActive,
-      isDeleted: user.isDeleted,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      roles: user.roles.map((r) => r.role),
-    }))
-
-    return { users: result, total }
+    return { users: users.map(toUserWithRoles), total }
   }
 
   async verifyPassword(identifier: string, password: string): Promise<UserWithRoles | null> {
@@ -243,11 +219,9 @@ export class UserService {
       select: { password: true },
     })
 
-    if (!storedUser) return null
-
-    const isValid = await bcrypt.compare(password, storedUser.password)
-
-    if (!isValid) return null
+    if (!storedUser || !(await bcrypt.compare(password, storedUser.password))) {
+      return null
+    }
 
     return user
   }
@@ -258,100 +232,80 @@ export class UserService {
       select: { password: true, isActive: true, isDeleted: true },
     })
 
-    if (!storedUser || !storedUser.isActive || storedUser.isDeleted) {
+    if (
+      !storedUser ||
+      !storedUser.isActive ||
+      storedUser.isDeleted ||
+      !(await bcrypt.compare(oldPassword, storedUser.password))
+    ) {
       return false
     }
 
-    const isValid = await bcrypt.compare(oldPassword, storedUser.password)
-
-    if (!isValid) return false
-
-    const hashedPassword = await bcrypt.hash(newPassword, this.saltRounds)
-
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: {
+        password: await bcrypt.hash(newPassword, this.saltRounds),
+        sessionVersion: { increment: 1 },
+      },
     })
 
     return true
   }
 
   async addRole(userId: string, role: string): Promise<void> {
-    const roleMapping: Record<string, UserRoleEnum> = {
-      super_admin: 'SUPER_ADMIN',
-      warehouse_manager: 'WAREHOUSE_MANAGER',
-      store_admin: 'STORE_ADMIN',
-    }
+    const mappedRole = normalizeRoles([role])[0]
+    if (!mappedRole) throw new Error(`Invalid role: ${role}`)
 
-    const mappedRole = roleMapping[role.toLowerCase()]
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.userRole.findUnique({
+        where: { userId_role: { userId, role: mappedRole } },
+      })
 
-    if (!mappedRole) {
-      throw new Error(`Invalid role: ${role}`)
-    }
+      if (existing) return
 
-    const existing = await prisma.userRole.findUnique({
-      where: { userId_role: { userId, role: mappedRole } },
-    })
-
-    if (existing) return
-
-    await prisma.userRole.create({
-      data: {
-        userId,
-          role: mappedRole,
-      },
+      await tx.userRole.create({ data: { userId, role: mappedRole } })
+      await tx.user.update({
+        where: { id: userId },
+        data: { sessionVersion: { increment: 1 } },
+      })
     })
   }
 
   async removeRole(userId: string, role: string): Promise<void> {
-    const roleMapping: Record<string, UserRoleEnum> = {
-      super_admin: 'SUPER_ADMIN',
-      warehouse_manager: 'WAREHOUSE_MANAGER',
-      store_admin: 'STORE_ADMIN',
-    }
+    const mappedRole = normalizeRoles([role])[0]
+    if (!mappedRole) throw new Error(`Invalid role: ${role}`)
 
-    const mappedRole = roleMapping[role.toLowerCase()]
-
-    if (!mappedRole) {
-      throw new Error(`Invalid role: ${role}`)
-    }
-
-    await prisma.userRole.deleteMany({
-      where: {
-        userId,
-        role: mappedRole,
-      },
-    })
-  }
-
-  async setRoles(userId: string, roles: string[]): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      await tx.userRole.deleteMany({ where: { userId } })
+      const deleted = await tx.userRole.deleteMany({
+        where: { userId, role: mappedRole },
+      })
 
-      const roleMapping: Record<string, UserRoleEnum> = {
-        super_admin: 'SUPER_ADMIN',
-        warehouse_manager: 'WAREHOUSE_MANAGER',
-        store_admin: 'STORE_ADMIN',
-      }
-
-      for (const role of roles) {
-        const mappedRole = roleMapping[role.toLowerCase()]
-
-        if (!mappedRole) continue
-
-        await tx.userRole.create({
-          data: {
-            userId,
-            role: mappedRole,
-          },
+      if (deleted.count > 0) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { sessionVersion: { increment: 1 } },
         })
       }
     })
   }
 
+  async setRoles(userId: string, roles: string[]): Promise<void> {
+    const normalizedRoles = normalizeRoles(roles)
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        sessionVersion: { increment: 1 },
+        roles: {
+          deleteMany: {},
+          create: normalizedRoles.map((role) => ({ role })),
+        },
+      },
+    })
+  }
+
   async addStoreAdmin(userId: string, storeId: string): Promise<void> {
     const storeIdInt = Number.parseInt(storeId, 10)
-
     const existing = await prisma.storeAdmin.findUnique({
       where: { userId_storeId: { userId, storeId: storeIdInt } },
     })
@@ -360,22 +314,12 @@ export class UserService {
       throw new Error('用户已经是该门店的管理员')
     }
 
-    await prisma.storeAdmin.create({
-      data: {
-        userId,
-        storeId: storeIdInt,
-      },
-    })
+    await prisma.storeAdmin.create({ data: { userId, storeId: storeIdInt } })
   }
 
   async removeStoreAdmin(userId: string, storeId: string): Promise<void> {
-    const storeIdInt = Number.parseInt(storeId, 10)
-
     await prisma.storeAdmin.deleteMany({
-      where: {
-        userId,
-        storeId: storeIdInt,
-      },
+      where: { userId, storeId: Number.parseInt(storeId, 10) },
     })
   }
 
@@ -396,11 +340,11 @@ export class UserService {
     })
 
     return storeAdmins
-      .filter((sa) => sa.store.isActive && !sa.store.isDeleted)
-      .map((sa) => ({
-        id: String(sa.store.id),
-        code: sa.store.code,
-        name: sa.store.name,
+      .filter((storeAdmin) => storeAdmin.store.isActive && !storeAdmin.store.isDeleted)
+      .map((storeAdmin) => ({
+        id: String(storeAdmin.store.id),
+        code: storeAdmin.store.code,
+        name: storeAdmin.store.name,
       }))
   }
 }

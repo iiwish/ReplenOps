@@ -149,20 +149,14 @@ export async function createUser(input: UserCreateInput): Promise<ActionResponse
     if (validated.email) cleanData.email = validated.email
     if (validated.phone) cleanData.phone = validated.phone
 
-    const newUser = await userService.create(cleanData)
-
-    if (validated.roles && validated.roles.length > 0) {
-      await userService.setRoles(newUser.id, validated.roles)
-    }
-
-    const userWithRoles = await userService.findById(newUser.id)
+    const newUser = await userService.create(cleanData, validated.roles ?? [])
 
     revalidatePath('/admin/users')
 
     return {
       success: true,
       message: '用户创建成功',
-      data: userWithRoles || newUser,
+      data: newUser,
     }
   } catch (error) {
     console.error('创建用户失败:', error)
@@ -211,20 +205,14 @@ export async function updateUser(
     if (validated.phone) cleanData.phone = validated.phone
     if (validated.isActive !== undefined) cleanData.isActive = validated.isActive
 
-    const updatedUser = await userService.update(userId, cleanData)
-
-    if (validated.roles !== undefined) {
-      await userService.setRoles(userId, validated.roles)
-    }
-
-    const userWithRoles = await userService.findById(userId)
+    const updatedUser = await userService.update(userId, cleanData, validated.roles)
 
     revalidatePath('/admin/users')
 
     return {
       success: true,
       message: '用户更新成功',
-      data: userWithRoles || updatedUser,
+      data: updatedUser,
     }
   } catch (error) {
     console.error('更新用户失败:', error)

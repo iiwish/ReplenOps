@@ -1,4 +1,4 @@
-interface SeedEnvironment {
+export interface SeedEnvironment {
   NODE_ENV?: string
   APP_ENV?: string
   ADMIN_USERNAME?: string
@@ -23,7 +23,7 @@ export function resolveDefaultAdminConfig(env: SeedEnvironment): DefaultAdminCon
   const password = env.ADMIN_INITIAL_PASSWORD
 
   if (!password) {
-    throw new Error('ADMIN_INITIAL_PASSWORD is required when seeding the database')
+    throw new Error('ADMIN_INITIAL_PASSWORD is required when bootstrapping the administrator')
   }
 
   if (password.length < 12) {

@@ -179,16 +179,7 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  const requestHeaders = new Headers(request.headers)
-  const userProfileJson = JSON.stringify(user)
-  const userProfileBase64 = Buffer.from(userProfileJson, 'utf-8').toString('base64')
-  requestHeaders.set('x-user-profile', userProfileBase64)
-
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  })
+  const response = NextResponse.next()
 
   if (refreshedToken) {
     const sessionCookieOptions = getSessionCookieOptions(domainRoutingConfig)

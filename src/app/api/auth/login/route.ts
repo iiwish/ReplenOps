@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { setSession } from '@/lib/session'
 import { localAuth } from '@/lib/auth'
+import {
+  authRateLimitService,
+  createLoginRateLimitKey,
+  getLoginClientAddress,
+} from '@/services/auth-rate-limit.service'
 
 const loginSchema = z.object({
   identifier: z.string().min(1, '用户名或手机号不能为空'),
@@ -21,15 +26,38 @@ export async function POST(request: NextRequest) {
     }
 
     const { identifier, password } = result.data
+    const rateLimitKey = createLoginRateLimitKey(identifier, getLoginClientAddress(request.headers))
+    const rateLimit = await authRateLimitService.check(rateLimitKey)
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: '登录尝试过于频繁，请稍后重试' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rateLimit.retryAfterSeconds ?? 1) },
+        }
+      )
+    }
 
     const authResult = await localAuth.verifyCredentials(identifier, password)
 
     if (!authResult.success || !authResult.user || !authResult.tokens) {
-      return NextResponse.json(
-        { success: false, error: authResult.error || '登录失败' },
-        { status: 401 }
-      )
+      const failureLimit = await authRateLimitService.recordFailure(rateLimitKey)
+
+      if (!failureLimit.allowed) {
+        return NextResponse.json(
+          { success: false, error: '登录尝试过于频繁，请稍后重试' },
+          {
+            status: 429,
+            headers: { 'Retry-After': String(failureLimit.retryAfterSeconds ?? 1) },
+          }
+        )
+      }
+
+      return NextResponse.json({ success: false, error: '用户名或密码错误' }, { status: 401 })
     }
+
+    await authRateLimitService.clear(rateLimitKey)
 
     await setSession(
       authResult.tokens.access_token,

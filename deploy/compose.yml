@@ -1,6 +1,18 @@
+x-runtime-environment: &runtime-environment
+  DATABASE_URL: postgresql://replenops:${POSTGRES_PASSWORD}@database:5432/replenops
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+  APP_ENV: ${APP_ENV:-local}
+
+x-container-security: &container-security
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
 services:
   database:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
     environment:
       POSTGRES_DB: replenops
       POSTGRES_USER: replenops
@@ -12,24 +24,67 @@ services:
       retries: 10
     volumes:
       - replenops_postgres:/var/lib/postgresql/data
+    restart: unless-stopped
 
-  app:
+  migrator:
+    <<: *container-security
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      target: migrator
     depends_on:
       database:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://replenops:${POSTGRES_PASSWORD}@database:5432/replenops
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      <<: *runtime-environment
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?Set ADMIN_INITIAL_PASSWORD in .env}
-      APP_ENV: ${APP_ENV:-local}
-    command: ['sh', '-c', 'npm run db:prepare && npm run start']
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    restart: 'no'
+
+  app:
+    <<: *container-security
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: runner
+    depends_on:
+      database:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *runtime-environment
+      ADMIN_HOSTS: ${ADMIN_HOSTS:-}
+      MOBILE_HOSTS: ${MOBILE_HOSTS:-}
+      CANONICAL_ADMIN_HOST: ${CANONICAL_ADMIN_HOST:-}
+      CANONICAL_MOBILE_HOST: ${CANONICAL_MOBILE_HOST:-}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /app/.next/cache:rw,noexec,nosuid,size=64m
     ports:
-      - '${APP_PORT:-3000}:3000'
+      - '127.0.0.1:${APP_PORT:-3000}:3000'
+    init: true
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
 
 volumes:
   replenops_postgres:

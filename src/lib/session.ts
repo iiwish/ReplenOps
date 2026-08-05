@@ -1,6 +1,6 @@
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import { verifyToken, refreshAccessToken } from './auth-edge'
-import type { AuthUser } from './auth'
+import { localAuth, type AuthUser } from './auth'
 import type { UserRole } from '@/types'
 import { createDomainRoutingConfig, getCookieDomain } from './domain-routing'
 
@@ -61,7 +61,6 @@ export async function setSession(
 
 export async function getSession(): Promise<Session | null> {
   const cookieStore = await cookies()
-  const headersList = await headers()
 
   const accessToken = cookieStore.get(COOKIE_CONFIG.ACCESS_TOKEN)?.value
   const refreshToken = cookieStore.get(COOKIE_CONFIG.REFRESH_TOKEN)?.value
@@ -72,19 +71,11 @@ export async function getSession(): Promise<Session | null> {
   }
 
   const expiresAtNumber = parseInt(expiresAt, 10)
-  const now = Date.now()
-
-  const userProfileHeader = headersList.get('x-user-profile')
-  let userFromHeader: AuthUser | null = null
-
-  if (userProfileHeader) {
-    try {
-      const userProfileJson = Buffer.from(userProfileHeader, 'base64').toString('utf-8')
-      userFromHeader = JSON.parse(userProfileJson)
-    } catch (error) {
-      console.error('Failed to parse user profile from header:', error)
-    }
+  if (!Number.isFinite(expiresAtNumber)) {
+    return null
   }
+
+  const now = Date.now()
 
   const shouldRefresh =
     refreshToken && (expiresAtNumber - now < 5 * 60 * 1000 || expiresAtNumber <= now)
@@ -119,15 +110,6 @@ export async function getSession(): Promise<Session | null> {
     }
   }
 
-  if (userFromHeader) {
-    return {
-      accessToken,
-      refreshToken,
-      expiresAt: expiresAtNumber,
-      user: userFromHeader,
-    }
-  }
-
   const user = await verifyToken(accessToken)
   if (!user) {
     return null
@@ -139,6 +121,21 @@ export async function getSession(): Promise<Session | null> {
     expiresAt: expiresAtNumber,
     user,
   }
+}
+
+export async function revokeSession(): Promise<void> {
+  const cookieStore = await cookies()
+  const accessToken = cookieStore.get(COOKIE_CONFIG.ACCESS_TOKEN)?.value
+  const refreshToken = cookieStore.get(COOKIE_CONFIG.REFRESH_TOKEN)?.value
+
+  if (accessToken) {
+    await localAuth.revokeToken(accessToken)
+  }
+  if (refreshToken) {
+    await localAuth.revokeToken(refreshToken)
+  }
+
+  await clearSession()
 }
 
 export async function clearSession(): Promise<void> {

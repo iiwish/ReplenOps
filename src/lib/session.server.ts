@@ -2,6 +2,7 @@ export {
   setSession,
   getSession,
   clearSession,
+  revokeSession,
   getCurrentUser,
   isAuthenticated,
   requireAuth,

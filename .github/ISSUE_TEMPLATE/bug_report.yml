@@ -1,0 +1,32 @@
+name: Bug 报告
+description: 报告可复现的功能问题
+title: '[Bug] '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 请勿提交密码、Token、个人数据、真实业务数据或内部部署信息。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 说明实际行为、预期行为和影响范围。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 提供不包含敏感数据的最小复现步骤。
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: 版本或提交
+      placeholder: 例如 main 或提交 SHA
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      description: 浏览器、Node.js、PostgreSQL 版本等；不要填写域名、IP 或凭据。

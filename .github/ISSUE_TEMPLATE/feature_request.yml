@@ -1,0 +1,24 @@
+name: 功能建议
+description: 提议订货与库存协同范围内的改进
+title: '[Feature] '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景
+      description: 说明要解决的门店、仓库或运营协同问题。
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 期望结果
+      description: 描述期望行为，不必预设具体实现。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 已尝试的工作方式或可接受的折中方案。

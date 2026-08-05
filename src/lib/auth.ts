@@ -1,18 +1,13 @@
-import { SignJWT, jwtVerify } from 'jose'
+import { createHash, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
-import { getJwtSecret } from './jwt-secret'
-
-const JWT_ALGORITHM = 'HS256'
-
-export interface TokenPayload {
-  userId: string
-  username: string
-  roles: string[]
-  exp?: number
-  iat?: number
-  [key: string]: unknown
-}
+import {
+  signAuthToken,
+  verifyAuthTokenClaims,
+  type AuthTokenClaims,
+  type AuthTokenSubject,
+} from './auth-token'
 
 export interface AuthUser {
   id: string
@@ -41,82 +36,69 @@ export interface AuthResult {
   error?: string
 }
 
+type ActiveUserRecord = Prisma.UserGetPayload<{ include: { roles: true } }>
+type AuthSessionRecord = Prisma.AuthSessionGetPayload<{
+  include: { user: { include: { roles: true } } }
+}>
+
+function hashRefreshTokenId(tokenId: string): string {
+  return createHash('sha256').update(tokenId).digest('hex')
+}
+
 export class LocalAuth {
-  private accessTokenExpiry = 60 * 60
-  private refreshTokenExpiry = 7 * 24 * 60 * 60
+  private readonly accessTokenExpiry = 60 * 60
+  private readonly refreshTokenExpiry = 7 * 24 * 60 * 60
 
-  async verifyCredentials(identifier: string, password: string): Promise<AuthResult> {
-    try {
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [{ username: identifier }, { phone: identifier }],
-          isActive: true,
-          isDeleted: false,
-        },
-        include: {
-          roles: true,
-        },
-      })
-
-      if (!user) {
-        return { success: false, error: '用户名或密码错误' }
-      }
-
-      const isValidPassword = await bcrypt.compare(password, user.password)
-
-      if (!isValidPassword) {
-        return { success: false, error: '用户名或密码错误' }
-      }
-
-      const roles = user.roles.map((r) => r.role)
-
-      const authUser: AuthUser = {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        isActive: user.isActive,
-        roles,
-      }
-
-      const tokens = await this.generateTokens(authUser)
-
-      return { success: true, user: authUser, tokens }
-    } catch (error) {
-      console.error('Failed to verify credentials:', error)
-      return { success: false, error: '认证失败' }
+  private toAuthUser(user: ActiveUserRecord): AuthUser {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      avatar: user.avatar,
+      isActive: user.isActive,
+      roles: user.roles.map((role) => role.role),
     }
   }
 
-  async generateTokens(user: AuthUser): Promise<TokenResponse> {
-    const now = Math.floor(Date.now() / 1000)
-    const jwtSecret = getJwtSecret()
+  private sessionMatchesClaims(session: AuthSessionRecord, claims: AuthTokenClaims): boolean {
+    return (
+      session.id === claims.sessionId &&
+      session.user.id === claims.userId &&
+      session.user.username === claims.username &&
+      session.user.sessionVersion === claims.sessionVersion &&
+      session.user.isActive &&
+      !session.user.isDeleted &&
+      !session.revokedAt &&
+      session.expiresAt > new Date()
+    )
+  }
 
-    const accessTokenPayload: TokenPayload = {
+  private async findSession(sessionId: string): Promise<AuthSessionRecord | null> {
+    return prisma.authSession.findUnique({
+      where: { id: sessionId },
+      include: { user: { include: { roles: true } } },
+    })
+  }
+
+  private async issueTokens(
+    user: AuthUser,
+    sessionVersion: number,
+    sessionId: string,
+    refreshTokenId: string,
+    refreshExpiresIn = this.refreshTokenExpiry
+  ): Promise<TokenResponse> {
+    const subject: AuthTokenSubject = {
       userId: user.id,
       username: user.username,
-      roles: user.roles,
-      exp: now + this.accessTokenExpiry,
-      iat: now,
+      sessionVersion,
+      sessionId,
     }
-
-    const refreshTokenPayload: TokenPayload = {
-      userId: user.id,
-      username: user.username,
-      roles: user.roles,
-      exp: now + this.refreshTokenExpiry,
-      iat: now,
-    }
-
-    const accessToken = await new SignJWT(accessTokenPayload)
-      .setProtectedHeader({ alg: JWT_ALGORITHM })
-      .sign(jwtSecret)
-
-    const refreshToken = await new SignJWT(refreshTokenPayload)
-      .setProtectedHeader({ alg: JWT_ALGORITHM })
-      .sign(jwtSecret)
+    const [accessToken, refreshToken] = await Promise.all([
+      signAuthToken(subject, 'access', this.accessTokenExpiry),
+      signAuthToken(subject, 'refresh', refreshExpiresIn, refreshTokenId),
+    ])
 
     return {
       access_token: accessToken,
@@ -127,80 +109,121 @@ export class LocalAuth {
     }
   }
 
-  async verifyAccessToken(token: string): Promise<AuthUser | null> {
+  async verifyCredentials(identifier: string, password: string): Promise<AuthResult> {
     try {
-      const { payload } = await jwtVerify(token, getJwtSecret(), {
-        algorithms: [JWT_ALGORITHM],
-      })
-
-      const tokenPayload = payload as unknown as TokenPayload
-
-      const user = await prisma.user.findUnique({
-        where: { id: tokenPayload.userId },
-        include: {
-          roles: true,
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [{ username: identifier }, { phone: identifier }],
+          isActive: true,
+          isDeleted: false,
         },
+        include: { roles: true },
       })
 
-      if (!user || !user.isActive || user.isDeleted) {
-        return null
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+        return { success: false, error: '用户名或密码错误' }
       }
 
-      const roles = user.roles.map((r) => r.role)
+      const authUser = this.toAuthUser(user)
+      const tokens = await this.generateTokens(authUser, user.sessionVersion)
 
-      return {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        isActive: user.isActive,
-        roles,
-      }
+      return { success: true, user: authUser, tokens }
     } catch (error) {
-      console.error('Failed to verify access token:', error)
-      return null
+      console.error('Failed to verify credentials:', error)
+      return { success: false, error: '认证失败' }
     }
   }
 
-  async verifyRefreshToken(token: string): Promise<TokenResponse | null> {
-    try {
-      const { payload } = await jwtVerify(token, getJwtSecret(), {
-        algorithms: [JWT_ALGORITHM],
-      })
+  async generateTokens(user: AuthUser, sessionVersion: number): Promise<TokenResponse> {
+    const sessionId = randomUUID()
+    const refreshTokenId = randomUUID()
+    const expiresAt = new Date(Date.now() + this.refreshTokenExpiry * 1000)
 
-      const tokenPayload = payload as unknown as TokenPayload
-
-      const user = await prisma.user.findUnique({
-        where: { id: tokenPayload.userId },
-        include: {
-          roles: true,
+    await prisma.$transaction([
+      prisma.authSession.deleteMany({
+        where: {
+          userId: user.id,
+          OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { not: null } }],
         },
+      }),
+      prisma.authSession.create({
+        data: {
+          id: sessionId,
+          userId: user.id,
+          refreshTokenHash: hashRefreshTokenId(refreshTokenId),
+          expiresAt,
+        },
+      }),
+    ])
+
+    return this.issueTokens(user, sessionVersion, sessionId, refreshTokenId)
+  }
+
+  async verifyAccessToken(token: string): Promise<AuthUser | null> {
+    const claims = await verifyAuthTokenClaims(token, 'access')
+    if (!claims) return null
+
+    const session = await this.findSession(claims.sessionId)
+    if (!session || !this.sessionMatchesClaims(session, claims)) return null
+
+    return this.toAuthUser(session.user)
+  }
+
+  async verifyRefreshToken(token: string): Promise<TokenResponse | null> {
+    const claims = await verifyAuthTokenClaims(token, 'refresh')
+    if (!claims) return null
+
+    const session = await this.findSession(claims.sessionId)
+    if (!session || !this.sessionMatchesClaims(session, claims)) return null
+    if (session.refreshTokenHash !== hashRefreshTokenId(claims.jti)) {
+      await prisma.authSession.updateMany({
+        where: { id: session.id, revokedAt: null },
+        data: { revokedAt: new Date() },
       })
-
-      if (!user || !user.isActive || user.isDeleted) {
-        return null
-      }
-
-      const roles = user.roles.map((r) => r.role)
-
-      const authUser: AuthUser = {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        avatar: user.avatar,
-        isActive: user.isActive,
-        roles,
-      }
-
-      return await this.generateTokens(authUser)
-    } catch (error) {
-      console.error('Failed to verify refresh token:', error)
       return null
     }
+
+    const nextRefreshTokenId = randomUUID()
+    const rotated = await prisma.authSession.updateMany({
+      where: {
+        id: session.id,
+        refreshTokenHash: session.refreshTokenHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: { refreshTokenHash: hashRefreshTokenId(nextRefreshTokenId) },
+    })
+
+    if (rotated.count !== 1) return null
+
+    const refreshExpiresIn = Math.max(
+      1,
+      Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)
+    )
+    return this.issueTokens(
+      this.toAuthUser(session.user),
+      session.user.sessionVersion,
+      session.id,
+      nextRefreshTokenId,
+      refreshExpiresIn
+    )
+  }
+
+  async revokeToken(token: string): Promise<void> {
+    const claims =
+      (await verifyAuthTokenClaims(token, 'access')) ??
+      (await verifyAuthTokenClaims(token, 'refresh'))
+
+    if (!claims) return
+
+    await prisma.authSession.updateMany({
+      where: {
+        id: claims.sessionId,
+        userId: claims.userId,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    })
   }
 }
 

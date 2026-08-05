@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/session', () => ({
-  clearSession: vi.fn(),
+  revokeSession: vi.fn(),
 }))
 
 const originalNextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL

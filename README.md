@@ -33,7 +33,7 @@ npm run db:prepare
 npm run dev
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。首次执行 `db:prepare` 会创建数据表、报货时间配置和超级管理员账号。请在 `.env` 中设置自己的 `ADMIN_INITIAL_PASSWORD`，不要沿用示例值。
+打开 [http://localhost:3000](http://localhost:3000)。首次执行 `db:prepare` 会创建数据表、报货时间配置和超级管理员账号。管理员 bootstrap 只在账号不存在时创建账号；后续执行不会重置密码、恢复状态或覆盖角色。请在 `.env` 中设置自己的 `ADMIN_INITIAL_PASSWORD`，不要沿用示例值。
 
 使用 Docker Compose 时：
 
@@ -68,6 +68,7 @@ docker compose -f deploy/compose.yml up --build
 npm run db:migrate   # 开发环境创建迁移
 npm run db:deploy    # 部署已有迁移
 npm run db:seed      # 写入幂等基础数据
+npm run db:bootstrap-admin # 仅在账号不存在时创建初始管理员
 npm run db:studio    # 打开 Prisma Studio
 ```
 
@@ -77,6 +78,7 @@ npm run db:studio    # 打开 Prisma Studio
 
 ```bash
 npm test
+npm run test:coverage
 npm run type-check
 npm run lint
 npm run build
@@ -84,7 +86,7 @@ npm run test:e2e
 npm run audit
 ```
 
-GitHub Actions 会执行测试、类型检查、Lint、构建、E2E、依赖审计和敏感信息扫描。
+GitHub Actions 会执行测试与覆盖率、类型检查、Lint、构建、E2E、依赖审计、敏感信息扫描、运行镜像漏洞扫描，并在公开仓库中执行 CodeQL。
 
 ## 贡献与安全
 

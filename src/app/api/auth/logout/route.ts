@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { clearSession } from '@/lib/session'
+import { revokeSession } from '@/lib/session'
 
 export async function POST() {
   try {
-    await clearSession()
+    await revokeSession()
 
     return NextResponse.json({
       success: true,
@@ -17,7 +17,7 @@ export async function POST() {
 
 export async function GET(request: NextRequest) {
   try {
-    await clearSession()
+    await revokeSession()
 
     return NextResponse.redirect(new URL('/login', request.url))
   } catch (error) {

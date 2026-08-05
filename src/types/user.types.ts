@@ -1,12 +1,30 @@
 import { z } from 'zod'
 
-export const ROLE_OPTIONS = [
+export const USER_ROLE_VALUES = [
+  'SUPER_ADMIN',
+  'WAREHOUSE_MANAGER',
+  'STORE_ADMIN',
+  'FINANCE',
+  'APPROVER',
+] as const
+
+export const ROLE_OPTIONS: ReadonlyArray<{
+  value: (typeof USER_ROLE_VALUES)[number]
+  label: string
+}> = [
   { value: 'SUPER_ADMIN', label: '超级管理员' },
   { value: 'WAREHOUSE_MANAGER', label: '仓库管理员' },
   { value: 'STORE_ADMIN', label: '门店管理员' },
-] as const
+  { value: 'FINANCE', label: '财务' },
+  { value: 'APPROVER', label: '审批人' },
+]
 
-export type UserRole = (typeof ROLE_OPTIONS)[number]['value']
+export type UserRole = (typeof USER_ROLE_VALUES)[number]
+
+const USER_ROLE_SET = new Set<string>(USER_ROLE_VALUES)
+const userRolesSchema = z.array(
+  z.string().refine((role) => USER_ROLE_SET.has(role), '包含无效的用户角色')
+)
 
 export const userListSchema = z.object({
   page: z.number().int().positive().default(1),
@@ -24,7 +42,7 @@ export const userCreateSchema = z.object({
     .regex(/^1[3-9]\d{9}$/, '手机号格式不正确')
     .optional()
     .or(z.literal('')),
-  roles: z.array(z.string()).optional(),
+  roles: userRolesSchema.optional(),
 })
 
 export const userUpdateSchema = z.object({
@@ -43,7 +61,7 @@ export const userUpdateSchema = z.object({
     .optional()
     .or(z.literal('')),
   isActive: z.boolean().optional(),
-  roles: z.array(z.string()).optional(),
+  roles: userRolesSchema.optional(),
 })
 
 export type UserListInput = z.infer<typeof userListSchema>

@@ -11,7 +11,6 @@ export function StoreInitializer({ stores }: StoreInitializerProps) {
   const { initializeStore } = useStoreSelectionStore()
 
   useEffect(() => {
-    console.log('[StoreInitializer] Initializing with stores:', stores)
     if (stores.length > 0) {
       initializeStore(stores)
     }

@@ -6,7 +6,7 @@
 
 ## 报告漏洞
 
-请使用 GitHub Private Vulnerability Reporting 私下提交安全问题。报告中建议包含：
+仓库公开并启用 GitHub Private Vulnerability Reporting 后，请从仓库的 Security 页面私下提交安全问题。启用前可通过维护者的 GitHub 个人资料发起不包含漏洞细节的联系请求，再约定私密报告渠道。报告中建议包含：
 
 - 受影响的版本或提交
 - 可复现的最小步骤

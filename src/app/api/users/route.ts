@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { userService, type UserUpdateInput } from '@/services/user.service'
 import { getUserRoles, requireAuth } from '@/lib/session'
-import { hasPermission } from '@/lib/rbac'
 import { z } from 'zod'
 
 const userUpdateSchema = z.object({
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth()
     const roles = getUserRoles(user)
 
-    if (!hasPermission(roles, '/api/users')) {
+    if (!roles.includes('super_admin')) {
       return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
     }
 
@@ -51,6 +50,11 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const user = await requireAuth()
+    const roles = getUserRoles(user)
+
+    if (!roles.includes('super_admin')) {
+      return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
+    }
 
     const searchParams = Object.fromEntries(request.nextUrl.searchParams.entries())
     const userId = searchParams.userId as string
@@ -69,13 +73,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const roles = getUserRoles(user)
-
-    if (!hasPermission(roles, '/api/users')) {
-      return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
-    }
-
-    const userData = result.data as UserUpdateInput
+    const userData: UserUpdateInput = result.data
 
     const updatedUser = await userService.update(userId, userData)
 
