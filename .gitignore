@@ -65,5 +65,4 @@ logs
 # Local agent state
 .local-agent-state/
 .codex/
-.local-agent-state/
 .auto-claude/

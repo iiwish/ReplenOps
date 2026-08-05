@@ -17,10 +17,10 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
+    "test": "vitest run --config config/vitest.config.mts",
+    "test:watch": "vitest --config config/vitest.config.mts",
+    "test:coverage": "vitest run --config config/vitest.config.mts --coverage",
+    "test:e2e": "playwright test --config config/playwright.config.ts",
     "audit": "npm audit --audit-level=high --registry=https://registry.npmjs.org"
   },
   "dependencies": {

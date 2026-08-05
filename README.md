@@ -39,8 +39,16 @@ npm run dev
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f deploy/compose.yml up --build
 ```
+
+## 项目结构
+
+- `src/`：应用页面、组件、Actions、Services 与共享代码
+- `prisma/`：数据库 schema、migration 与基础 seed
+- `tests/`：单元测试和端到端测试
+- `config/`：测试工具配置
+- `deploy/`：通用容器构建和本地 Compose 定义
 
 ## 配置
 
@@ -80,7 +88,7 @@ GitHub Actions 会执行测试、类型检查、Lint、构建、E2E、依赖审�
 
 ## 贡献与安全
 
-贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请按照 [SECURITY.md](SECURITY.md) 私下报告，不要在公开 Issue 中提交密码、Token、个人信息或部署拓扑。
+贡献方式见 [贡献指南](.github/CONTRIBUTING.md)。安全问题请按照 [安全策略](.github/SECURITY.md) 私下报告，不要在公开 Issue 中提交密码、Token、个人信息或部署拓扑。
 
 ## 许可证
 

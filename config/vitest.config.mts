@@ -2,9 +2,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
+const configDirectory = path.dirname(fileURLToPath(import.meta.url))
+const projectRoot = path.resolve(configDirectory, '..')
 
 export default defineConfig({
+  root: projectRoot,
   test: {
     globals: true,
     environment: 'node',
@@ -25,7 +27,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(currentDirectory, './src'),
+      '@': path.resolve(projectRoot, 'src'),
     },
   },
 })

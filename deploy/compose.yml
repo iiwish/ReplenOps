@@ -14,7 +14,9 @@ services:
       - replenops_postgres:/var/lib/postgresql/data
 
   app:
-    build: .
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
     depends_on:
       database:
         condition: service_healthy
