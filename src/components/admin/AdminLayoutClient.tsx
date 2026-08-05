@@ -60,7 +60,7 @@ export default function AdminLayoutClient({
 
         {/* 底部 */}
         <Layout.Footer style={{ textAlign: 'center' }}>
-          ReplenOps ©{new Date().getFullYear()} Created by Your Company
+          ReplenOps © {new Date().getFullYear()} iiwish
         </Layout.Footer>
       </Layout>
     </Layout>

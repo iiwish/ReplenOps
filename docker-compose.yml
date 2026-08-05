@@ -1,0 +1,33 @@
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: replenops
+      POSTGRES_USER: replenops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U replenops -d replenops']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - replenops_postgres:/var/lib/postgresql/data
+
+  app:
+    build: .
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://replenops:${POSTGRES_PASSWORD}@database:5432/replenops
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:?Set ADMIN_INITIAL_PASSWORD in .env}
+      APP_ENV: ${APP_ENV:-local}
+    command: ['sh', '-c', 'npm run db:prepare && npm run start']
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    restart: unless-stopped
+
+volumes:
+  replenops_postgres:

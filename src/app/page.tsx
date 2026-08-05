@@ -65,17 +65,17 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/20">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-background to-muted/20 p-6">
       <div className="w-full max-w-2xl space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
+        <div className="space-y-2 text-center">
           <h1 className="text-3xl font-bold text-foreground">ReplenOps</h1>
           <p className="text-muted-foreground">
             欢迎回来，<span className="font-medium text-foreground">{user.name}</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            检测到您正在使用 {isMobileDevice ? '移动设备' : '电脑'}，
-            将为您跳转到{selectedPlatform === 'mobile' ? '移动端' : '管理端'}
+            检测到您正在使用 {isMobileDevice ? '移动设备' : '电脑'}， 将为您跳转到
+            {selectedPlatform === 'mobile' ? '移动端' : '管理端'}
           </p>
         </div>
 
@@ -90,25 +90,17 @@ export default async function HomePage() {
         </div>
 
         {/* Auto-redirect hint */}
-        <p className="text-center text-sm text-muted-foreground">
-          页面将在 3 秒后自动跳转…
-        </p>
+        <p className="text-center text-sm text-muted-foreground">页面将在 3 秒后自动跳转…</p>
 
         {/* Auto-redirect script */}
-        <AutoRedirect
-          targetUrl={platformUrls[selectedPlatform]}
-        />
+        <AutoRedirect targetUrl={platformUrls[selectedPlatform]} />
       </div>
     </main>
   )
 }
 
 // 客户端自动跳转组件
-export function AutoRedirect({
-  targetUrl,
-}: {
-  targetUrl: string
-}) {
+export function AutoRedirect({ targetUrl }: { targetUrl: string }) {
   const escapedTargetUrl = JSON.stringify(targetUrl)
 
   return (

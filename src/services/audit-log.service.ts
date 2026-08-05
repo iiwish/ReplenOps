@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
+import ExcelJS from 'exceljs'
 
 export interface ListAuditLogsParams {
   page?: number
@@ -218,12 +219,12 @@ export class AuditLogService {
       log.reason || '-',
     ])
 
-    const XLSX = await import('xlsx')
-    const workbook = XLSX.utils.book_new()
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows])
-    XLSX.utils.book_append_sheet(workbook, worksheet, '审计日志')
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('审计日志')
+    worksheet.addRows([headers, ...rows])
+    const buffer = await workbook.xlsx.writeBuffer()
 
-    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
+    return Buffer.from(buffer)
   }
 }
 

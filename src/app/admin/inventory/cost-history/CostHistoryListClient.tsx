@@ -143,7 +143,9 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
 
   const handleExport = () => {
     const query = buildQueryString()
-    window.location.href = `/api/inventory/cost-history/export${query ? `?${query}` : ''}`
+    const link = document.createElement('a')
+    link.href = `/api/inventory/cost-history/export${query ? `?${query}` : ''}`
+    link.click()
   }
 
   // 表格列定义

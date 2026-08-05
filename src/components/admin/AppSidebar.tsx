@@ -87,7 +87,7 @@ export default function AppSidebar({ collapsed }: AppSidebarProps) {
             transition: 'all 0.2s',
           }}
         >
-          {collapsed ? 'ERP' : '门店订货与库存协同平台'}
+          {collapsed ? 'RO' : 'ReplenOps'}
         </div>
       </div>
 

@@ -146,7 +146,9 @@ export default function InventoryLogListClient({
 
   const handleExport = () => {
     const query = buildQueryString()
-    window.location.href = `/api/inventory/logs/export${query ? `?${query}` : ''}`
+    const link = document.createElement('a')
+    link.href = `/api/inventory/logs/export${query ? `?${query}` : ''}`
+    link.click()
   }
 
   // 分页处理

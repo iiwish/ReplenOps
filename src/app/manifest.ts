@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next'
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'ReplenOps',
-    short_name: 'ERP',
+    short_name: 'ReplenOps',
     description: '门店订货与库存协同平台',
     start_url: '/mobile',
     scope: '/mobile',
@@ -11,6 +11,17 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#ffffff',
     theme_color: '#1677ff',
     orientation: 'portrait',
-    icons: [],
+    icons: [
+      {
+        src: '/icons/icon-192x192.png',
+        sizes: '192x192',
+        type: 'image/png',
+      },
+      {
+        src: '/icons/icon-512x512.png',
+        sizes: '512x512',
+        type: 'image/png',
+      },
+    ],
   }
 }

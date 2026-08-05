@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
+import { Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { buildMonthlyStockOutWorkbook } from '@/lib/monthly-stock-out-export'
 import { parseMonthlyStockOutFilters } from '@/lib/monthly-stock-out-filters'
@@ -24,10 +25,8 @@ const report: MonthlyStockOutReportData = {
     {
       id: '11',
       stockOutCode: 'SO-001',
-      legacyStockOutCode: 'OLD-SO-001',
       orderId: '21',
       orderCode: 'OR-001',
-      legacyOrderCode: 'OLD-OR-001',
       completedAt: new Date('2026-06-15T04:30:00.000Z'),
       orderedAt: new Date('2026-06-14T01:00:00.000Z'),
       storeName: '测试门店',
@@ -64,21 +63,18 @@ const report: MonthlyStockOutReportData = {
 }
 
 describe('monthly stock-out export', () => {
-  it('creates summary and detail worksheets with Shanghai timestamps', () => {
-    const workbook = XLSX.read(buildMonthlyStockOutWorkbook(report), { type: 'buffer' })
+  it('creates summary and detail worksheets with Shanghai timestamps', async () => {
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.read(Readable.from(await buildMonthlyStockOutWorkbook(report)))
 
-    expect(workbook.SheetNames).toEqual(['出库汇总', '商品明细'])
-    const summaryRows = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets['出库汇总']!, {
-      header: 1,
-    })
-    const detailRows = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets['商品明细']!, {
-      header: 1,
-    })
-    expect(summaryRows).toHaveLength(2)
-    expect(summaryRows[1]?.[1]).toBe('SO-001')
-    expect(summaryRows[1]?.[6]).toBe('2026-06-15 12:30:00')
-    expect(detailRows).toHaveLength(2)
-    expect(detailRows[1]?.[6]).toBe('G-001')
+    expect(workbook.worksheets.map((worksheet) => worksheet.name)).toEqual(['出库汇总', '商品明细'])
+    const summarySheet = workbook.getWorksheet('出库汇总')
+    const detailSheet = workbook.getWorksheet('商品明细')
+    expect(summarySheet?.rowCount).toBe(2)
+    expect(summarySheet?.getRow(2).getCell(2).value).toBe('SO-001')
+    expect(summarySheet?.getRow(2).getCell(5).value).toBe('2026-06-15 12:30:00')
+    expect(detailSheet?.rowCount).toBe(2)
+    expect(detailSheet?.getRow(2).getCell(7).value).toBe('G-001')
   })
 
   it('normalizes supported filters and rejects invalid values', () => {

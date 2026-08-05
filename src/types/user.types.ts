@@ -1,0 +1,51 @@
+import { z } from 'zod'
+
+export const ROLE_OPTIONS = [
+  { value: 'SUPER_ADMIN', label: '超级管理员' },
+  { value: 'WAREHOUSE_MANAGER', label: '仓库管理员' },
+  { value: 'STORE_ADMIN', label: '门店管理员' },
+] as const
+
+export type UserRole = (typeof ROLE_OPTIONS)[number]['value']
+
+export const userListSchema = z.object({
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+  search: z.string().optional(),
+})
+
+export const userCreateSchema = z.object({
+  username: z.string().min(3, '用户名至少3个字符').max(50, '用户名最多50个字符'),
+  password: z.string().min(6, '密码至少6个字符').max(100, '密码最多100个字符'),
+  name: z.string().min(1, '姓名不能为空').max(100, '姓名最多100个字符').optional(),
+  email: z.string().email('邮箱格式不正确').optional().or(z.literal('')),
+  phone: z
+    .string()
+    .regex(/^1[3-9]\d{9}$/, '手机号格式不正确')
+    .optional()
+    .or(z.literal('')),
+  roles: z.array(z.string()).optional(),
+})
+
+export const userUpdateSchema = z.object({
+  username: z.string().min(3, '用户名至少3个字符').max(50, '用户名最多50个字符').optional(),
+  password: z
+    .string()
+    .min(6, '密码至少6个字符')
+    .max(100, '密码最多100个字符')
+    .optional()
+    .or(z.literal('')),
+  name: z.string().min(1, '姓名不能为空').max(100, '姓名最多100个字符').optional(),
+  email: z.string().email('邮箱格式不正确').optional().or(z.literal('')),
+  phone: z
+    .string()
+    .regex(/^1[3-9]\d{9}$/, '手机号格式不正确')
+    .optional()
+    .or(z.literal('')),
+  isActive: z.boolean().optional(),
+  roles: z.array(z.string()).optional(),
+})
+
+export type UserListInput = z.infer<typeof userListSchema>
+export type UserCreateInput = z.infer<typeof userCreateSchema>
+export type UserUpdateInput = z.infer<typeof userUpdateSchema>

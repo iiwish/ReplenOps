@@ -1,0 +1,533 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 基础数据模块 (Master Data)
+// ============================================
+
+// 用户表
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique // 用户名（登录用）
+  phone     String?  @unique // 手机号（登录用，可选）
+  email     String?  @unique // 邮箱（可选）
+  password  String // bcrypt hash
+  name      String? // 显示名称
+  avatar    String? // 头像 URL
+  isActive  Boolean  @default(true) @map("is_active") // 是否启用
+  isDeleted Boolean  @default(false) @map("is_deleted") // 是否删除
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  storeAdmins StoreAdmin[] // 门店管理员关联
+  roles       UserRole[] // 用户角色
+
+  @@map("users")
+}
+
+// 用户角色表（多角色支持）
+model UserRole {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  role      UserRoleEnum @map("role")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, role]) // 一个用户对同一个角色只能有一条记录
+  @@map("user_roles")
+}
+
+// 用户角色枚举
+enum UserRoleEnum {
+  SUPER_ADMIN
+  WAREHOUSE_MANAGER
+  STORE_ADMIN
+  FINANCE
+  APPROVER
+
+  @@map("user_role_enum")
+}
+
+// 仓库表
+model Warehouse {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  name         String
+  address      String?
+  contactName  String?  @map("contact_name")
+  contactPhone String?  @map("contact_phone")
+  isActive     Boolean  @default(true) @map("is_active")
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  stockIns      StockIn[]
+  stockOuts     StockOut[]
+  inventories   Inventory[]
+  costHistories CostHistory[]
+
+  @@map("warehouses")
+}
+
+// 门店表
+model Store {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  name         String
+  address      String?
+  contactName  String?  @map("contact_name")
+  contactPhone String?  @map("contact_phone")
+  isActive     Boolean  @default(true) @map("is_active")
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  orders            Order[]
+  containerTracking ContainerTracking[]
+  storeAdmins       StoreAdmin[]
+
+  @@map("stores")
+}
+
+// 门店管理员关联表
+model StoreAdmin {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  storeId   Int      @map("store_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@unique([userId, storeId])
+  @@map("store_admins")
+}
+
+// 商品分类表
+model GoodsCategory {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  parentId  Int?     @map("parent_id")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  isDeleted Boolean  @default(false) @map("is_deleted")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  goods Goods[]
+
+  @@map("goods_categories")
+}
+
+// 商品表
+model Goods {
+  id             Int              @id @default(autoincrement())
+  code           String           @unique
+  name           String
+  categoryId     Int              @map("category_id")
+  spec           String? // 规格
+  unit           String // 单位
+  measureType    GoodsMeasureType @default(INT) @map("measurement_type") // 计量类型
+  minStock       Decimal          @default(0) @map("min_stock") @db.Decimal(10, 2) // 最低库存
+  costPrice      Decimal          @default(0) @map("cost_price") @db.Decimal(10, 2)
+  partnerPrice   Decimal          @default(0) @map("partner_price") @db.Decimal(10, 2)
+  defaultInPrice Decimal          @default(0) @map("default_in_price") @db.Decimal(10, 2)
+  imageUrl       String?          @map("image_url")
+  description    String?
+  isActive       Boolean          @default(true) @map("is_active")
+  isDeleted      Boolean          @default(false) @map("is_deleted")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  category       GoodsCategory  @relation(fields: [categoryId], references: [id])
+  inventories    Inventory[]
+  orderItems     OrderItem[]
+  stockInItems   StockInItem[]
+  stockOutItems  StockOutItem[]
+  costHistories  CostHistory[]
+  container      Container?     @relation(fields: [containerId], references: [id])
+  containerId    Int?           @map("container_id") // 关联包装物ID（可选）
+  containerRatio Int?           @default(0) @map("container_ratio") // 包装物配比
+
+  @@map("goods")
+}
+
+// 包装物基础表
+model Container {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  unit      String
+  deposit   Decimal  @default(0) @db.Decimal(10, 2)
+  remark    String?
+  isActive  Boolean  @default(true) @map("is_active")
+  isDeleted Boolean  @default(false) @map("is_deleted")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  goods     Goods[]
+  trackings ContainerTracking[]
+  logs      ContainerLog[]
+
+  @@map("containers")
+}
+
+// 包装物台账表
+model ContainerTracking {
+  id              Int       @id @default(autoincrement())
+  storeId         Int       @map("store_id")
+  containerId     Int       @map("container_id")
+  totalBorrowed   Decimal   @default(0) @map("total_borrowed") @db.Decimal(10, 2)
+  totalReturned   Decimal   @default(0) @map("total_returned") @db.Decimal(10, 2)
+  currentBorrowed Decimal   @default(0) @map("current_borrowed") @db.Decimal(10, 2)
+  lastBorrowAt    DateTime? @map("last_borrow_at")
+  lastReturnAt    DateTime? @map("last_return_at")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  store     Store          @relation(fields: [storeId], references: [id])
+  container Container      @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  logs      ContainerLog[]
+
+  @@unique([storeId, containerId])
+  @@map("container_tracking")
+}
+
+// 包装物变动日志表
+model ContainerLog {
+  id                  Int             @id @default(autoincrement())
+  containerId         Int?            @map("container_id")
+  containerTrackingId Int             @map("container_tracking_id")
+  orderId             Int?            @map("order_id")
+  opType              ContainerOpType @map("op_type")
+  quantity            Decimal         @db.Decimal(10, 2)
+  beforeBorrowed      Decimal         @map("before_borrowed") @db.Decimal(10, 2)
+  afterBorrowed       Decimal         @map("after_borrowed") @db.Decimal(10, 2)
+  remark              String?
+  operatedBy          String          @map("operated_by")
+  operatedAt          DateTime        @default(now()) @map("operated_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+
+  container Container?        @relation(fields: [containerId], references: [id])
+  tracking  ContainerTracking @relation(fields: [containerTrackingId], references: [id], onDelete: Cascade)
+  order     Order?            @relation(fields: [orderId], references: [id])
+
+  @@map("container_logs")
+}
+
+enum ContainerOpType {
+  BORROW
+  RETURN
+}
+
+enum GoodsMeasureType {
+  INT
+  DECIMAL
+
+  @@map("goods_measure_type")
+}
+
+// ============================================
+// 库存管理模块 (Inventory)
+// ============================================
+
+// 库存表
+model Inventory {
+  id                Int      @id @default(autoincrement())
+  warehouseId       Int      @map("warehouse_id")
+  goodsId           Int      @map("goods_id")
+  quantity          Decimal  @default(0) @db.Decimal(10, 3)
+  lockedQuantity    Decimal  @default(0) @map("locked_quantity") @db.Decimal(10, 3)
+  availableQuantity Decimal  @default(0) @map("available_quantity") @db.Decimal(10, 3)
+  avgCost           Decimal  @default(0) @map("avg_cost") @db.Decimal(10, 2) // 加权平均成本
+  totalCost         Decimal  @default(0) @map("total_cost") @db.Decimal(10, 2)
+  isDeleted         Boolean  @default(false) @map("is_deleted")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
+  goods     Goods          @relation(fields: [goodsId], references: [id])
+  logs      InventoryLog[]
+
+  @@unique([warehouseId, goodsId])
+  @@map("inventories")
+}
+
+// 入库单表
+model StockIn {
+  id          Int         @id @default(autoincrement())
+  code        String      @unique
+  warehouseId Int         @map("warehouse_id")
+  status      StockStatus @default(PENDING)
+  totalAmount Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
+  remark      String?
+  createdBy   String      @map("created_by")
+  approvedBy  String?     @map("approved_by")
+  approvedAt  DateTime?   @map("approved_at")
+  completedAt DateTime?   @map("completed_at")
+  isDeleted   Boolean     @default(false) @map("is_deleted")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  warehouse Warehouse     @relation(fields: [warehouseId], references: [id])
+  items     StockInItem[]
+
+  @@map("stock_ins")
+}
+
+// 入库单明细表
+model StockInItem {
+  id                   Int               @id @default(autoincrement())
+  stockInId            Int               @map("stock_in_id")
+  goodsId              Int               @map("goods_id")
+  goodsCodeSnapshot    String?           @map("goods_code_snapshot")
+  goodsNameSnapshot    String?           @map("goods_name_snapshot")
+  goodsSpecSnapshot    String?           @map("goods_spec_snapshot")
+  goodsUnitSnapshot    String?           @map("goods_unit_snapshot")
+  measureTypeSnapshot  GoodsMeasureType? @map("measurement_type_snapshot")
+  categoryIdSnapshot   Int?              @map("category_id_snapshot")
+  categoryNameSnapshot String?           @map("category_name_snapshot")
+  quantity             Decimal           @db.Decimal(10, 3)
+  unitPrice            Decimal           @map("unit_price") @db.Decimal(10, 2)
+  totalPrice           Decimal           @map("total_price") @db.Decimal(10, 2)
+  isDeleted            Boolean           @default(false) @map("is_deleted")
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  stockIn StockIn @relation(fields: [stockInId], references: [id], onDelete: Cascade)
+  goods   Goods   @relation(fields: [goodsId], references: [id])
+
+  @@map("stock_in_items")
+}
+
+// 出库单表
+model StockOut {
+  id           Int         @id @default(autoincrement())
+  code         String      @unique
+  warehouseId  Int         @map("warehouse_id")
+  orderId      Int         @unique @map("order_id") // 1对1关联订单
+  status       StockStatus @default(PENDING)
+  totalCost    Decimal     @default(0) @map("total_cost") @db.Decimal(10, 2)
+  totalProfit  Decimal     @default(0) @map("total_profit") @db.Decimal(10, 2)
+  remark       String?
+  createdBy    String?     @map("created_by")
+  completedAt  DateTime?   @map("completed_at")
+  revokedBy    String?     @map("revoked_by")
+  revokedAt    DateTime?   @map("revoked_at")
+  revokeReason String?     @map("revoke_reason")
+  isDeleted    Boolean     @default(false) @map("is_deleted")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
+  order     Order          @relation(fields: [orderId], references: [id])
+  items     StockOutItem[]
+
+  @@index([completedAt, status])
+  @@map("stock_outs")
+}
+
+// 出库单明细表
+model StockOutItem {
+  id                   Int               @id @default(autoincrement())
+  stockOutId           Int               @map("stock_out_id")
+  goodsId              Int               @map("goods_id")
+  goodsCodeSnapshot    String?           @map("goods_code_snapshot")
+  goodsNameSnapshot    String?           @map("goods_name_snapshot")
+  goodsSpecSnapshot    String?           @map("goods_spec_snapshot")
+  goodsUnitSnapshot    String?           @map("goods_unit_snapshot")
+  measureTypeSnapshot  GoodsMeasureType? @map("measurement_type_snapshot")
+  categoryIdSnapshot   Int?              @map("category_id_snapshot")
+  categoryNameSnapshot String?           @map("category_name_snapshot")
+  quantity             Decimal           @db.Decimal(10, 3)
+  snapshotCost         Decimal           @map("snapshot_cost") @db.Decimal(10, 2) // 快照成本
+  salePrice            Decimal           @map("sale_price") @db.Decimal(10, 2)
+  profit               Decimal           @db.Decimal(10, 2)
+  isDeleted            Boolean           @default(false) @map("is_deleted")
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  stockOut StockOut @relation(fields: [stockOutId], references: [id], onDelete: Cascade)
+  goods    Goods    @relation(fields: [goodsId], references: [id])
+
+  @@map("stock_out_items")
+}
+
+// 库存变动日志表
+model InventoryLog {
+  id            Int                 @id @default(autoincrement())
+  inventoryId   Int                 @map("inventory_id")
+  changeType    InventoryChangeType @map("change_type")
+  quantity      Decimal             @db.Decimal(10, 3)
+  beforeQty     Decimal             @map("before_qty") @db.Decimal(10, 3)
+  afterQty      Decimal             @map("after_qty") @db.Decimal(10, 3)
+  referenceType String?             @map("reference_type") // order_revoke, manual_adjustment, etc.
+  referenceId   String?             @map("reference_id")
+  remark        String?
+  operatedBy    String              @map("operated_by")
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@map("inventory_logs")
+}
+
+// 成本历史表
+model CostHistory {
+  id            Int      @id @default(autoincrement())
+  warehouseId   Int      @map("warehouse_id")
+  goodsId       Int      @map("goods_id")
+  beforeCost    Decimal  @map("before_cost") @db.Decimal(10, 2)
+  afterCost     Decimal  @map("after_cost") @db.Decimal(10, 2)
+  beforeQty     Decimal  @map("before_qty") @db.Decimal(10, 3)
+  afterQty      Decimal  @map("after_qty") @db.Decimal(10, 3)
+  inQty         Decimal  @map("in_qty") @db.Decimal(10, 3)
+  inPrice       Decimal  @map("in_price") @db.Decimal(10, 2)
+  referenceType String   @map("reference_type") // STOCK_IN, STOCK_OUT, ADJUSTMENT, etc.
+  referenceId   String   @map("reference_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  goods     Goods     @relation(fields: [goodsId], references: [id])
+
+  @@map("cost_history")
+}
+
+enum InventoryChangeType {
+  IN
+  OUT
+  RETURN
+  ADJUSTMENT
+
+  @@map("inventory_change_type")
+}
+
+enum StockStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+
+  @@map("stock_status")
+}
+
+// ============================================
+// 订单模块 (Order)
+// ============================================
+
+// 订单表
+model Order {
+  id                Int         @id @default(autoincrement())
+  code              String      @unique
+  storeId           Int         @map("store_id")
+  storeNameSnapshot String?     @map("store_name_snapshot")
+  status            OrderStatus @default(PENDING)
+  totalAmount       Decimal     @default(0) @map("total_amount") @db.Decimal(10, 2)
+  remark            String?
+  createdBy         String      @map("created_by")
+  orderedAt         DateTime    @default(now()) @map("ordered_at")
+  approvedBy        String?     @map("approved_by")
+  approvedAt        DateTime?   @map("approved_at")
+  completedAt       DateTime?   @map("completed_at")
+  lockedWarehouseId Int?        @map("locked_warehouse_id")
+  revokedBy         String?     @map("revoked_by")
+  revokedAt         DateTime?   @map("revoked_at")
+  revokeReason      String?     @map("revoke_reason")
+  isDeleted         Boolean     @default(false) @map("is_deleted")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  store         Store          @relation(fields: [storeId], references: [id])
+  items         OrderItem[]
+  stockOut      StockOut?
+  containerLogs ContainerLog[]
+  approvalLogs  ApprovalLog[]
+
+  @@index([orderedAt])
+  @@map("orders")
+}
+
+// 订单明细表
+model OrderItem {
+  id                   Int               @id @default(autoincrement())
+  orderId              Int               @map("order_id")
+  goodsId              Int               @map("goods_id")
+  goodsCodeSnapshot    String?           @map("goods_code_snapshot")
+  goodsNameSnapshot    String?           @map("goods_name_snapshot")
+  goodsSpecSnapshot    String?           @map("goods_spec_snapshot")
+  goodsUnitSnapshot    String?           @map("goods_unit_snapshot")
+  measureTypeSnapshot  GoodsMeasureType? @map("measurement_type_snapshot")
+  categoryIdSnapshot   Int?              @map("category_id_snapshot")
+  categoryNameSnapshot String?           @map("category_name_snapshot")
+  quantity             Decimal           @db.Decimal(10, 3)
+  unitPrice            Decimal           @map("unit_price") @db.Decimal(10, 2)
+  totalPrice           Decimal           @map("total_price") @db.Decimal(10, 2)
+  isDeleted            Boolean           @default(false) @map("is_deleted")
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  goods Goods @relation(fields: [goodsId], references: [id])
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+
+  @@map("order_status")
+}
+
+// ============================================
+// 审批日志模块 (Approval)
+// ============================================
+
+// 审批日志表
+model ApprovalLog {
+  id         Int      @id @default(autoincrement())
+  orderId    Int?     @map("order_id")
+  entityType String   @default("ORDER") @map("entity_type")
+  entityId   String?  @map("entity_id")
+  action     String // approve, reject, revoke, etc.
+  reason     String?
+  beforeJson Json?    @map("before_json")
+  afterJson  Json?    @map("after_json")
+  operatedBy String   @map("operated_by")
+  operatorIp String?  @map("operator_ip")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@index([entityType, entityId])
+  @@map("approval_logs")
+}
+
+// ============================================
+// 报货时间配置模块 (Ordering Schedule)
+// ============================================
+
+model OrderingSchedule {
+  id        Int      @id @default(autoincrement())
+  dayOfWeek Int      @map("day_of_week") // 1=周一, 7=周日
+  startTime String   @default("07:30") // HH:mm
+  endTime   String   @default("18:30") // HH:mm
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([dayOfWeek])
+  @@map("ordering_schedules")
+}

@@ -36,12 +36,6 @@ const config = [
     },
   },
   {
-    files: ['scripts/private-tools/**/*.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
-  {
     files: [
       'src/app/mobile/home/page.tsx',
       'src/components/PlatformSwitch.tsx',

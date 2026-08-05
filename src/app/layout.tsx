@@ -12,8 +12,11 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'ReplenOps',
-  description: 'Enterprise Resource Planning System',
+  title: {
+    default: 'ReplenOps',
+    template: '%s | ReplenOps',
+  },
+  description: '门店订货与库存协同平台',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

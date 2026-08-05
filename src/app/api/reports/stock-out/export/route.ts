@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       storeId: request.nextUrl.searchParams.get('storeId') ?? undefined,
     })
     const report = await monthlyStockOutReportService.getReport(filters)
-    const buffer = buildMonthlyStockOutWorkbook(report)
+    const buffer = await buildMonthlyStockOutWorkbook(report)
     const filename = `月度出库报表_${filters.month}.xlsx`
 
     return new NextResponse(new Uint8Array(buffer), {

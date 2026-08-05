@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { GOODS_CODE_PATTERN, shouldValidateGoodsCode } from '@/lib/goods-code-policy'
 import { getBreadcrumbItems, getOpenKeysForPath, menuItems } from '@/config/menuConfig'
 
-describe('ERP product optimization policies', () => {
+describe('ReplenOps product optimization policies', () => {
   it('keeps the strict goods code rule for creation only', () => {
     expect(shouldValidateGoodsCode('create')).toBe(true)
     expect(shouldValidateGoodsCode('edit')).toBe(false)
