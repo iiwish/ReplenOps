@@ -475,7 +475,11 @@ export class GoodsService {
           where: {
             goodsId,
             isDeleted: false,
-            OR: [{ quantity: { not: 0 } }, { lockedQuantity: { not: 0 } }],
+            OR: [
+              { quantity: { not: 0 } },
+              { lockedQuantity: { not: 0 } },
+              { availableQuantity: { not: 0 } },
+            ],
           },
         }),
         prisma.orderItem.count({ where: { goodsId, isDeleted: false } }),
@@ -594,7 +598,11 @@ export class GoodsService {
           where: {
             goodsId,
             isDeleted: false,
-            OR: [{ quantity: { not: 0 } }, { lockedQuantity: { not: 0 } }],
+            OR: [
+              { quantity: { not: 0 } },
+              { lockedQuantity: { not: 0 } },
+              { availableQuantity: { not: 0 } },
+            ],
           },
         }),
         prisma.orderItem.count({
@@ -621,7 +629,7 @@ export class GoodsService {
       ])
 
     if (inventoryCount > 0) {
-      throw new Error('商品仍有库存或锁定库存，不能删除')
+      throw new Error('商品仍有库存、锁定库存或可用库存，不能删除')
     }
     if (activeOrderCount + activeStockInCount + activeStockOutCount > 0) {
       throw new Error('商品存在未完成的订单或出入库单，不能删除')

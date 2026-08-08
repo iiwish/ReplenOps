@@ -385,7 +385,7 @@ describe('order inventory locking', () => {
     ).rejects.toThrow('不能直接修改单位或计量类型')
 
     await expect(goodsService.delete(String(fixtures.goodsId), adminUser.id)).rejects.toThrow(
-      '仍有库存或锁定库存'
+      '仍有库存、锁定库存或可用库存'
     )
 
     const audit = await prisma.approvalLog.findFirstOrThrow({

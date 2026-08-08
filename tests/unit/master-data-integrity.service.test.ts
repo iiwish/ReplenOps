@@ -114,6 +114,81 @@ describe('master data integrity services', () => {
     )
   })
 
+  it('blocks goods deletion when only available inventory is non-zero', async () => {
+    const category = await createCategory('goods-available')
+    const goods = await createGoods(category.id, 'goods-available')
+    const warehouse = await prisma.warehouse.create({
+      data: {
+        code: `${token}-warehouse-goods-available`,
+        name: '可用库存仓库',
+      },
+    })
+    await prisma.inventory.create({
+      data: {
+        warehouseId: warehouse.id,
+        goodsId: Number(goods.id),
+        quantity: 0,
+        lockedQuantity: 0,
+        availableQuantity: 1,
+      },
+    })
+
+    await expect(goodsService.delete(goods.id, operatedBy)).rejects.toThrow(
+      '商品仍有库存、锁定库存或可用库存，不能删除'
+    )
+  })
+
+  it('prevents a concurrent active order from racing with goods deletion', async () => {
+    const category = await createCategory('goods-concurrent')
+    const goods = await createGoods(category.id, 'goods-concurrent')
+    const store = await prisma.store.create({
+      data: { code: `${token}-store-concurrent`, name: '并发删除测试门店' },
+    })
+
+    let releaseReference: (() => void) | undefined
+    const referenceMayCommit = new Promise<void>((resolve) => {
+      releaseReference = resolve
+    })
+    let referenceCreated: (() => void) | undefined
+    const referenceIsUncommitted = new Promise<void>((resolve) => {
+      referenceCreated = resolve
+    })
+
+    const createReference = prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          code: `${token}-order-concurrent`,
+          storeId: store.id,
+          status: 'PENDING',
+          totalAmount: 1,
+          createdBy: operatedBy,
+        },
+      })
+      await tx.orderItem.create({
+        data: {
+          orderId: order.id,
+          goodsId: Number(goods.id),
+          quantity: 1,
+          unitPrice: 1,
+          totalPrice: 1,
+        },
+      })
+      referenceCreated?.()
+      await referenceMayCommit
+    })
+
+    await referenceIsUncommitted
+    const deleteGoods = goodsService.delete(goods.id, operatedBy, '并发归档测试')
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    releaseReference?.()
+    await createReference
+
+    await expect(deleteGoods).rejects.toThrow()
+    await expect(
+      prisma.goods.findUniqueOrThrow({ where: { id: Number(goods.id) } })
+    ).resolves.toMatchObject({ isDeleted: false })
+  })
+
   it('blocks container deletion while an active goods record uses it', async () => {
     const category = await createCategory('container')
     const container = await prisma.container.create({
@@ -149,9 +224,12 @@ describe('master data integrity services', () => {
         totalPrice: 1,
       },
     })
-    await prisma.goods.update({
-      where: { id: Number(goods.id) },
-      data: softDeletionData(operatedBy, '测试逻辑孤儿'),
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica')
+      await tx.goods.update({
+        where: { id: Number(goods.id) },
+        data: softDeletionData(operatedBy, '测试逻辑孤儿'),
+      })
     })
 
     const report = await dataIntegrityService.scan()
