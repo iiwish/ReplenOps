@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { Prisma, UserRoleEnum } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { restorationData, softDeletionData } from '@/lib/master-data-lifecycle'
 
 export interface UserCreateInput {
   username: string
@@ -78,6 +79,28 @@ function toUserWithRoles(user: UserRecordWithRoles): UserWithRoles {
 export class UserService {
   private readonly saltRounds = 10
 
+  private auditSnapshot(user: {
+    id: string
+    username: string
+    name: string | null
+    isActive: boolean
+    isDeleted: boolean
+    deletedAt?: Date | null
+    deletedBy?: string | null
+    deleteReason?: string | null
+  }): Prisma.InputJsonObject {
+    return {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      isActive: user.isActive,
+      isDeleted: user.isDeleted,
+      deletedAt: user.deletedAt?.toISOString() ?? null,
+      deletedBy: user.deletedBy ?? null,
+      deleteReason: user.deleteReason ?? null,
+    }
+  }
+
   async findById(id: string): Promise<UserWithRoles | null> {
     const user = await prisma.user.findUnique({
       where: { id },
@@ -109,6 +132,21 @@ export class UserService {
   }
 
   async create(input: UserCreateInput, roles: string[] = []): Promise<UserWithRoles> {
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: input.username },
+          ...(input.email ? [{ email: input.email }] : []),
+          ...(input.phone ? [{ phone: input.phone }] : []),
+        ],
+      },
+    })
+    if (existing) {
+      throw new Error(
+        existing.isDeleted ? '用户账号信息已归档，请恢复原用户' : '用户账号信息已存在'
+      )
+    }
+
     const hashedPassword = await bcrypt.hash(input.password, this.saltRounds)
     const normalizedRoles = normalizeRoles(roles)
 
@@ -167,14 +205,71 @@ export class UserService {
     return toUserWithRoles(user)
   }
 
-  async deleteById(id: string): Promise<void> {
-    await prisma.user.update({
-      where: { id },
-      data: {
-        isDeleted: true,
-        sessionVersion: { increment: 1 },
-      },
+  async deleteById(id: string, operatedBy = 'system', reason = '管理员删除'): Promise<void> {
+    const existing = await prisma.user.findUnique({ where: { id } })
+    if (!existing || existing.isDeleted) {
+      throw new Error('用户不存在')
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.user.update({
+        where: { id },
+        data: {
+          ...softDeletionData(operatedBy, reason),
+          sessionVersion: { increment: 1 },
+        },
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'USER',
+          entityId: id,
+          action: 'USER_DELETE',
+          reason,
+          beforeJson: this.auditSnapshot(existing),
+          afterJson: this.auditSnapshot(deleted),
+          operatedBy,
+        },
+      })
     })
+  }
+
+  async restoreById(
+    id: string,
+    newPassword: string,
+    operatedBy = 'system',
+    reason = '恢复归档用户'
+  ): Promise<UserWithRoles> {
+    const existing = await prisma.user.findUnique({ where: { id } })
+    if (!existing || !existing.isDeleted) {
+      throw new Error('归档用户不存在')
+    }
+
+    const password = await bcrypt.hash(newPassword, this.saltRounds)
+    const restored = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: {
+          ...restorationData(),
+          password,
+          sessionVersion: { increment: 1 },
+        },
+        include: { roles: true },
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'USER',
+          entityId: id,
+          action: 'USER_RESTORE',
+          reason,
+          beforeJson: this.auditSnapshot(existing),
+          afterJson: this.auditSnapshot(updated),
+          operatedBy,
+        },
+      })
+      return updated
+    })
+
+    return toUserWithRoles(restored)
   }
 
   async findAll(options?: {

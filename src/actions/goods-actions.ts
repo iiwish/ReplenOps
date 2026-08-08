@@ -238,6 +238,26 @@ export async function deleteGoods(id: string): Promise<ActionResponse> {
   }
 }
 
+export async function restoreGoods(id: string): Promise<ActionResponse> {
+  try {
+    const user = await requireActionPermission('goods:write')
+    const goods = await goodsService.restore(id, user.id)
+
+    revalidatePath('/admin/goods')
+
+    return {
+      success: true,
+      message: '商品已恢复，请确认后启用',
+      data: goods,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '恢复失败，请重试',
+    }
+  }
+}
+
 /**
  * 切换商品状态（启用/禁用）
  */

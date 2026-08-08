@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import {
+  archivedCodeError,
+  masterAuditSnapshot,
+  restorationData,
+  softDeletionData,
+} from '@/lib/master-data-lifecycle'
 
 // 列表参数接口
 export interface ListWarehousesParams {
@@ -129,15 +135,10 @@ export class WarehouseService {
    */
   async create(data: CreateWarehouseDto) {
     // 检查编码是否已存在
-    const existing = await prisma.warehouse.findFirst({
-      where: {
-        code: data.code,
-        isDeleted: false,
-      },
-    })
+    const existing = await prisma.warehouse.findUnique({ where: { code: data.code } })
 
     if (existing) {
-      throw new Error('仓库编码已存在')
+      throw new Error(archivedCodeError('仓库', existing.isDeleted))
     }
 
     // 创建仓库
@@ -207,7 +208,7 @@ export class WarehouseService {
   /**
    * 删除仓库（软删除）
    */
-  async delete(id: number) {
+  async delete(id: number, operatedBy = 'system', reason = '管理员删除') {
     // 检查仓库是否存在
     const existing = await prisma.warehouse.findUnique({
       where: { id },
@@ -217,25 +218,85 @@ export class WarehouseService {
       throw new Error('仓库不存在')
     }
 
-    // 检查是否有关联的库存记录
-    const inventoryCount = await prisma.inventory.count({
-      where: {
-        warehouseId: id,
-        quantity: { gt: 0 },
-      },
-    })
+    const activeStatuses = ['PENDING', 'APPROVED', 'PROCESSING'] as const
+    const [inventoryCount, stockInCount, stockOutCount] = await prisma.$transaction([
+      prisma.inventory.count({
+        where: {
+          warehouseId: id,
+          isDeleted: false,
+          OR: [
+            { quantity: { not: 0 } },
+            { lockedQuantity: { not: 0 } },
+            { availableQuantity: { not: 0 } },
+          ],
+        },
+      }),
+      prisma.stockIn.count({
+        where: { warehouseId: id, isDeleted: false, status: { in: [...activeStatuses] } },
+      }),
+      prisma.stockOut.count({
+        where: { warehouseId: id, isDeleted: false, status: { in: [...activeStatuses] } },
+      }),
+    ])
 
     if (inventoryCount > 0) {
-      throw new Error('该仓库存在库存记录，无法删除')
+      throw new Error('该仓库仍有库存、锁定库存或可用库存，无法删除')
+    }
+    if (stockInCount + stockOutCount > 0) {
+      throw new Error('该仓库存在未完成的出入库单，无法删除')
     }
 
-    // 软删除
-    await prisma.warehouse.update({
-      where: { id },
-      data: { isDeleted: true },
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.warehouse.update({
+        where: { id },
+        data: softDeletionData(operatedBy, reason),
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'WAREHOUSE',
+          entityId: String(id),
+          action: 'WAREHOUSE_DELETE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(deleted),
+          operatedBy,
+        },
+      })
     })
 
     return { success: true }
+  }
+
+  async restore(id: number, operatedBy = 'system', reason = '恢复归档仓库') {
+    const existing = await prisma.warehouse.findUnique({ where: { id } })
+    if (!existing || !existing.isDeleted) {
+      throw new Error('归档仓库不存在')
+    }
+
+    const restored = await prisma.$transaction(async (tx) => {
+      const updated = await tx.warehouse.update({ where: { id }, data: restorationData() })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'WAREHOUSE',
+          entityId: String(id),
+          action: 'WAREHOUSE_RESTORE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(updated),
+          operatedBy,
+        },
+      })
+      return updated
+    })
+
+    const {
+      isDeleted: _isDeleted,
+      deletedAt: _deletedAt,
+      deletedBy: _deletedBy,
+      deleteReason: _deleteReason,
+      ...result
+    } = restored
+    return result
   }
 
   /**

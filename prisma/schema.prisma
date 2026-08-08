@@ -13,21 +13,24 @@ datasource db {
 
 // 用户表
 model User {
-  id             String   @id @default(cuid())
-  username       String   @unique // 用户名（登录用）
-  phone          String?  @unique // 手机号（登录用，可选）
-  email          String?  @unique // 邮箱（可选）
+  id             String    @id @default(cuid())
+  username       String    @unique // 用户名（登录用）
+  phone          String?   @unique // 手机号（登录用，可选）
+  email          String?   @unique // 邮箱（可选）
   password       String // bcrypt hash
   name           String? // 显示名称
   avatar         String? // 头像 URL
-  isActive       Boolean  @default(true) @map("is_active") // 是否启用
-  isDeleted      Boolean  @default(false) @map("is_deleted") // 是否删除
-  sessionVersion Int      @default(0) @map("session_version")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean   @default(true) @map("is_active") // 是否启用
+  isDeleted      Boolean   @default(false) @map("is_deleted") // 是否删除
+  deletedAt      DateTime? @map("deleted_at")
+  deletedBy      String?   @map("deleted_by")
+  deleteReason   String?   @map("delete_reason")
+  sessionVersion Int       @default(0) @map("session_version")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  storeAdmins StoreAdmin[] // 门店管理员关联
-  roles       UserRole[] // 用户角色
+  storeAdmins  StoreAdmin[] // 门店管理员关联
+  roles        UserRole[] // 用户角色
   authSessions AuthSession[]
 
   @@map("users")
@@ -86,16 +89,19 @@ enum UserRoleEnum {
 
 // 仓库表
 model Warehouse {
-  id           Int      @id @default(autoincrement())
-  code         String   @unique
+  id           Int       @id @default(autoincrement())
+  code         String    @unique
   name         String
   address      String?
-  contactName  String?  @map("contact_name")
-  contactPhone String?  @map("contact_phone")
-  isActive     Boolean  @default(true) @map("is_active")
-  isDeleted    Boolean  @default(false) @map("is_deleted")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  contactName  String?   @map("contact_name")
+  contactPhone String?   @map("contact_phone")
+  isActive     Boolean   @default(true) @map("is_active")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by")
+  deleteReason String?   @map("delete_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   stockIns      StockIn[]
   stockOuts     StockOut[]
@@ -107,16 +113,19 @@ model Warehouse {
 
 // 门店表
 model Store {
-  id           Int      @id @default(autoincrement())
-  code         String   @unique
+  id           Int       @id @default(autoincrement())
+  code         String    @unique
   name         String
   address      String?
-  contactName  String?  @map("contact_name")
-  contactPhone String?  @map("contact_phone")
-  isActive     Boolean  @default(true) @map("is_active")
-  isDeleted    Boolean  @default(false) @map("is_deleted")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  contactName  String?   @map("contact_name")
+  contactPhone String?   @map("contact_phone")
+  isActive     Boolean   @default(true) @map("is_active")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by")
+  deleteReason String?   @map("delete_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   orders            Order[]
   containerTracking ContainerTracking[]
@@ -141,18 +150,24 @@ model StoreAdmin {
 
 // 商品分类表
 model GoodsCategory {
-  id        Int      @id @default(autoincrement())
-  name      String
-  code      String   @unique
-  parentId  Int?     @map("parent_id")
-  sortOrder Int      @default(0) @map("sort_order")
-  isActive  Boolean  @default(true) @map("is_active")
-  isDeleted Boolean  @default(false) @map("is_deleted")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  name         String
+  code         String    @unique
+  parentId     Int?      @map("parent_id")
+  sortOrder    Int       @default(0) @map("sort_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by")
+  deleteReason String?   @map("delete_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  goods Goods[]
+  parent   GoodsCategory?  @relation("GoodsCategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children GoodsCategory[] @relation("GoodsCategoryHierarchy")
+  goods    Goods[]
 
+  @@index([parentId])
   @@map("goods_categories")
 }
 
@@ -173,6 +188,9 @@ model Goods {
   description    String?
   isActive       Boolean          @default(true) @map("is_active")
   isDeleted      Boolean          @default(false) @map("is_deleted")
+  deletedAt      DateTime?        @map("deleted_at")
+  deletedBy      String?          @map("deleted_by")
+  deleteReason   String?          @map("delete_reason")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
@@ -191,16 +209,19 @@ model Goods {
 
 // 包装物基础表
 model Container {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  name      String
-  unit      String
-  deposit   Decimal  @default(0) @db.Decimal(10, 2)
-  remark    String?
-  isActive  Boolean  @default(true) @map("is_active")
-  isDeleted Boolean  @default(false) @map("is_deleted")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  code         String    @unique
+  name         String
+  unit         String
+  deposit      Decimal   @default(0) @db.Decimal(10, 2)
+  remark       String?
+  isActive     Boolean   @default(true) @map("is_active")
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+  deletedAt    DateTime? @map("deleted_at")
+  deletedBy    String?   @map("deleted_by")
+  deleteReason String?   @map("delete_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   goods     Goods[]
   trackings ContainerTracking[]

@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import {
+  archivedCodeError,
+  masterAuditSnapshot,
+  restorationData,
+  softDeletionData,
+} from '@/lib/master-data-lifecycle'
 
 // 列表参数接口
 export interface ListGoodsCategoriesParams {
@@ -186,15 +192,10 @@ export class GoodsCategoryService {
    */
   async create(data: CreateGoodsCategoryDto) {
     // 检查编码是否已存在
-    const existing = await prisma.goodsCategory.findFirst({
-      where: {
-        code: data.code,
-        isDeleted: false,
-      },
-    })
+    const existing = await prisma.goodsCategory.findUnique({ where: { code: data.code } })
 
     if (existing) {
-      throw new Error('分类编码已存在')
+      throw new Error(archivedCodeError('分类', existing.isDeleted))
     }
 
     // 创建商品分类
@@ -258,35 +259,88 @@ export class GoodsCategoryService {
   /**
    * 删除商品分类（软删除）
    */
-  async delete(id: string) {
+  async delete(id: string, operatedBy = 'system', reason = '管理员删除') {
     const categoryId = this.parseCategoryId(id)
 
     // 检查分类是否存在
     const existing = await prisma.goodsCategory.findUnique({
       where: { id: categoryId },
-      include: {
-        _count: {
-          select: { goods: true },
-        },
-      },
     })
 
     if (!existing || existing.isDeleted) {
       throw new Error('商品分类不存在')
     }
 
-    // 检查是否有关联的商品
-    if (existing._count.goods > 0) {
+    const [goodsCount, childCount] = await prisma.$transaction([
+      prisma.goods.count({ where: { categoryId, isDeleted: false } }),
+      prisma.goodsCategory.count({ where: { parentId: categoryId, isDeleted: false } }),
+    ])
+
+    if (goodsCount > 0) {
       throw new Error('该分类下存在商品，无法删除')
     }
+    if (childCount > 0) {
+      throw new Error('该分类下存在子分类，无法删除')
+    }
 
-    // 软删除
-    await prisma.goodsCategory.update({
-      where: { id: categoryId },
-      data: { isDeleted: true },
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.goodsCategory.update({
+        where: { id: categoryId },
+        data: softDeletionData(operatedBy, reason),
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'GOODS_CATEGORY',
+          entityId: String(categoryId),
+          action: 'GOODS_CATEGORY_DELETE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(deleted),
+          operatedBy,
+        },
+      })
     })
 
     return { success: true }
+  }
+
+  async restore(id: string, operatedBy = 'system', reason = '恢复归档分类') {
+    const categoryId = this.parseCategoryId(id)
+    const existing = await prisma.goodsCategory.findUnique({ where: { id: categoryId } })
+    if (!existing || !existing.isDeleted) {
+      throw new Error('归档分类不存在')
+    }
+
+    if (existing.parentId !== null) {
+      const parent = await prisma.goodsCategory.findFirst({
+        where: { id: existing.parentId, isDeleted: false },
+        select: { id: true },
+      })
+      if (!parent) {
+        throw new Error('上级分类已归档，无法恢复分类')
+      }
+    }
+
+    const restored = await prisma.$transaction(async (tx) => {
+      const updated = await tx.goodsCategory.update({
+        where: { id: categoryId },
+        data: restorationData(),
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'GOODS_CATEGORY',
+          entityId: String(categoryId),
+          action: 'GOODS_CATEGORY_RESTORE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(updated),
+          operatedBy,
+        },
+      })
+      return updated
+    })
+
+    return this.toGoodsCategoryRecord(restored)
   }
 
   /**

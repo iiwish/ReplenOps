@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { assertGoodsUnitChangeAllowed } from '@/lib/goods-snapshot'
+import { archivedCodeError, restorationData, softDeletionData } from '@/lib/master-data-lifecycle'
 
 // 列表参数接口
 export interface ListGoodsParams {
@@ -364,15 +365,10 @@ export class GoodsService {
     const categoryId = this.parseCategoryId(data.categoryId)
 
     // 检查编码是否已存在
-    const existing = await prisma.goods.findFirst({
-      where: {
-        code: data.code,
-        isDeleted: false,
-      },
-    })
+    const existing = await prisma.goods.findUnique({ where: { code: data.code } })
 
     if (existing) {
-      throw new Error('商品编码已存在')
+      throw new Error(archivedCodeError('商品', existing.isDeleted))
     }
 
     // 检查分类是否存在
@@ -579,7 +575,7 @@ export class GoodsService {
   /**
    * 删除商品（软删除）
    */
-  async delete(id: string, operatedBy = 'system') {
+  async delete(id: string, operatedBy = 'system', reason = '管理员删除') {
     const goodsId = this.parseGoodsId(id)
 
     // 检查商品是否存在
@@ -634,7 +630,7 @@ export class GoodsService {
     await prisma.$transaction(async (tx) => {
       const deleted = await tx.goods.update({
         where: { id: goodsId },
-        data: { isDeleted: true, isActive: false },
+        data: softDeletionData(operatedBy, reason),
       })
       await tx.approvalLog.create({
         data: {
@@ -650,6 +646,56 @@ export class GoodsService {
     })
 
     return { success: true }
+  }
+
+  async restore(id: string, operatedBy = 'system', reason = '恢复归档商品') {
+    const goodsId = this.parseGoodsId(id)
+    const existing = await prisma.goods.findUnique({ where: { id: goodsId } })
+
+    if (!existing || !existing.isDeleted) {
+      throw new Error('归档商品不存在')
+    }
+
+    const [category, container] = await Promise.all([
+      prisma.goodsCategory.findFirst({
+        where: { id: existing.categoryId, isDeleted: false },
+        select: { id: true },
+      }),
+      existing.containerId === null
+        ? Promise.resolve(null)
+        : prisma.container.findFirst({
+            where: { id: existing.containerId, isDeleted: false },
+            select: { id: true },
+          }),
+    ])
+
+    if (!category) {
+      throw new Error('商品分类已归档，无法恢复商品')
+    }
+    if (existing.containerId !== null && !container) {
+      throw new Error('关联包装物已归档，无法恢复商品')
+    }
+
+    const restored = await prisma.$transaction(async (tx) => {
+      const updated = await tx.goods.update({
+        where: { id: goodsId },
+        data: restorationData(),
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'GOODS',
+          entityId: String(goodsId),
+          action: 'GOODS_RESTORE',
+          reason,
+          beforeJson: this.auditSnapshot(existing),
+          afterJson: this.auditSnapshot(updated),
+          operatedBy,
+        },
+      })
+      return updated
+    })
+
+    return this.toGoodsRecord(restored)
   }
 
   /**

@@ -155,8 +155,8 @@ export async function updateStore(id: string, formData: FormData): Promise<Actio
  */
 export async function deleteStore(id: string): Promise<ActionResponse> {
   try {
-    await requireActionPermission('store:manage')
-    await storeService.delete(id)
+    const user = await requireActionPermission('store:manage')
+    await storeService.delete(id, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/stores')
@@ -176,6 +176,26 @@ export async function deleteStore(id: string): Promise<ActionResponse> {
     return {
       success: false,
       message: '删除失败，请重试',
+    }
+  }
+}
+
+export async function restoreStore(id: string): Promise<ActionResponse> {
+  try {
+    const user = await requireActionPermission('store:manage')
+    const store = await storeService.restore(id, user.id)
+
+    revalidatePath('/admin/stores')
+
+    return {
+      success: true,
+      message: '门店已恢复，请重新分配管理员并确认后启用',
+      data: store,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '恢复失败，请重试',
     }
   }
 }

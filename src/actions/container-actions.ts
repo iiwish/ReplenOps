@@ -85,9 +85,9 @@ export async function updateContainer(
 
 export async function deleteContainer(id: string): Promise<ActionResponse> {
   try {
-    await requireActionPermission('master-data:write')
+    const user = await requireActionPermission('master-data:write')
 
-    await containerService.delete(id)
+    await containerService.delete(id, user.id)
 
     return {
       success: true,
@@ -103,6 +103,24 @@ export async function deleteContainer(id: string): Promise<ActionResponse> {
     return {
       success: false,
       message: '删除包装物失败',
+    }
+  }
+}
+
+export async function restoreContainer(id: string): Promise<ActionResponse<ContainerRecord>> {
+  try {
+    const user = await requireActionPermission('master-data:write')
+    const container = await containerService.restore(id, user.id)
+
+    return {
+      success: true,
+      message: '包装物已恢复，请确认后启用',
+      data: container,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '恢复包装物失败',
     }
   }
 }

@@ -1,6 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import type { AuthUser } from '@/lib/auth'
+import {
+  archivedCodeError,
+  masterAuditSnapshot,
+  restorationData,
+  softDeletionData,
+} from '@/lib/master-data-lifecycle'
 import { userService } from './user.service'
 
 // 列表参数接口
@@ -185,15 +191,10 @@ export class StoreService {
    */
   async create(data: CreateStoreDto): Promise<StoreDetail> {
     // 检查编码是否已存在
-    const existing = await prisma.store.findFirst({
-      where: {
-        code: data.code,
-        isDeleted: false,
-      },
-    })
+    const existing = await prisma.store.findUnique({ where: { code: data.code } })
 
     if (existing) {
-      throw new Error('门店编码已存在')
+      throw new Error(archivedCodeError('门店', existing.isDeleted))
     }
 
     // 创建门店
@@ -271,7 +272,11 @@ export class StoreService {
   /**
    * 删除门店（软删除）
    */
-  async delete(id: string): Promise<{ success: boolean }> {
+  async delete(
+    id: string,
+    operatedBy = 'system',
+    reason = '管理员删除'
+  ): Promise<{ success: boolean }> {
     const storeId = Number.parseInt(id, 10)
 
     // 检查门店是否存在
@@ -283,22 +288,83 @@ export class StoreService {
       throw new Error('门店不存在')
     }
 
-    // 检查是否有关联的订单
-    const orderCount = await prisma.order.count({
-      where: { storeId },
-    })
+    const activeStatuses = ['PENDING', 'APPROVED', 'PROCESSING'] as const
+    const [orderCount, borrowedContainerCount] = await prisma.$transaction([
+      prisma.order.count({
+        where: { storeId, isDeleted: false, status: { in: [...activeStatuses] } },
+      }),
+      prisma.containerTracking.count({
+        where: { storeId, isDeleted: false, currentBorrowed: { not: 0 } },
+      }),
+    ])
 
     if (orderCount > 0) {
-      throw new Error('该门店存在订单记录，无法删除')
+      throw new Error('该门店存在未完成订单，无法删除')
+    }
+    if (borrowedContainerCount > 0) {
+      throw new Error('该门店仍有未归还包装物，无法删除')
     }
 
-    // 软删除
-    await prisma.store.update({
-      where: { id: storeId },
-      data: { isDeleted: true },
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.store.update({
+        where: { id: storeId },
+        data: softDeletionData(operatedBy, reason),
+      })
+      await tx.containerTracking.updateMany({
+        where: { storeId, isDeleted: false },
+        data: { isDeleted: true },
+      })
+      await tx.storeAdmin.deleteMany({ where: { storeId } })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'STORE',
+          entityId: String(storeId),
+          action: 'STORE_DELETE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(deleted),
+          operatedBy,
+        },
+      })
     })
 
     return { success: true }
+  }
+
+  async restore(id: string, operatedBy = 'system', reason = '恢复归档门店') {
+    const storeId = Number.parseInt(id, 10)
+    const existing = await prisma.store.findUnique({ where: { id: storeId } })
+    if (!existing || !existing.isDeleted) {
+      throw new Error('归档门店不存在')
+    }
+
+    const restored = await prisma.$transaction(async (tx) => {
+      const updated = await tx.store.update({ where: { id: storeId }, data: restorationData() })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'STORE',
+          entityId: String(storeId),
+          action: 'STORE_RESTORE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(updated),
+          operatedBy,
+        },
+      })
+      return updated
+    })
+
+    return {
+      id: String(restored.id),
+      code: restored.code,
+      name: restored.name,
+      address: restored.address,
+      contactName: restored.contactName,
+      contactPhone: restored.contactPhone,
+      isActive: restored.isActive,
+      createdAt: restored.createdAt,
+      updatedAt: restored.updatedAt,
+    }
   }
 
   /**

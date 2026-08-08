@@ -136,8 +136,8 @@ export async function updateGoodsCategory(id: string, formData: FormData): Promi
  */
 export async function deleteGoodsCategory(id: string): Promise<ActionResponse> {
   try {
-    await requireActionPermission('master-data:write')
-    await goodsCategoryService.delete(id)
+    const user = await requireActionPermission('master-data:write')
+    await goodsCategoryService.delete(id, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/goods-category')
@@ -157,6 +157,26 @@ export async function deleteGoodsCategory(id: string): Promise<ActionResponse> {
     return {
       success: false,
       message: '删除失败，请重试',
+    }
+  }
+}
+
+export async function restoreGoodsCategory(id: string): Promise<ActionResponse> {
+  try {
+    const user = await requireActionPermission('master-data:write')
+    const category = await goodsCategoryService.restore(id, user.id)
+
+    revalidatePath('/admin/goods-category')
+
+    return {
+      success: true,
+      message: '商品分类已恢复，请确认后启用',
+      data: category,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '恢复失败，请重试',
     }
   }
 }
