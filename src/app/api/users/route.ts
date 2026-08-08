@@ -104,7 +104,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
     }
 
-    await userService.deleteById(userId)
+    await userService.deleteById(userId, user.id)
 
     return NextResponse.json({
       success: true,

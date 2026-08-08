@@ -150,8 +150,8 @@ export async function updateWarehouse(id: number, formData: FormData): Promise<A
  */
 export async function deleteWarehouse(id: number): Promise<ActionResponse> {
   try {
-    await requireActionPermission('master-data:write')
-    await warehouseService.delete(id)
+    const user = await requireActionPermission('master-data:write')
+    await warehouseService.delete(id, user.id)
 
     // 重新验证缓存
     revalidatePath('/admin/warehouse')
@@ -171,6 +171,26 @@ export async function deleteWarehouse(id: number): Promise<ActionResponse> {
     return {
       success: false,
       message: '删除失败，请重试',
+    }
+  }
+}
+
+export async function restoreWarehouse(id: number): Promise<ActionResponse> {
+  try {
+    const user = await requireActionPermission('master-data:write')
+    const warehouse = await warehouseService.restore(id, user.id)
+
+    revalidatePath('/admin/warehouse')
+
+    return {
+      success: true,
+      message: '仓库已恢复，请确认后启用',
+      data: warehouse,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '恢复失败，请重试',
     }
   }
 }

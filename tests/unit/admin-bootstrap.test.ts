@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { hash } from 'bcryptjs'
+import { softDeletionData } from '@/lib/master-data-lifecycle'
 import { prisma } from '@/lib/prisma'
 import { bootstrapAdmin } from '../../prisma/bootstrap-admin-core'
 
@@ -24,8 +25,7 @@ describe('administrator bootstrap', () => {
       where: { username },
       data: {
         password: retainedPassword,
-        isActive: false,
-        isDeleted: true,
+        ...softDeletionData('bootstrap-test', '测试归档'),
         roles: { deleteMany: {} },
       },
     })

@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import {
+  archivedCodeError,
+  masterAuditSnapshot,
+  restorationData,
+  softDeletionData,
+} from '@/lib/master-data-lifecycle'
 
 export interface CreateContainerDto {
   code: string
@@ -79,6 +85,11 @@ class ContainerService {
   }
 
   async create(data: CreateContainerDto): Promise<ContainerRecord> {
+    const existing = await prisma.container.findUnique({ where: { code: data.code } })
+    if (existing) {
+      throw new Error(archivedCodeError('包装物', existing.isDeleted))
+    }
+
     const container = await prisma.container.create({
       data: {
         code: data.code,
@@ -114,7 +125,7 @@ class ContainerService {
     return this.toContainerRecord(updatedContainer)
   }
 
-  async delete(id: string) {
+  async delete(id: string, operatedBy = 'system', reason = '管理员删除') {
     const container = await this.findById(id)
     if (!container) {
       throw new Error('包装物不存在')
@@ -122,10 +133,70 @@ class ContainerService {
 
     const numericId = Number.parseInt(id, 10)
 
-    await prisma.container.update({
-      where: { id: numericId },
-      data: { isDeleted: true },
+    const [goodsCount, borrowedTrackingCount] = await prisma.$transaction([
+      prisma.goods.count({ where: { containerId: numericId, isDeleted: false } }),
+      prisma.containerTracking.count({
+        where: { containerId: numericId, isDeleted: false, currentBorrowed: { not: 0 } },
+      }),
+    ])
+
+    if (goodsCount > 0) {
+      throw new Error('该包装物仍被活动商品使用，无法删除')
+    }
+    if (borrowedTrackingCount > 0) {
+      throw new Error('该包装物仍有未归还余额，无法删除')
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.container.update({
+        where: { id: numericId },
+        data: softDeletionData(operatedBy, reason),
+      })
+      await tx.containerTracking.updateMany({
+        where: { containerId: numericId, isDeleted: false },
+        data: { isDeleted: true },
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'CONTAINER',
+          entityId: String(numericId),
+          action: 'CONTAINER_DELETE',
+          reason,
+          beforeJson: masterAuditSnapshot(container),
+          afterJson: masterAuditSnapshot(deleted),
+          operatedBy,
+        },
+      })
     })
+  }
+
+  async restore(id: string, operatedBy = 'system', reason = '恢复归档包装物') {
+    const numericId = Number.parseInt(id, 10)
+    const existing = await prisma.container.findUnique({ where: { id: numericId } })
+    if (!existing || !existing.isDeleted) {
+      throw new Error('归档包装物不存在')
+    }
+
+    const restored = await prisma.$transaction(async (tx) => {
+      const updated = await tx.container.update({
+        where: { id: numericId },
+        data: restorationData(),
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'CONTAINER',
+          entityId: String(numericId),
+          action: 'CONTAINER_RESTORE',
+          reason,
+          beforeJson: masterAuditSnapshot(existing),
+          afterJson: masterAuditSnapshot(updated),
+          operatedBy,
+        },
+      })
+      return updated
+    })
+
+    return this.toContainerRecord(restored)
   }
 }
 

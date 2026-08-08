@@ -242,7 +242,7 @@ export async function deleteUser(userId: string): Promise<ActionResponse> {
       return { success: false, error: '不能删除自己' }
     }
 
-    await userService.deleteById(userId)
+    await userService.deleteById(userId, currentUser.id)
 
     revalidatePath('/admin/users')
 
