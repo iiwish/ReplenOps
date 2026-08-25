@@ -129,6 +129,7 @@ model Store {
 
   orders            Order[]
   containerTracking ContainerTracking[]
+  containerReturns  ContainerReturn[]
   storeAdmins       StoreAdmin[]
 
   @@map("stores")
@@ -194,15 +195,13 @@ model Goods {
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  category       GoodsCategory  @relation(fields: [categoryId], references: [id])
-  inventories    Inventory[]
-  orderItems     OrderItem[]
-  stockInItems   StockInItem[]
-  stockOutItems  StockOutItem[]
-  costHistories  CostHistory[]
-  container      Container?     @relation(fields: [containerId], references: [id])
-  containerId    Int?           @map("container_id") // 关联包装物ID（可选）
-  containerRatio Int?           @default(0) @map("container_ratio") // 包装物配比
+  category          GoodsCategory           @relation(fields: [categoryId], references: [id])
+  inventories       Inventory[]
+  orderItems        OrderItem[]
+  stockInItems      StockInItem[]
+  stockOutItems     StockOutItem[]
+  costHistories     CostHistory[]
+  containerBindings ContainerGoodsBinding[]
 
   @@map("goods")
 }
@@ -223,30 +222,34 @@ model Container {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  goods     Goods[]
-  trackings ContainerTracking[]
-  logs      ContainerLog[]
+  goodsBindings ContainerGoodsBinding[]
+  stockOutItems StockOutContainerItem[]
+  returnItems   ContainerReturnItem[]
+  trackings     ContainerTracking[]
+  logs          ContainerLog[]
 
   @@map("containers")
 }
 
 // 包装物台账表
 model ContainerTracking {
-  id              Int       @id @default(autoincrement())
-  storeId         Int       @map("store_id")
-  containerId     Int       @map("container_id")
-  totalBorrowed   Decimal   @default(0) @map("total_borrowed") @db.Decimal(10, 2)
-  totalReturned   Decimal   @default(0) @map("total_returned") @db.Decimal(10, 2)
-  currentBorrowed Decimal   @default(0) @map("current_borrowed") @db.Decimal(10, 2)
-  lastBorrowAt    DateTime? @map("last_borrow_at")
-  lastReturnAt    DateTime? @map("last_return_at")
-  isDeleted       Boolean   @default(false) @map("is_deleted")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                    Int       @id @default(autoincrement())
+  storeId               Int       @map("store_id")
+  containerId           Int       @map("container_id")
+  totalBorrowed         Int       @default(0) @map("total_borrowed")
+  totalReturned         Int       @default(0) @map("total_returned")
+  currentBorrowed       Int       @default(0) @map("current_borrowed")
+  pendingReturnQuantity Int       @default(0) @map("pending_return_quantity")
+  lastBorrowAt          DateTime? @map("last_borrow_at")
+  lastReturnAt          DateTime? @map("last_return_at")
+  isDeleted             Boolean   @default(false) @map("is_deleted")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  store     Store          @relation(fields: [storeId], references: [id])
-  container Container      @relation(fields: [containerId], references: [id], onDelete: Cascade)
-  logs      ContainerLog[]
+  store       Store                 @relation(fields: [storeId], references: [id])
+  container   Container             @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  logs        ContainerLog[]
+  returnItems ContainerReturnItem[]
 
   @@unique([storeId, containerId])
   @@map("container_tracking")
@@ -255,23 +258,88 @@ model ContainerTracking {
 // 包装物变动日志表
 model ContainerLog {
   id                  Int             @id @default(autoincrement())
-  containerId         Int?            @map("container_id")
+  containerId         Int             @map("container_id")
   containerTrackingId Int             @map("container_tracking_id")
   orderId             Int?            @map("order_id")
+  containerReturnId   Int?            @map("container_return_id")
   opType              ContainerOpType @map("op_type")
-  quantity            Decimal         @db.Decimal(10, 2)
-  beforeBorrowed      Decimal         @map("before_borrowed") @db.Decimal(10, 2)
-  afterBorrowed       Decimal         @map("after_borrowed") @db.Decimal(10, 2)
+  quantity            Int
+  beforeBorrowed      Int             @map("before_borrowed")
+  afterBorrowed       Int             @map("after_borrowed")
   remark              String?
   operatedBy          String          @map("operated_by")
   operatedAt          DateTime        @default(now()) @map("operated_at")
   createdAt           DateTime        @default(now()) @map("created_at")
 
-  container Container?        @relation(fields: [containerId], references: [id])
-  tracking  ContainerTracking @relation(fields: [containerTrackingId], references: [id], onDelete: Cascade)
-  order     Order?            @relation(fields: [orderId], references: [id])
+  container       Container         @relation(fields: [containerId], references: [id])
+  tracking        ContainerTracking @relation(fields: [containerTrackingId], references: [id], onDelete: Cascade)
+  order           Order?            @relation(fields: [orderId], references: [id])
+  containerReturn ContainerReturn?  @relation(fields: [containerReturnId], references: [id])
 
   @@map("container_logs")
+}
+
+model ContainerGoodsBinding {
+  id                        Int      @id @default(autoincrement())
+  containerId               Int      @map("container_id")
+  goodsId                   Int      @map("goods_id")
+  goodsQuantityPerContainer Decimal  @map("goods_quantity_per_container") @db.Decimal(10, 3)
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  goods     Goods     @relation(fields: [goodsId], references: [id], onDelete: Cascade)
+
+  @@unique([containerId, goodsId])
+  @@index([goodsId])
+  @@map("container_goods_bindings")
+}
+
+model ContainerReturn {
+  id           Int                   @id @default(autoincrement())
+  code         String                @unique
+  storeId      Int                   @map("store_id")
+  status       ContainerReturnStatus @default(PENDING)
+  remark       String?
+  submittedBy  String                @map("submitted_by")
+  submittedAt  DateTime              @default(now()) @map("submitted_at")
+  reviewedBy   String?               @map("reviewed_by")
+  reviewedAt   DateTime?             @map("reviewed_at")
+  reviewReason String?               @map("review_reason")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+
+  store Store                 @relation(fields: [storeId], references: [id])
+  items ContainerReturnItem[]
+  logs  ContainerLog[]
+
+  @@index([status, submittedAt])
+  @@map("container_returns")
+}
+
+model ContainerReturnItem {
+  id                  Int  @id @default(autoincrement())
+  containerReturnId   Int  @map("container_return_id")
+  containerTrackingId Int  @map("container_tracking_id")
+  containerId         Int  @map("container_id")
+  requestedQuantity   Int  @map("requested_quantity")
+  receivedQuantity    Int? @map("received_quantity")
+
+  containerReturn ContainerReturn   @relation(fields: [containerReturnId], references: [id], onDelete: Cascade)
+  tracking        ContainerTracking @relation(fields: [containerTrackingId], references: [id])
+  container       Container         @relation(fields: [containerId], references: [id])
+
+  @@unique([containerReturnId, containerId])
+  @@map("container_return_items")
+}
+
+enum ContainerReturnStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  CANCELLED
+
+  @@map("container_return_status")
 }
 
 enum ContainerOpType {
@@ -377,9 +445,10 @@ model StockOut {
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
-  order     Order          @relation(fields: [orderId], references: [id])
-  items     StockOutItem[]
+  warehouse      Warehouse               @relation(fields: [warehouseId], references: [id])
+  order          Order                   @relation(fields: [orderId], references: [id])
+  items          StockOutItem[]
+  containerItems StockOutContainerItem[]
 
   @@index([completedAt, status])
   @@map("stock_outs")
@@ -408,6 +477,25 @@ model StockOutItem {
   goods    Goods    @relation(fields: [goodsId], references: [id])
 
   @@map("stock_out_items")
+}
+
+model StockOutContainerItem {
+  id                    Int      @id @default(autoincrement())
+  stockOutId            Int      @map("stock_out_id")
+  containerId           Int      @map("container_id")
+  containerCodeSnapshot String   @map("container_code_snapshot")
+  containerNameSnapshot String   @map("container_name_snapshot")
+  containerUnitSnapshot String   @map("container_unit_snapshot")
+  expectedQuantity      Int      @map("expected_quantity")
+  shippedQuantity       Int      @map("shipped_quantity")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  stockOut  StockOut  @relation(fields: [stockOutId], references: [id], onDelete: Cascade)
+  container Container @relation(fields: [containerId], references: [id])
+
+  @@unique([stockOutId, containerId])
+  @@map("stock_out_container_items")
 }
 
 // 库存变动日志表
@@ -468,6 +556,17 @@ enum StockStatus {
   CANCELLED
 
   @@map("stock_status")
+}
+
+// 业务单据每日流水号
+model DocumentSequence {
+  documentType String   @map("document_type")
+  businessDate DateTime @map("business_date") @db.Date
+  currentValue Int      @map("current_value")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@id([documentType, businessDate])
+  @@map("document_sequences")
 }
 
 // ============================================

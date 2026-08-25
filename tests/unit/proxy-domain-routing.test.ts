@@ -31,9 +31,9 @@ function restoreEnv(key: keyof typeof originalEnv) {
   process.env[key] = value
 }
 
-function request(url: string, cookie?: string) {
+function request(url: string, cookie?: string, headers?: Record<string, string>) {
   return new NextRequest(url, {
-    headers: cookie ? { cookie } : {},
+    headers: { ...(cookie ? { cookie } : {}), ...headers },
   })
 }
 
@@ -126,6 +126,46 @@ describe('proxy domain routing', () => {
     expect(await response.json()).toEqual({
       error: 'You do not have permission to access this resource',
     })
+    expect(response.headers.get('set-cookie')).toContain(
+      'replenops_refresh_token=rotated-refresh-token'
+    )
+  })
+
+  it('forwards refreshed cookies to the protected route in the same request', async () => {
+    const staleSessionCookie = [
+      'replenops_access_token=stale-access-token',
+      'replenops_refresh_token=valid-refresh-token',
+      `replenops_expires_at=${Date.now() - 1000}`,
+    ].join('; ')
+
+    const response = await proxy(
+      request('https://mobile.test.example.com/api/ordering-schedule/status', staleSessionCookie)
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-request-cookie')).toContain(
+      'replenops_access_token=rotated-access-token'
+    )
+    expect(response.headers.get('x-middleware-request-cookie')).toContain(
+      'replenops_refresh_token=rotated-refresh-token'
+    )
+  })
+
+  it('turns an unauthenticated server action into a client navigation', async () => {
+    authMocks.verifyToken.mockResolvedValue(null)
+
+    const response = await proxy(
+      request(
+        'https://admin.test.example.com/admin/orders/1?tab=items',
+        `replenops_access_token=revoked; replenops_expires_at=${Date.now() + 60_000}`,
+        { 'next-action': 'action-id' }
+      )
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-action-redirect')).toBe(
+      '/login?redirect=%2Fadmin%2Forders%2F1%3Ftab%3Ditems;replace'
+    )
   })
 
   it('keeps the register API disabled before authentication checks', async () => {

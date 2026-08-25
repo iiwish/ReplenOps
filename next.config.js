@@ -6,6 +6,15 @@ const nextConfig = {
 
   images: {
     formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gulianer.oss-cn-beijing.aliyuncs.com',
+        port: '',
+        pathname: '/erpgoods/**',
+        search: '',
+      },
+    ],
   },
 
   // Strict CSP for security

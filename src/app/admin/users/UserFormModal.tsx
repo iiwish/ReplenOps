@@ -41,6 +41,7 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
         })
       } else {
         form.resetFields()
+        form.setFieldsValue({ roles: ['STORE_ADMIN'] })
       }
     }
   }, [open, user, form])
@@ -52,7 +53,7 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
         const result = await updateUser(user.id, {
           username: values.username,
           password: values.password || undefined,
-          name: values.name || undefined,
+          name: values.name,
           email: values.email || undefined,
           phone: values.phone || undefined,
           roles: values.roles,
@@ -67,7 +68,7 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
         const result = await createUser({
           username: values.username,
           password: values.password,
-          name: values.name || undefined,
+          name: values.name,
           email: values.email || undefined,
           phone: values.phone || undefined,
           roles: values.roles,
@@ -104,14 +105,14 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
       <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">
         <Form.Item
           name="username"
-          label="用户名"
+          label="登录名"
           rules={[
-            { required: true, message: '请输入用户名' },
-            { min: 3, message: '用户名至少3个字符' },
-            { max: 50, message: '用户名最多50个字符' },
+            { required: true, message: '请输入登录名' },
+            { min: 3, message: '登录名至少3个字符' },
+            { max: 50, message: '登录名最多50个字符' },
           ]}
         >
-          <Input placeholder="请输入用户名" disabled={isEdit} />
+          <Input placeholder="请输入登录名" disabled={isEdit} />
         </Form.Item>
 
         <Form.Item
@@ -129,7 +130,14 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
           <Input.Password placeholder={isEdit ? '留空则不修改密码' : '请输入密码'} />
         </Form.Item>
 
-        <Form.Item name="name" label="姓名" rules={[{ max: 100, message: '姓名最多100个字符' }]}>
+        <Form.Item
+          name="name"
+          label="姓名"
+          rules={[
+            { required: true, message: '请输入姓名' },
+            { max: 100, message: '姓名最多100个字符' },
+          ]}
+        >
           <Input placeholder="请输入姓名" />
         </Form.Item>
 
@@ -149,17 +157,12 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
         <Form.Item
           name="email"
           label="邮箱"
-          rules={[
-            {
-              type: 'email',
-              message: '请输入正确的邮箱地址',
-            },
-          ]}
+          rules={[{ type: 'email', message: '请输入正确的邮箱地址' }]}
         >
           <Input placeholder="请输入邮箱" />
         </Form.Item>
 
-        <Form.Item name="roles" label="角色">
+        <Form.Item name="roles" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
           <Select
             mode="multiple"
             placeholder="请选择角色"

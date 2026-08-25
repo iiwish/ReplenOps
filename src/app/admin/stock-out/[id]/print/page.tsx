@@ -44,17 +44,17 @@ export default async function StockOutPrintPage({ params }: { params: Promise<{ 
         <div>出库仓库：{stockOut.warehouseName}</div>
         <div>状态：{statusLabels[stockOut.status] ?? stockOut.status}</div>
         <div>下单时间：{dayjs(stockOut.orderedAt).format('YYYY-MM-DD HH:mm')}</div>
-        <div>下单人：{stockOut.orderCreatedBy}</div>
+        <div>下单人：{stockOut.orderCreatedByName}</div>
         <div>
           审批时间：
           {stockOut.approvedAt ? dayjs(stockOut.approvedAt).format('YYYY-MM-DD HH:mm') : '-'}
         </div>
-        <div>审批人：{stockOut.approvedBy || '-'}</div>
+        <div>审批人：{stockOut.approvedByName || '-'}</div>
         <div>
           出库时间：
           {stockOut.completedAt ? dayjs(stockOut.completedAt).format('YYYY-MM-DD HH:mm') : '-'}
         </div>
-        <div>制单人：{stockOut.createdBy || '-'}</div>
+        <div>制单人：{stockOut.createdByName}</div>
         <div className="col-span-2">订单备注：{stockOut.orderRemark || '-'}</div>
         <div className="col-span-2">出库备注：{stockOut.remark || '-'}</div>
       </section>

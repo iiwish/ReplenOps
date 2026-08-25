@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { assertGoodsUnitChangeAllowed } from '@/lib/goods-snapshot'
 import { archivedCodeError, restorationData, softDeletionData } from '@/lib/master-data-lifecycle'
+import { getNextGoodsCode } from '@/lib/goods-code-policy'
 
 // 列表参数接口
 export interface ListGoodsParams {
@@ -22,8 +23,6 @@ export interface CreateGoodsDto {
   costPrice: number
   partnerPrice: number
   defaultInPrice: number
-  containerId?: string
-  containerRatio?: number
   imageUrl?: string
   description?: string
 }
@@ -38,8 +37,6 @@ export interface UpdateGoodsDto {
   costPrice: number
   partnerPrice: number
   defaultInPrice: number
-  containerId?: string
-  containerRatio?: number
   imageUrl?: string
   description?: string
 }
@@ -58,9 +55,6 @@ export interface PaginatedGoodsResult {
     costPrice: number
     partnerPrice: number
     defaultInPrice: number
-    containerId: string | null
-    containerRatio: number
-    containerName: string | null
     imageUrl: string | null
     description: string | null
     isActive: boolean
@@ -84,9 +78,6 @@ interface GoodsRecord {
   costPrice: number
   partnerPrice: number
   defaultInPrice: number
-  containerId: string | null
-  containerRatio: number
-  containerName: string | null
   imageUrl: string | null
   description: string | null
   isActive: boolean
@@ -95,6 +86,11 @@ interface GoodsRecord {
 }
 
 export class GoodsService {
+  async getNextCode(): Promise<string> {
+    const goodsCodes = await prisma.goods.findMany({ select: { code: true } })
+    return getNextGoodsCode(goodsCodes.map((goods) => goods.code))
+  }
+
   private auditSnapshot(goods: {
     id: number
     code: string
@@ -156,11 +152,6 @@ export class GoodsService {
     costPrice: Prisma.Decimal | number
     partnerPrice: Prisma.Decimal | number
     defaultInPrice: Prisma.Decimal | number
-    containerId: number | null
-    containerRatio: number | null
-    container?: {
-      name: string
-    } | null
     imageUrl: string | null
     description: string | null
     isActive: boolean
@@ -178,36 +169,12 @@ export class GoodsService {
       costPrice: Number(goods.costPrice),
       partnerPrice: Number(goods.partnerPrice),
       defaultInPrice: Number(goods.defaultInPrice),
-      containerId: goods.containerId !== null ? String(goods.containerId) : null,
-      containerRatio: goods.containerRatio || 0,
-      containerName: goods.container?.name || null,
       imageUrl: goods.imageUrl,
       description: goods.description,
       isActive: goods.isActive,
       createdAt: goods.createdAt,
       updatedAt: goods.updatedAt,
     }
-  }
-
-  private parseOptionalContainer(data: { containerId?: string; containerRatio?: number }): {
-    containerId: number | null
-    containerRatio: number
-  } {
-    if (!data.containerId) {
-      return { containerId: null, containerRatio: 0 }
-    }
-
-    const containerId = Number.parseInt(data.containerId, 10)
-    if (Number.isNaN(containerId)) {
-      throw new Error('包装物ID无效')
-    }
-
-    const containerRatio = data.containerRatio || 0
-    if (!Number.isInteger(containerRatio) || containerRatio <= 0) {
-      throw new Error('绑定包装物时配比必须为正整数')
-    }
-
-    return { containerId, containerRatio }
   }
 
   /**
@@ -254,19 +221,12 @@ export class GoodsService {
         costPrice: true,
         partnerPrice: true,
         defaultInPrice: true,
-        containerId: true,
-        containerRatio: true,
         imageUrl: true,
         description: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
         category: {
-          select: {
-            name: true,
-          },
-        },
-        container: {
           select: {
             name: true,
           },
@@ -287,9 +247,6 @@ export class GoodsService {
       costPrice: Number(item.costPrice),
       partnerPrice: Number(item.partnerPrice),
       defaultInPrice: Number(item.defaultInPrice),
-      containerId: item.containerId !== null ? String(item.containerId) : null,
-      containerRatio: item.containerRatio || 0,
-      containerName: item.container?.name || null,
       imageUrl: item.imageUrl,
       description: item.description,
       isActive: item.isActive,
@@ -325,8 +282,6 @@ export class GoodsService {
         costPrice: true,
         partnerPrice: true,
         defaultInPrice: true,
-        containerId: true,
-        containerRatio: true,
         imageUrl: true,
         description: true,
         isActive: true,
@@ -334,11 +289,6 @@ export class GoodsService {
         createdAt: true,
         updatedAt: true,
         category: {
-          select: {
-            name: true,
-          },
-        },
-        container: {
           select: {
             name: true,
           },
@@ -380,19 +330,6 @@ export class GoodsService {
       throw new Error('商品分类不存在')
     }
 
-    const containerBinding = this.parseOptionalContainer(data)
-
-    if (containerBinding.containerId !== null) {
-      const container = await prisma.container.findFirst({
-        where: { id: containerBinding.containerId, isDeleted: false, isActive: true },
-        select: { id: true },
-      })
-
-      if (!container) {
-        throw new Error('包装物不存在或未启用')
-      }
-    }
-
     // 创建商品
     const goods = await prisma.$transaction(async (tx) => {
       const created = await tx.goods.create({
@@ -406,8 +343,6 @@ export class GoodsService {
           costPrice: data.costPrice,
           partnerPrice: data.partnerPrice,
           defaultInPrice: data.defaultInPrice,
-          containerId: containerBinding.containerId,
-          containerRatio: containerBinding.containerRatio,
           imageUrl: data.imageUrl,
           description: data.description,
           isActive: true,
@@ -423,18 +358,11 @@ export class GoodsService {
           costPrice: true,
           partnerPrice: true,
           defaultInPrice: true,
-          containerId: true,
-          containerRatio: true,
           imageUrl: true,
           description: true,
           isActive: true,
           createdAt: true,
           updatedAt: true,
-          container: {
-            select: {
-              name: true,
-            },
-          },
         },
       })
       await tx.approvalLog.create({
@@ -503,19 +431,6 @@ export class GoodsService {
       throw new Error('商品分类不存在')
     }
 
-    const containerBinding = this.parseOptionalContainer(data)
-
-    if (containerBinding.containerId !== null) {
-      const container = await prisma.container.findFirst({
-        where: { id: containerBinding.containerId, isDeleted: false, isActive: true },
-        select: { id: true },
-      })
-
-      if (!container) {
-        throw new Error('包装物不存在或未启用')
-      }
-    }
-
     // 更新商品
     const goods = await prisma.$transaction(async (tx) => {
       const updated = await tx.goods.update({
@@ -529,8 +444,6 @@ export class GoodsService {
           costPrice: data.costPrice,
           partnerPrice: data.partnerPrice,
           defaultInPrice: data.defaultInPrice,
-          containerId: containerBinding.containerId,
-          containerRatio: containerBinding.containerRatio,
           imageUrl: data.imageUrl,
           description: data.description,
         },
@@ -545,18 +458,11 @@ export class GoodsService {
           costPrice: true,
           partnerPrice: true,
           defaultInPrice: true,
-          containerId: true,
-          containerRatio: true,
           imageUrl: true,
           description: true,
           isActive: true,
           createdAt: true,
           updatedAt: true,
-          container: {
-            select: {
-              name: true,
-            },
-          },
         },
       })
       await tx.approvalLog.create({
@@ -664,26 +570,14 @@ export class GoodsService {
       throw new Error('归档商品不存在')
     }
 
-    const [category, container] = await Promise.all([
-      prisma.goodsCategory.findFirst({
-        where: { id: existing.categoryId, isDeleted: false },
-        select: { id: true },
-      }),
-      existing.containerId === null
-        ? Promise.resolve(null)
-        : prisma.container.findFirst({
-            where: { id: existing.containerId, isDeleted: false },
-            select: { id: true },
-          }),
-    ])
+    const category = await prisma.goodsCategory.findFirst({
+      where: { id: existing.categoryId, isDeleted: false },
+      select: { id: true },
+    })
 
     if (!category) {
       throw new Error('商品分类已归档，无法恢复商品')
     }
-    if (existing.containerId !== null && !container) {
-      throw new Error('关联包装物已归档，无法恢复商品')
-    }
-
     const restored = await prisma.$transaction(async (tx) => {
       const updated = await tx.goods.update({
         where: { id: goodsId },

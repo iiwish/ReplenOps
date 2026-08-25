@@ -17,7 +17,7 @@ async function createCategory(suffix: string) {
   })
 }
 
-async function createGoods(categoryId: number, suffix: string, containerId?: number) {
+async function createGoods(categoryId: number, suffix: string) {
   return goodsService.create(
     {
       code: `${token}-goods-${suffix}`,
@@ -28,7 +28,6 @@ async function createGoods(categoryId: number, suffix: string, containerId?: num
       costPrice: 1,
       partnerPrice: 1,
       defaultInPrice: 1,
-      ...(containerId === undefined ? {} : { containerId: String(containerId), containerRatio: 1 }),
     },
     operatedBy
   )
@@ -312,9 +311,9 @@ describe('master data integrity services', () => {
     )
 
     expect(activationResult.status).toBe('rejected')
-    await expect(prisma.order.findUniqueOrThrow({ where: { id: order.id } })).resolves.toMatchObject(
-      { status: 'COMPLETED' }
-    )
+    await expect(
+      prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    ).resolves.toMatchObject({ status: 'COMPLETED' })
   })
 
   it('serializes stock-in activation with insertion of an item that uses deleted goods', async () => {
@@ -448,10 +447,17 @@ describe('master data integrity services', () => {
     const container = await prisma.container.create({
       data: { code: `${token}-container-used`, name: '周转箱', unit: '个', deposit: 0 },
     })
-    await createGoods(category.id, 'container', container.id)
+    const goods = await createGoods(category.id, 'container')
+    await prisma.containerGoodsBinding.create({
+      data: {
+        containerId: container.id,
+        goodsId: Number(goods.id),
+        goodsQuantityPerContainer: 1,
+      },
+    })
 
     await expect(containerService.delete(String(container.id), operatedBy)).rejects.toThrow(
-      '该包装物仍被活动商品使用，无法删除'
+      '该包装物仍有关联商品，无法删除'
     )
   })
 

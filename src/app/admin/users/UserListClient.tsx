@@ -113,7 +113,7 @@ export default function UserListClient({ initialData }: UserListClientProps) {
 
   const columns: ColumnsType<UserRecord> = [
     {
-      title: '用户名',
+      title: '登录名',
       dataIndex: 'username',
       key: 'username',
       width: 120,
@@ -229,7 +229,7 @@ export default function UserListClient({ initialData }: UserListClientProps) {
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Search
-              placeholder="搜索用户名、姓名、手机号或邮箱"
+              placeholder="搜索登录名、姓名、手机号或邮箱"
               allowClear
               enterButton={<SearchOutlined />}
               style={{ width: 350 }}

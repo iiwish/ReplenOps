@@ -18,6 +18,17 @@ const cancelStockOutSchema = z.object({
   reason: z.string().min(1, '请填写取消原因').max(500, '取消原因不能超过500字'),
 })
 
+const completeStockOutSchema = z.object({
+  containers: z
+    .array(
+      z.object({
+        itemId: z.string().min(1),
+        shippedQuantity: z.coerce.number().int('包装物数量必须是整数').min(0),
+      })
+    )
+    .optional(),
+})
+
 /**
  * 获取出库单列表
  */
@@ -97,20 +108,26 @@ export async function getStockOutById(id: string): Promise<ActionResponse> {
 /**
  * 确认出库
  */
-export async function completeStockOut(id: string): Promise<ActionResponse> {
+export async function completeStockOut(
+  id: string,
+  data: z.infer<typeof completeStockOutSchema> = {}
+): Promise<ActionResponse> {
   try {
     const user = await requireActionPermission('stock:write')
+    const validated = completeStockOutSchema.parse(data)
 
-    const stockOut = await stockOutService.complete(id, user.id)
+    const stockOut = await stockOutService.complete(id, user.id, validated.containers)
 
     revalidatePath('/admin/stock-out')
     revalidatePath(`/admin/stock-out/${id}`)
     revalidatePath('/admin/inventory')
     revalidatePath('/admin/orders')
+    revalidatePath('/mobile/orders')
+    revalidatePath('/mobile/home')
 
     return {
       success: true,
-      message: '出库成功',
+      message: '出库成功，订单已进入待收货状态',
       data: stockOut,
     }
   } catch (error) {

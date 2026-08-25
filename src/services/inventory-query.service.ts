@@ -62,6 +62,13 @@ export interface GoodsInventoryResult {
   inventories: WarehouseInventory[]
 }
 
+type InventoryWithRelations = Prisma.InventoryGetPayload<{
+  include: {
+    warehouse: true
+    goods: true
+  }
+}>
+
 export class InventoryQueryService {
   async query(params: InventoryQueryParams): Promise<InventoryQueryResult> {
     const {
@@ -103,31 +110,43 @@ export class InventoryQueryService {
     } else if (stockStatus === 'zero_stock') {
       where.quantity = 0
     } else if (stockStatus === 'low_stock') {
-      where.AND = [
-        { quantity: { gt: 0 } },
-        {
-          goods: {
-            minStock: {
-              gt: 0,
-            },
-          } as Prisma.GoodsWhereInput,
-        },
-      ]
+      where.quantity = { gt: 0 }
     }
 
-    const [total, data] = await Promise.all([
-      prisma.inventory.count({ where }),
-      prisma.inventory.findMany({
+    let total: number
+    let data: InventoryWithRelations[]
+
+    if (stockStatus === 'low_stock') {
+      const candidates = await prisma.inventory.findMany({
         where,
         orderBy: { updatedAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
         include: {
           warehouse: true,
           goods: true,
         },
-      }),
-    ])
+      })
+      const lowStockItems = candidates.filter(
+        (item) => Number(item.availableQuantity) < Number(item.goods.minStock)
+      )
+      total = lowStockItems.length
+      data = lowStockItems.slice((page - 1) * pageSize, page * pageSize)
+    } else {
+      const [resultTotal, resultData] = await Promise.all([
+        prisma.inventory.count({ where }),
+        prisma.inventory.findMany({
+          where,
+          orderBy: { updatedAt: 'desc' },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: {
+            warehouse: true,
+            goods: true,
+          },
+        }),
+      ])
+      total = resultTotal
+      data = resultData
+    }
 
     const items: InventoryListItem[] = data.map((item) => {
       const quantity = Number(item.quantity)
@@ -150,7 +169,7 @@ export class InventoryQueryService {
         availableQuantity,
         avgCost,
         stockAmount: quantity * avgCost,
-        isLowStock: quantity > 0 && quantity < minStock,
+        isLowStock: quantity > 0 && availableQuantity < minStock,
         minStock,
         updatedAt: item.updatedAt,
       }

@@ -14,11 +14,7 @@ interface ActionResponse<T = unknown> {
 const listTrackingSchema = z.object({
   storeId: z.string().optional(),
   containerId: z.string().optional(),
-})
-
-const returnContainerSchema = z.object({
-  trackingId: z.string().min(1, '台账ID不能为空'),
-  quantity: z.coerce.number().min(1, '归还数量必须大于0'),
+  hasUnreturned: z.boolean().optional(),
 })
 
 export async function listTracking(
@@ -69,39 +65,6 @@ export async function getTrackingLogs(trackingId: string): Promise<ActionRespons
     return {
       success: false,
       message: '获取包装物日志失败',
-    }
-  }
-}
-
-export async function returnContainer(
-  formData: z.infer<typeof returnContainerSchema>
-): Promise<ActionResponse> {
-  try {
-    const user = await requireActionPermission('stock:write')
-
-    const validatedData = returnContainerSchema.parse(formData)
-
-    await containerTrackingService.returnContainers(
-      validatedData.trackingId,
-      validatedData.quantity,
-      user.id
-    )
-
-    return {
-      success: true,
-      message: '包装物归还成功',
-    }
-  } catch (error) {
-    console.error('包装物归还失败:', error)
-    if (error instanceof Error) {
-      return {
-        success: false,
-        message: error.message,
-      }
-    }
-    return {
-      success: false,
-      message: '包装物归还失败',
     }
   }
 }

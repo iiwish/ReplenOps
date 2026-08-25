@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons'
 import { Avatar, Button, Dropdown, Layout, Space } from 'antd'
 import type { MenuProps } from 'antd'
-import { useRouter } from 'next/navigation'
+import { logoutAndRedirect } from '@/lib/auth-client'
 
 const { Header } = Layout
 
@@ -25,22 +25,9 @@ export default function AppHeader({
   userName = '游客',
   userDisplayName,
 }: AppHeaderProps) {
-  const router = useRouter()
-
-  // 处理登出
   const handleLogout = async () => {
     try {
-      // 调用登出 API
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        // 登出成功，跳转到登录页
-        router.push('/login')
-      } else {
-        console.error('登出失败')
-      }
+      await logoutAndRedirect()
     } catch (error) {
       console.error('登出错误:', error)
     }

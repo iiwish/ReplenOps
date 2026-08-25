@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { CheckCircle2, Clock3, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CategorySidebar } from '@/components/mobile/order/CategorySidebar'
 import { GoodsGrid, type GoodsGridHandle } from '@/components/mobile/order/GoodsGrid'
@@ -12,7 +12,7 @@ import { CartDrawer } from '@/components/mobile/order/CartDrawer'
 import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { hydrateCartStore, useCartStore } from '@/lib/stores/cart.store'
-import { createOrder } from '@/actions/order-actions'
+import { createOrder, getActiveOrderForStore } from '@/actions/order-actions'
 import { toast } from '@/hooks/use-toast'
 
 interface Goods {
@@ -44,6 +44,12 @@ interface CreatedOrder {
   code?: string
 }
 
+interface ActiveOrder {
+  id: string
+  code: string
+  status: string
+}
+
 export default function MobileOrderClient({ categories }: MobileOrderClientProps) {
   const router = useRouter()
   const [activeCategory, setActiveCategory] = useState<string | null>(
@@ -52,6 +58,8 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false)
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null)
+  const [checkingActiveOrder, setCheckingActiveOrder] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const goodsGridRef = useRef<GoodsGridHandle>(null)
@@ -66,6 +74,28 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   useEffect(() => {
     void hydrateCartStore()
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!selectedStoreId) {
+      setActiveOrder(null)
+      setCheckingActiveOrder(false)
+      return
+    }
+
+    setCheckingActiveOrder(true)
+    void getActiveOrderForStore(selectedStoreId).then((result) => {
+      if (cancelled) return
+
+      setActiveOrder(result.success ? ((result.data as ActiveOrder | null) ?? null) : null)
+      setCheckingActiveOrder(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedStoreId])
 
   const filteredCategories = useMemo(() => {
     const keyword = searchTerm.trim().toLocaleLowerCase()
@@ -188,6 +218,9 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
 
   const closeCheckoutDialog = () => {
     setCheckoutDialogOpen(false)
+    if (createdOrder?.id && createdOrder.code) {
+      setActiveOrder({ id: createdOrder.id, code: createdOrder.code, status: 'PENDING' })
+    }
     setCreatedOrder(null)
   }
 
@@ -213,6 +246,43 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
     }
 
     router.push('/mobile/orders')
+  }
+
+  if (checkingActiveOrder) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        正在检查门店订单...
+      </div>
+    )
+  }
+
+  if (activeOrder) {
+    const statusText =
+      activeOrder.status === 'PENDING'
+        ? '待审批'
+        : activeOrder.status === 'APPROVED'
+          ? '待发货'
+          : '待收货'
+
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <OrderingReminder variant="compact" />
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <Clock3 className="h-10 w-10 text-primary" aria-hidden="true" />
+          <h2 className="mt-4 text-lg font-semibold">当前门店已有待处理订单</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {activeOrder.code} · {statusText}
+          </p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            每个门店同时只能处理一个订单。确认收货后即可提交下一张订单。
+          </p>
+          <Button className="mt-5" onClick={() => router.push(`/mobile/orders/${activeOrder.id}`)}>
+            查看当前订单
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -279,7 +349,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
                 </dl>
                 <div className="mt-5 flex justify-end gap-2">
                   <Button variant="outline" onClick={closeCheckoutDialog}>
-                    继续下单
+                    关闭
                   </Button>
                   <Button onClick={viewCreatedOrder}>查看订单</Button>
                 </div>

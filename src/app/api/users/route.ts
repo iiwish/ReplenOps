@@ -4,7 +4,7 @@ import { getUserRoles, requireAuth } from '@/lib/session'
 import { z } from 'zod'
 
 const userUpdateSchema = z.object({
-  username: z.string().min(3, '用户名至少3个字符').max(50, '用户名最多50个字符').optional(),
+  username: z.string().min(3, '登录名至少3个字符').max(50, '登录名最多50个字符').optional(),
   password: z.string().min(6, '密码至少6个字符').max(100, '密码最多100个字符').optional(),
   name: z.string().min(1, '姓名不能为空').max(100, '姓名最多100个字符').optional(),
   email: z.string().email('邮箱格式不正确').optional(),

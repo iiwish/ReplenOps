@@ -1,7 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { OrderStatus, Prisma } from '@prisma/client'
 import type { AuthUser } from '@/lib/auth'
-import { stockOutService } from './stock-out.service'
 import { lockOrderInventory, releaseOrderInventory } from './inventory-lock.service'
 import {
   assertCanOperateStore,
@@ -11,6 +10,15 @@ import {
 } from '@/lib/store-access'
 import { buildGoodsSnapshot, resolveGoodsSnapshot } from '@/lib/goods-snapshot'
 import { getShanghaiDateRange } from '@/lib/shanghai-time'
+import { documentNumberService } from './document-number.service'
+import { orderingScheduleService } from './ordering-schedule.service'
+import { getUserDisplayNameMap, resolveUserDisplayName } from './user-display.service'
+
+const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
+  OrderStatus.PENDING,
+  OrderStatus.APPROVED,
+  OrderStatus.PROCESSING,
+]
 
 // 列表参数接口
 export interface ListOrderParams {
@@ -61,7 +69,9 @@ export interface OrderListItem {
   totalAmount: number
   remark: string | null
   createdBy: string
+  createdByName: string
   approvedBy: string | null
+  approvedByName: string | null
   approvedAt: Date | null
   completedAt: Date | null
   orderedAt: Date
@@ -89,7 +99,9 @@ export interface OrderDetail {
   totalAmount: number
   remark: string | null
   createdBy: string
+  createdByName: string
   approvedBy: string | null
+  approvedByName: string | null
   approvedAt: Date | null
   completedAt: Date | null
   orderedAt: Date
@@ -97,8 +109,10 @@ export interface OrderDetail {
     id: string
     code: string
     status: string
+    completedAt: Date | null
   } | null
   revokedBy: string | null
+  revokedByName: string | null
   revokedAt: Date | null
   revokeReason: string | null
   createdAt: Date
@@ -121,39 +135,10 @@ export interface OrderDetail {
 
 export class OrderService {
   /**
-   * 生成订单号（格式：OR + YYYYMMDD + 流水号）
-   */
-  private async generateCode(): Promise<string> {
-    const today = new Date()
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '') // YYYYMMDD
-    const prefix = `OR${dateStr}`
-
-    // 查询当天最大流水号
-    const lastOrder = await prisma.order.findFirst({
-      where: {
-        code: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: {
-        code: 'desc',
-      },
-    })
-
-    let sequence = 1
-    if (lastOrder) {
-      const lastSequence = parseInt(lastOrder.code.slice(-4))
-      sequence = lastSequence + 1
-    }
-
-    return `${prefix}${sequence.toString().padStart(4, '0')}`
-  }
-
-  /**
    * 创建订单
    */
   async create(dto: CreateOrderDto) {
-    const code = await this.generateCode()
+    await orderingScheduleService.assertWithinOrderingTime()
 
     // 计算总金额
     const totalAmount = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
@@ -167,6 +152,27 @@ export class OrderService {
       if (!store) {
         throw new Error('门店不存在或未启用')
       }
+
+      // Serialize order creation per store so concurrent submissions cannot bypass the one-active-order rule.
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "stores" WHERE "id" = ${storeIdInt} FOR UPDATE`
+      )
+
+      const activeOrder = await tx.order.findFirst({
+        where: {
+          storeId: storeIdInt,
+          status: { in: ACTIVE_ORDER_STATUSES },
+          isDeleted: false,
+          createdBy: { not: 'migration' },
+        },
+        select: { code: true },
+        orderBy: { orderedAt: 'desc' },
+      })
+
+      if (activeOrder) {
+        throw new Error(`门店已有待处理订单 ${activeOrder.code}，请在确认收货后再下单`)
+      }
+
       const lockedWarehouseId = await lockOrderInventory(
         tx,
         dto.items.map((item) => ({
@@ -186,6 +192,7 @@ export class OrderService {
         throw new Error('部分商品不存在或未启用')
       }
       const goodsMap = new Map(goodsList.map((goods) => [goods.id, goods]))
+      const code = await documentNumberService.next('ORDER', tx)
 
       const order = await tx.order.create({
         data: {
@@ -238,6 +245,42 @@ export class OrderService {
   }
 
   /**
+   * 获取门店当前由本系统创建的待处理订单。
+   * 历史迁移订单不参与“一店一单”限制，避免存量待审批数据阻塞新流程。
+   */
+  async getActiveOrderForStore(storeId: string, user: AuthUser) {
+    const storeIdInt = Number.parseInt(storeId, 10)
+    if (Number.isNaN(storeIdInt)) {
+      throw new Error('门店ID无效')
+    }
+
+    await assertCanOperateStore(user, storeIdInt)
+
+    const order = await prisma.order.findFirst({
+      where: {
+        storeId: storeIdInt,
+        status: { in: ACTIVE_ORDER_STATUSES },
+        isDeleted: false,
+        createdBy: { not: 'migration' },
+      },
+      select: {
+        id: true,
+        code: true,
+        status: true,
+      },
+      orderBy: { orderedAt: 'desc' },
+    })
+
+    return order
+      ? {
+          id: String(order.id),
+          code: order.code,
+          status: order.status,
+        }
+      : null
+  }
+
+  /**
    * 获取订单列表
    */
   async list(params: ListOrderParams): Promise<PaginatedOrderResult> {
@@ -255,7 +298,7 @@ export class OrderService {
       ]
     }
 
-    // 状态筛选。移动端的“待收货”包含 APPROVED 和 PROCESSING 两种状态。
+    // 状态筛选支持管理端和移动端按业务阶段传入一个或多个状态。
     const requestedStatuses = Array.isArray(status) ? status : status ? [status] : []
     if (requestedStatuses.length > 0) {
       const validStatuses = requestedStatuses.filter((value): value is OrderStatus =>
@@ -322,6 +365,10 @@ export class OrderService {
       take: pageSize,
     })
 
+    const userNames = await getUserDisplayNameMap(
+      orders.flatMap((order) => [order.createdBy, order.approvedBy])
+    )
+
     const data: OrderListItem[] = orders.map((order) => ({
       id: String(order.id),
       code: order.code,
@@ -331,7 +378,9 @@ export class OrderService {
       totalAmount: order.totalAmount.toNumber(),
       remark: order.remark,
       createdBy: order.createdBy,
+      createdByName: resolveUserDisplayName(order.createdBy, userNames) ?? order.createdBy,
       approvedBy: order.approvedBy,
+      approvedByName: resolveUserDisplayName(order.approvedBy, userNames),
       approvedAt: order.approvedAt,
       completedAt: order.completedAt,
       orderedAt: order.orderedAt,
@@ -383,6 +432,7 @@ export class OrderService {
             id: true,
             code: true,
             status: true,
+            completedAt: true,
           },
         },
       },
@@ -394,6 +444,12 @@ export class OrderService {
       await assertCanReadStore(user, order.storeId)
     }
 
+    const userNames = await getUserDisplayNameMap([
+      order.createdBy,
+      order.approvedBy,
+      order.revokedBy,
+    ])
+
     return {
       id: String(order.id),
       code: order.code,
@@ -403,7 +459,9 @@ export class OrderService {
       totalAmount: order.totalAmount.toNumber(),
       remark: order.remark,
       createdBy: order.createdBy,
+      createdByName: resolveUserDisplayName(order.createdBy, userNames) ?? order.createdBy,
       approvedBy: order.approvedBy,
+      approvedByName: resolveUserDisplayName(order.approvedBy, userNames),
       approvedAt: order.approvedAt,
       completedAt: order.completedAt,
       orderedAt: order.orderedAt,
@@ -412,9 +470,11 @@ export class OrderService {
             id: String(order.stockOut.id),
             code: order.stockOut.code,
             status: order.stockOut.status,
+            completedAt: order.stockOut.completedAt,
           }
         : null,
       revokedBy: order.revokedBy,
+      revokedByName: resolveUserDisplayName(order.revokedBy, userNames),
       revokedAt: order.revokedAt,
       revokeReason: order.revokeReason,
       createdAt: order.createdAt,
@@ -441,7 +501,7 @@ export class OrderService {
 
   /**
    * 移动端确认收货。
-   * 新系统审批后会生成待出库单，确认收货复用出库完成逻辑以保持库存、成本和包装物事务一致。
+   * 仓库确认出库后订单进入待收货状态，门店确认收货只完成订单，不再处理库存。
    */
   async confirmReceipt(id: string, user: AuthUser): Promise<void> {
     const orderId = Number.parseInt(id, 10)
@@ -462,21 +522,57 @@ export class OrderService {
       throw new Error('订单不存在')
     }
 
-    if (order.status !== 'APPROVED' && order.status !== 'PROCESSING') {
-      throw new Error('只有待收货订单可以确认收货')
+    await assertCanOperateStore(user, order.storeId)
+
+    if (order.status === 'APPROVED') {
+      throw new Error('订单尚未发货，无法确认收货')
     }
 
-    await assertCanOperateStore(user, order.storeId)
+    if (order.status !== 'PROCESSING') {
+      throw new Error('只有待收货订单可以确认收货')
+    }
 
     if (!order.stockOut) {
       throw new Error('订单未生成出库单，无法确认收货')
     }
 
-    if (order.stockOut.status !== 'PENDING') {
-      throw new Error('关联出库单不是待出库状态，无法确认收货')
+    if (order.stockOut.status !== 'COMPLETED') {
+      throw new Error('订单尚未完成出库，无法确认收货')
     }
 
-    await stockOutService.complete(String(order.stockOut.id), user.id)
+    const stockOutId = order.stockOut.id
+
+    await prisma.$transaction(async (tx) => {
+      const received = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          status: 'PROCESSING',
+          isDeleted: false,
+          stockOut: { status: 'COMPLETED', isDeleted: false },
+        },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      })
+
+      if (received.count !== 1) {
+        throw new Error('订单状态已变化，请刷新后重试')
+      }
+
+      await tx.approvalLog.create({
+        data: {
+          orderId,
+          entityType: 'ORDER',
+          entityId: String(orderId),
+          action: 'CONFIRM_RECEIPT',
+          reason: '门店确认收货',
+          beforeJson: { status: order.status, stockOutId },
+          afterJson: { status: 'COMPLETED' },
+          operatedBy: user.id,
+        },
+      })
+    })
   }
 
   /**
@@ -647,30 +743,3 @@ export class OrderService {
 
 // 导出单例
 export const orderService = new OrderService()
-
-// 辅助函数：生成订单号（外部使用）
-export async function generateCode(): Promise<string> {
-  const today = new Date()
-  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '') // YYYYMMDD
-  const prefix = `OR${dateStr}`
-
-  // 查询当天最大流水号
-  const lastOrder = await prisma.order.findFirst({
-    where: {
-      code: {
-        startsWith: prefix,
-      },
-    },
-    orderBy: {
-      code: 'desc',
-    },
-  })
-
-  let sequence = 1
-  if (lastOrder) {
-    const lastSequence = parseInt(lastOrder.code.slice(-4))
-    sequence = lastSequence + 1
-  }
-
-  return `${prefix}${sequence.toString().padStart(4, '0')}`
-}

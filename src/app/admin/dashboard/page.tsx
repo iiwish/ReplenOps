@@ -1,7 +1,10 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import { Card, Col, Row, Statistic } from 'antd'
+import type { Route } from 'next'
 import { getAdminDashboardData } from '@/actions/dashboard-actions'
+import { DashboardMetricLink } from '@/components/admin/dashboard/DashboardMetricLink'
 import { QuickActions } from '@/components/admin/dashboard/QuickActions'
+import { getShanghaiDate } from '@/lib/shanghai-time'
 
 export default async function DashboardPage() {
   const { user } = await requirePageAccess('/admin/dashboard')
@@ -31,6 +34,8 @@ export default async function DashboardPage() {
   }
 
   const weeklyGrowth = calculateWeeklyGrowth()
+  const today = getShanghaiDate()
+  const todayOrdersHref = `/admin/orders?startDate=${today}&endDate=${today}` as Route
 
   return (
     <div>
@@ -41,39 +46,55 @@ export default async function DashboardPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="borderless">
-            <Statistic title="今日订单" value={todayStats.orderCount} />
-          </Card>
+          <DashboardMetricLink
+            href={todayOrdersHref}
+            title="今日订单"
+            value={todayStats.orderCount}
+            compact
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="borderless">
-            <Statistic title="待处理订单" value={todayStats.pendingCount} />
-          </Card>
+          <DashboardMetricLink
+            href={'/admin/orders?status=PENDING%2CAPPROVED%2CPROCESSING' as Route}
+            title="待处理订单"
+            value={todayStats.pendingCount}
+            compact
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="borderless">
-            <Statistic title="库存预警" value={todayStats.lowStockCount} />
-          </Card>
+          <DashboardMetricLink
+            href={'/admin/inventory/query?stockStatus=low_stock' as Route}
+            title="库存预警"
+            value={todayStats.lowStockCount}
+            compact
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card variant="borderless">
-            <Statistic title="待归还包装物" value={todayStats.containerToReturnCount} />
-          </Card>
+          <DashboardMetricLink
+            href={'/admin/container-tracking?hasUnreturned=true' as Route}
+            title="待归还包装物"
+            value={todayStats.containerToReturnCount}
+            compact
+          />
         </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} sm={12}>
-          <Card title="总订单数" variant="borderless">
-            <Statistic value={totalOrders} />
-            <p style={{ marginTop: 16, color: '#666' }}>历史订单总量</p>
-          </Card>
+          <DashboardMetricLink
+            href="/admin/orders"
+            title="总订单数"
+            value={totalOrders}
+            description="历史订单总量"
+          />
         </Col>
         <Col xs={24} sm={12}>
-          <Card title="已完成订单" variant="borderless">
-            <Statistic value={totalCompletedOrders} />
-            <p style={{ marginTop: 16, color: '#666' }}>已完成库存出库</p>
-          </Card>
+          <DashboardMetricLink
+            href={'/admin/orders?status=COMPLETED' as Route}
+            title="已完成订单"
+            value={totalCompletedOrders}
+            description="门店已确认收货"
+          />
         </Col>
       </Row>
 

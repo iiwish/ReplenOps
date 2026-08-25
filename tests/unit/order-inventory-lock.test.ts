@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { Prisma, UserRoleEnum } from '@prisma/client'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { Prisma, UserRoleEnum, type OrderingSchedule } from '@prisma/client'
 import type { AuthUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { orderService } from '@/services/order.service'
@@ -7,6 +7,7 @@ import { orderApprovalService } from '@/services/order-approval.service'
 import { stockOutService } from '@/services/stock-out.service'
 import { goodsService } from '@/services/goods.service'
 import { stockInService } from '@/services/stock-in.service'
+import { getShanghaiClock } from '@/lib/shanghai-time'
 
 const adminUser: AuthUser = {
   id: 'stage2-admin',
@@ -19,6 +20,9 @@ const adminUser: AuthUser = {
   roles: ['SUPER_ADMIN'],
 }
 
+const orderingDay = getShanghaiClock().dayOfWeek
+let originalOrderingSchedule: OrderingSchedule | null = null
+
 interface TestFixtures {
   warehouseId: number
   storeId: number
@@ -26,6 +30,7 @@ interface TestFixtures {
 }
 
 async function cleanDatabase() {
+  await prisma.documentSequence.deleteMany()
   await prisma.containerLog.deleteMany()
   await prisma.containerTracking.deleteMany()
   await prisma.approvalLog.deleteMany()
@@ -150,8 +155,60 @@ async function createStage2Order(fixtures: TestFixtures, quantity: number) {
 }
 
 describe('order inventory locking', () => {
+  beforeAll(async () => {
+    originalOrderingSchedule = await prisma.orderingSchedule.findUnique({
+      where: { dayOfWeek: orderingDay },
+    })
+    await prisma.orderingSchedule.upsert({
+      where: { dayOfWeek: orderingDay },
+      update: { startTime: '00:00', endTime: '23:59', isActive: true },
+      create: {
+        dayOfWeek: orderingDay,
+        startTime: '00:00',
+        endTime: '23:59',
+        isActive: true,
+      },
+    })
+  })
+
+  afterAll(async () => {
+    if (originalOrderingSchedule) {
+      await prisma.orderingSchedule.update({
+        where: { dayOfWeek: orderingDay },
+        data: {
+          startTime: originalOrderingSchedule.startTime,
+          endTime: originalOrderingSchedule.endTime,
+          isActive: originalOrderingSchedule.isActive,
+        },
+      })
+    } else {
+      await prisma.orderingSchedule.delete({ where: { dayOfWeek: orderingDay } })
+    }
+  })
+
   beforeEach(async () => {
     await cleanDatabase()
+  })
+
+  it('rejects order creation when the ordering window is closed', async () => {
+    const fixtures = await seedFixtures(10)
+    await prisma.orderingSchedule.update({
+      where: { dayOfWeek: orderingDay },
+      data: { isActive: false },
+    })
+
+    await expect(createStage2Order(fixtures, 2)).rejects.toThrow('当前不在报货时间内')
+    expect(await prisma.order.count()).toBe(0)
+    expect(await getInventory(fixtures.goodsId, fixtures.warehouseId)).toEqual({
+      quantity: 10,
+      lockedQuantity: 0,
+      availableQuantity: 10,
+    })
+
+    await prisma.orderingSchedule.update({
+      where: { dayOfWeek: orderingDay },
+      data: { startTime: '00:00', endTime: '23:59', isActive: true },
+    })
   })
 
   it('locks inventory when an order is created and does not lock again on approval', async () => {
@@ -198,6 +255,73 @@ describe('order inventory locking', () => {
     expect(completedStockOut.totalProfit.toNumber()).toBe(0)
     expect(completedStockOut.items[0]?.snapshotCost.toNumber()).toBe(5)
     expect(completedStockOut.items[0]?.profit.toNumber()).toBe(0)
+  })
+
+  it('keeps an order waiting for receipt after shipment and only completes it on receipt', async () => {
+    const fixtures = await seedFixtures(10)
+    const order = await createStage2Order(fixtures, 3)
+
+    await orderApprovalService.approve(String(order.id), adminUser.id)
+
+    await expect(orderService.confirmReceipt(String(order.id), adminUser)).rejects.toThrow(
+      '订单尚未发货，无法确认收货'
+    )
+
+    const stockOut = await prisma.stockOut.findUniqueOrThrow({ where: { orderId: order.id } })
+    await stockOutService.complete(String(stockOut.id), adminUser.id)
+
+    const shippedOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    const completedStockOut = await prisma.stockOut.findUniqueOrThrow({
+      where: { id: stockOut.id },
+    })
+
+    expect(shippedOrder.status).toBe('PROCESSING')
+    expect(shippedOrder.completedAt).toBeNull()
+    expect(completedStockOut.status).toBe('COMPLETED')
+
+    await orderService.confirmReceipt(String(order.id), adminUser)
+
+    const receivedOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    expect(receivedOrder.status).toBe('COMPLETED')
+    expect(receivedOrder.completedAt).not.toBeNull()
+  })
+
+  it('allows only one active order per store until the current order is received', async () => {
+    const fixtures = await seedFixtures(20)
+    const firstOrder = await createStage2Order(fixtures, 3)
+
+    await expect(createStage2Order(fixtures, 2)).rejects.toThrow(
+      `门店已有待处理订单 ${firstOrder.code}，请在确认收货后再下单`
+    )
+
+    await orderApprovalService.approve(String(firstOrder.id), adminUser.id)
+    await expect(createStage2Order(fixtures, 2)).rejects.toThrow(/请在确认收货后再下单/)
+
+    const stockOut = await prisma.stockOut.findUniqueOrThrow({ where: { orderId: firstOrder.id } })
+    await stockOutService.complete(String(stockOut.id), adminUser.id)
+    await expect(createStage2Order(fixtures, 2)).rejects.toThrow(/请在确认收货后再下单/)
+
+    await orderService.confirmReceipt(String(firstOrder.id), adminUser)
+
+    const nextOrder = await createStage2Order(fixtures, 2)
+    expect(nextOrder.status).toBe('PENDING')
+  })
+
+  it('does not let migrated historical orders block the one-active-order rule', async () => {
+    const fixtures = await seedFixtures(10)
+
+    await prisma.order.create({
+      data: {
+        code: 'O-MIGRATED-PENDING',
+        storeId: fixtures.storeId,
+        status: 'PENDING',
+        totalAmount: new Prisma.Decimal(0),
+        createdBy: 'migration',
+      },
+    })
+
+    const order = await createStage2Order(fixtures, 2)
+    expect(order.status).toBe('PENDING')
   })
 
   it('releases locked inventory when an order is rejected', async () => {
@@ -299,7 +423,39 @@ describe('order inventory locking', () => {
     })
   })
 
-  it('generates a unique order code with the OR prefix', async () => {
+  it('creates unique order and stock-out numbers for concurrent stores', async () => {
+    const fixtures = await seedFixtures(20)
+    const secondStore = await prisma.store.create({
+      data: {
+        code: 'ST-STAGE2-SECOND',
+        name: 'Stage2 Store 2',
+        isActive: true,
+      },
+    })
+    const secondFixtures = { ...fixtures, storeId: secondStore.id }
+
+    const orders = await Promise.all([
+      createStage2Order(fixtures, 2),
+      createStage2Order(secondFixtures, 2),
+    ])
+
+    expect(new Set(orders.map((order) => order.code)).size).toBe(2)
+    expect(orders.every((order) => /^OR-\d{8}-\d{5}$/.test(order.code))).toBe(true)
+
+    await Promise.all(
+      orders.map((order) => orderApprovalService.approve(String(order.id), adminUser.id))
+    )
+
+    const stockOuts = await prisma.stockOut.findMany({
+      where: { orderId: { in: orders.map((order) => order.id) } },
+      select: { code: true },
+    })
+    expect(stockOuts).toHaveLength(2)
+    expect(new Set(stockOuts.map((stockOut) => stockOut.code)).size).toBe(2)
+    expect(stockOuts.every((stockOut) => /^SO-\d{8}-\d{5}$/.test(stockOut.code))).toBe(true)
+  })
+
+  it('generates a unique order code with the daily OR sequence', async () => {
     const fixtures = await seedFixtures(10)
     await prisma.order.create({
       data: {
@@ -313,7 +469,7 @@ describe('order inventory locking', () => {
 
     const order = await createStage2Order(fixtures, 1)
 
-    expect(order.code).toMatch(/^OR\d{8}\d{4}$/)
+    expect(order.code).toMatch(/^OR-\d{8}-\d{5}$/)
     expect(order.code).not.toBe('OR202606140001')
   })
 
@@ -492,6 +648,7 @@ describe('order inventory locking', () => {
       createdBy: adminUser.id,
       items: [{ goodsId: String(fixtures.goodsId), quantity: 4, price: 6 }],
     })
+    expect(stockIn.code).toMatch(/^SI-\d{8}-\d{5}$/)
     await stockInService.approve(stockIn.id, adminUser.id)
 
     const results = await Promise.allSettled([

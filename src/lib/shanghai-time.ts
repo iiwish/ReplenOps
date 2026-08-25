@@ -18,6 +18,11 @@ export interface RequiredDateRange {
   endExclusive: Date
 }
 
+export interface ShanghaiClock {
+  dayOfWeek: number
+  minutesSinceMidnight: number
+}
+
 function parseCalendarDate(value: string): CalendarDate {
   const match = DATE_PATTERN.exec(value)
   if (!match) {
@@ -78,6 +83,24 @@ export function getShanghaiMonth(offset = 0, now = new Date()): string {
   const year = monthStart.getUTCFullYear()
   const month = String(monthStart.getUTCMonth() + 1).padStart(2, '0')
   return `${year}-${month}`
+}
+
+export function getShanghaiDate(now = new Date()): string {
+  const shifted = new Date(now.getTime() + SHANGHAI_OFFSET_MS)
+  const year = shifted.getUTCFullYear()
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(shifted.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function getShanghaiClock(now = new Date()): ShanghaiClock {
+  const shifted = new Date(now.getTime() + SHANGHAI_OFFSET_MS)
+  const utcDay = shifted.getUTCDay()
+
+  return {
+    dayOfWeek: utcDay === 0 ? 7 : utcDay,
+    minutesSinceMidnight: shifted.getUTCHours() * 60 + shifted.getUTCMinutes(),
+  }
 }
 
 export function formatShanghaiDateTime(value: Date | null): string {

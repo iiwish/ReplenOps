@@ -11,9 +11,14 @@ import type { PaginatedAuditLogResult } from '@/services/audit-log.service'
 interface AuditLogListClientProps {
   initialData: PaginatedAuditLogResult
   isSuperAdmin: boolean
+  operators: Array<{ id: string; name: string }>
 }
 
-export default function AuditLogListClient({ initialData, isSuperAdmin }: AuditLogListClientProps) {
+export default function AuditLogListClient({
+  initialData,
+  isSuperAdmin,
+  operators,
+}: AuditLogListClientProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<PaginatedAuditLogResult>(initialData)
   const [filters, setFilters] = useState<{
@@ -136,7 +141,11 @@ export default function AuditLogListClient({ initialData, isSuperAdmin }: AuditL
             )}
           </div>
 
-          <AuditLogFilters onFiltersChange={handleFiltersChange} loading={loading} />
+          <AuditLogFilters
+            onFiltersChange={handleFiltersChange}
+            loading={loading}
+            operators={operators}
+          />
 
           <AuditLogList data={data.data} loading={loading} />
 

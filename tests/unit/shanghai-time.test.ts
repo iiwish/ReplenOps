@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatShanghaiDateTime,
+  getShanghaiDate,
   getShanghaiDateRange,
   getShanghaiMonth,
   getShanghaiMonthRange,
 } from '@/lib/shanghai-time'
 
 describe('Shanghai report time boundaries', () => {
+  it('formats a date using the Shanghai calendar day', () => {
+    expect(getShanghaiDate(new Date('2026-08-08T16:30:00.000Z'))).toBe('2026-08-09')
+  })
+
   it('builds a half-open month range in China Standard Time', () => {
     const range = getShanghaiMonthRange('2026-06')
 

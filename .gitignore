@@ -64,5 +64,6 @@ logs
 
 # Local agent state
 .local-agent-state/
+.ai-platform/
 .codex/
 .auto-claude/

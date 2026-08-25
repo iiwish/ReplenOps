@@ -1,10 +1,39 @@
 import { prisma } from '@/lib/prisma'
+import { getShanghaiClock } from '@/lib/shanghai-time'
 
 // ============================================
 // 报货时间服务 (Ordering Schedule Service)
 // ============================================
 
 const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+
+interface OrderingWindow {
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  isActive: boolean
+}
+
+function parseTimeToMinutes(value: string): number | null {
+  if (!TIME_PATTERN.test(value)) return null
+
+  const [hours, minutes] = value.split(':').map(Number)
+  return (hours ?? 0) * 60 + (minutes ?? 0)
+}
+
+export function isOrderingWindowOpen(schedule: OrderingWindow | null, now = new Date()): boolean {
+  if (!schedule?.isActive) return false
+
+  const clock = getShanghaiClock(now)
+  if (schedule.dayOfWeek !== clock.dayOfWeek) return false
+
+  const startMinutes = parseTimeToMinutes(schedule.startTime)
+  const endMinutes = parseTimeToMinutes(schedule.endTime)
+  if (startMinutes === null || endMinutes === null || startMinutes > endMinutes) return false
+
+  return clock.minutesSinceMidnight >= startMinutes && clock.minutesSinceMidnight <= endMinutes
+}
 
 /**
  * 获取一周的时间配置
@@ -43,37 +72,20 @@ export async function updateSchedule(
 /**
  * 检查当前时间是否在报货窗口内
  */
-export async function isWithinOrderingTime(): Promise<boolean> {
-  const now = new Date()
-  const dayOfWeek = now.getDay() // 0=周日, 1=周一, ...
-  // 转换为 1=周一, 7=周日
-  const adjustedDay = dayOfWeek === 0 ? 7 : dayOfWeek
+export async function isWithinOrderingTime(now = new Date()): Promise<boolean> {
+  const { dayOfWeek } = getShanghaiClock(now)
 
   const schedule = await prisma.orderingSchedule.findUnique({
-    where: { dayOfWeek: adjustedDay },
+    where: { dayOfWeek },
   })
 
-  if (!schedule || !schedule.isActive) {
-    return false
-  }
-
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
-  const startParts = schedule.startTime.split(':').map(Number)
-  const endParts = schedule.endTime.split(':').map(Number)
-  const startH = startParts[0] ?? 0,
-    startM = startParts[1] ?? 0
-  const endH = endParts[0] ?? 0,
-    endM = endParts[1] ?? 0
-  const startMinutes = startH * 60 + startM
-  const endMinutes = endH * 60 + endM
-
-  return currentMinutes >= startMinutes && currentMinutes <= endMinutes
+  return isOrderingWindowOpen(schedule, now)
 }
 
 /**
  * 返回当前是否可报货的详细信息
  */
-export async function getOrderingStatus(): Promise<{
+export async function getOrderingStatus(now = new Date()): Promise<{
   isOpen: boolean
   todaySchedule: { startTime: string; endTime: string; isActive: boolean } | null
   nextOrderingTime: { dayOfWeek: number; dayName: string; startTime: string } | null
@@ -85,9 +97,8 @@ export async function getOrderingStatus(): Promise<{
   }>
   currentTime: string
 }> {
-  const now = new Date()
-  const dayOfWeek = now.getDay()
-  const adjustedDay = dayOfWeek === 0 ? 7 : dayOfWeek
+  const clock = getShanghaiClock(now)
+  const adjustedDay = clock.dayOfWeek
 
   const schedules = await prisma.orderingSchedule.findMany({
     orderBy: { dayOfWeek: 'asc' },
@@ -105,30 +116,18 @@ export async function getOrderingStatus(): Promise<{
     }
   })
 
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  const currentMinutes = clock.minutesSinceMidnight
 
   // 检查今天是否在窗口内
-  let isOpen = false
-  if (schedule && schedule.isActive) {
-    const startParts = schedule.startTime.split(':').map(Number)
-    const endParts = schedule.endTime.split(':').map(Number)
-    const startH = startParts[0] ?? 0,
-      startM = startParts[1] ?? 0
-    const endH = endParts[0] ?? 0,
-      endM = endParts[1] ?? 0
-    const startMinutes = startH * 60 + startM
-    const endMinutes = endH * 60 + endM
-    isOpen = currentMinutes >= startMinutes && currentMinutes <= endMinutes
-  }
+  const isOpen = isOrderingWindowOpen(schedule, now)
 
   // 计算下一次可报货时间
   let nextOrderingTime: { dayOfWeek: number; dayName: string; startTime: string } | null = null
 
   if (!isOpen) {
-    const todayStartParts = schedule?.startTime.split(':').map(Number)
-    const todayStartMinutes = (todayStartParts?.[0] ?? 0) * 60 + (todayStartParts?.[1] ?? 0)
+    const todayStartMinutes = schedule ? parseTimeToMinutes(schedule.startTime) : null
 
-    if (schedule?.isActive && currentMinutes < todayStartMinutes) {
+    if (schedule?.isActive && todayStartMinutes !== null && currentMinutes < todayStartMinutes) {
       nextOrderingTime = {
         dayOfWeek: adjustedDay,
         dayName: '今天',
@@ -162,6 +161,19 @@ export async function getOrderingStatus(): Promise<{
   }
 }
 
+export async function assertWithinOrderingTime(now = new Date()): Promise<void> {
+  const status = await getOrderingStatus(now)
+  if (status.isOpen) return
+
+  if (status.nextOrderingTime) {
+    throw new Error(
+      `当前不在报货时间内，下次报货时间为${status.nextOrderingTime.dayName} ${status.nextOrderingTime.startTime}`
+    )
+  }
+
+  throw new Error('当前不在报货时间内，请联系管理员配置报货时间')
+}
+
 // ============================================
 // Service Export（兼容现有调用方式）
 // ============================================
@@ -177,11 +189,15 @@ export const orderingScheduleService = {
     return updateSchedule(dayOfWeek, data)
   },
 
-  async isWithinOrderingTime() {
-    return isWithinOrderingTime()
+  async isWithinOrderingTime(now = new Date()) {
+    return isWithinOrderingTime(now)
   },
 
-  async getOrderingStatus() {
-    return getOrderingStatus()
+  async getOrderingStatus(now = new Date()) {
+    return getOrderingStatus(now)
+  },
+
+  async assertWithinOrderingTime(now = new Date()) {
+    return assertWithinOrderingTime(now)
   },
 }

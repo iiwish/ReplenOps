@@ -2,8 +2,13 @@
 
 import { z } from 'zod'
 import { requireActionPermission } from '@/lib/action-permissions'
-import { containerService, type ContainerRecord } from '@/services/container.service'
+import {
+  containerService,
+  type BindableGoodsRecord,
+  type ContainerRecord,
+} from '@/services/container.service'
 import { containerTrackingService } from '@/services/container-tracking.service'
+import { CONTAINER_CODE_PATTERN } from '@/lib/container-code-policy'
 
 interface ActionResponse<T = unknown> {
   success: boolean
@@ -12,17 +17,41 @@ interface ActionResponse<T = unknown> {
   errors?: Record<string, string[]>
 }
 
+const goodsBindingSchema = z.object({
+  goodsId: z.string().min(1, '请选择商品'),
+  goodsQuantityPerContainer: z.coerce
+    .number()
+    .positive('每个包装物的商品数量必须大于0')
+    .multipleOf(0.001, '最多保留3位小数'),
+})
+
 const createContainerSchema = z.object({
-  code: z.string().min(1, '编号不能为空'),
+  code: z
+    .string()
+    .min(1, '包装物编码不能为空')
+    .regex(CONTAINER_CODE_PATTERN, '包装物编码格式错误，应为 C + 6位数字（如 C000001）'),
   name: z.string().min(1, '名称不能为空'),
   unit: z.string().min(1, '单位不能为空'),
   deposit: z.coerce.number().min(0, '押金不能为负数'),
   remark: z.preprocess((value) => (value === null ? undefined : value), z.string().optional()),
+  goodsBindings: z.array(goodsBindingSchema).default([]),
 })
 
-const updateContainerSchema = createContainerSchema.partial().extend({
+const updateContainerSchema = createContainerSchema.omit({ code: true }).partial().extend({
   isActive: z.boolean().optional(),
 })
+
+export async function getNextContainerCode(): Promise<ActionResponse<string>> {
+  try {
+    await requireActionPermission('master-data:write')
+    return { success: true, data: await containerService.getNextCode() }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '生成包装物编码失败',
+    }
+  }
+}
 
 export async function createContainer(
   formData: z.infer<typeof createContainerSchema>
@@ -149,6 +178,18 @@ export async function listContainers(): Promise<ActionResponse<ContainerRecord[]
   }
 }
 
+export async function listBindableGoods(): Promise<ActionResponse<BindableGoodsRecord[]>> {
+  try {
+    await requireActionPermission('stock:read')
+    return { success: true, data: await containerService.listBindableGoods() }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '获取可关联商品失败',
+    }
+  }
+}
+
 export async function listTracking(
   storeId?: string,
   containerId?: string
@@ -199,33 +240,6 @@ export async function getTrackingLogs(trackingId: string): Promise<ActionRespons
     return {
       success: false,
       message: '获取包装物日志失败',
-    }
-  }
-}
-
-export async function returnContainer(
-  trackingId: string,
-  quantity: number
-): Promise<ActionResponse> {
-  try {
-    const user = await requireActionPermission('stock:write')
-
-    await containerTrackingService.returnContainers(trackingId, quantity, user.id)
-
-    return {
-      success: true,
-    }
-  } catch (error) {
-    console.error('包装物归还失败:', error)
-    if (error instanceof Error) {
-      return {
-        success: false,
-        message: error.message,
-      }
-    }
-    return {
-      success: false,
-      message: '包装物归还失败',
     }
   }
 }

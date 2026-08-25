@@ -23,7 +23,7 @@ const STATUS_MAP: Record<
   { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
 > = {
   PENDING: { text: '待审批', variant: 'default' },
-  APPROVED: { text: '待收货', variant: 'secondary' },
+  APPROVED: { text: '待发货', variant: 'secondary' },
   PROCESSING: { text: '待收货', variant: 'secondary' },
   COMPLETED: { text: '已完成', variant: 'outline' },
   REJECTED: { text: '已拒绝', variant: 'destructive' },
@@ -51,15 +51,24 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     totalAmount: number
     remark: string | null
     createdBy: string
+    createdByName: string
     approvedBy: string | null
+    approvedByName: string | null
     approvedAt: Date | null
     completedAt: Date | null
     revokedBy: string | null
+    revokedByName: string | null
     revokedAt: Date | null
     revokeReason: string | null
     orderedAt: Date
     createdAt: Date
     updatedAt: Date
+    stockOut: {
+      id: string
+      code: string
+      status: string
+      completedAt: Date | null
+    } | null
     items: Array<{
       id: string
       goodsId: string
@@ -116,11 +125,20 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">审批人</span>
-                    <span>{order.approvedBy}</span>
+                    <span>{order.approvedByName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">审批时间</span>
                     <span>{new Date(order.approvedAt).toLocaleString('zh-CN')}</span>
+                  </div>
+                </>
+              )}
+              {order.stockOut?.completedAt && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">发货时间</span>
+                    <span>{new Date(order.stockOut.completedAt).toLocaleString('zh-CN')}</span>
                   </div>
                 </>
               )}
@@ -129,7 +147,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <Separator />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">拒绝人</span>
-                    <span>{order.revokedBy}</span>
+                    <span>{order.revokedByName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">拒绝时间</span>
@@ -207,7 +225,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         {/* 底部间距 */}
         <div className="h-4" />
 
-        {(order.status === 'APPROVED' || order.status === 'PROCESSING') && (
+        {order.status === 'APPROVED' && (
+          <div className="border-y bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            订单已审批，正在等待仓库确认发货。仓库发货后才能确认收货。
+          </div>
+        )}
+
+        {order.status === 'PROCESSING' && (
           <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4">
             <ConfirmReceiptButton orderId={order.id} orderCode={order.code} />
           </div>
