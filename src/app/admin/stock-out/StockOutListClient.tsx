@@ -148,8 +148,8 @@ export default function StockOutListClient({
           if (result.success) {
             router.refresh()
             Modal.confirm({
-              title: '出库完成',
-              content: '库存已扣减。是否立即打印出库单进行复核？',
+              title: '发货完成',
+              content: '库存已扣减，订单已进入待收货状态。是否立即打印出库单进行复核？',
               okText: '打印出库单',
               cancelText: '稍后打印',
               onOk: () => window.open(`/admin/stock-out/${record.id}/print`, '_blank'),
@@ -398,7 +398,7 @@ export default function StockOutListClient({
             />
           </div>
           {canReviewOrders && (
-            <Link href={'/admin/order-approval' as Route}>
+            <Link href={'/admin/orders?status=PENDING' as Route}>
               <Button icon={<AuditOutlined />}>待审批订单</Button>
             </Link>
           )}
@@ -426,7 +426,7 @@ export default function StockOutListClient({
                 description="订单审批通过后会自动生成待出库单"
               >
                 {canReviewOrders && (
-                  <Link href={'/admin/order-approval' as Route}>
+                  <Link href={'/admin/orders?status=PENDING' as Route}>
                     <Button type="primary">去处理待审批订单</Button>
                   </Link>
                 )}

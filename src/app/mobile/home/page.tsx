@@ -8,8 +8,8 @@ import { TodoList } from '@/components/mobile/dashboard/TodoList'
 import { QuickActions } from '@/components/mobile/dashboard/QuickActions'
 import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
 import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
-import { useRouter } from 'next/navigation'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
+import { logoutAndRedirect } from '@/lib/auth-client'
 import { getUserStores } from '@/actions/store-actions'
 import type { StoreInfo } from '@/lib/stores/store-selection.store'
 import Link from 'next/link'
@@ -42,16 +42,6 @@ async function getCurrentUserClient(): Promise<UserInfo | null> {
   }
 }
 
-async function logoutClient(): Promise<void> {
-  try {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-    })
-  } catch (error) {
-    console.error('登出失败:', error)
-  }
-}
-
 interface DashboardData {
   stats: {
     orderCount: number
@@ -73,7 +63,6 @@ interface DashboardApiResponse {
 }
 
 export default function HomePage() {
-  const router = useRouter()
   const [refreshing, setRefreshing] = useState(false)
   const [user, setUser] = useState<UserInfo | null>(null)
   const [data, setData] = useState<DashboardData>({
@@ -172,8 +161,11 @@ export default function HomePage() {
   }
 
   const handleLogout = async () => {
-    await logoutClient()
-    router.push('/login')
+    try {
+      await logoutAndRedirect()
+    } catch (error) {
+      console.error('登出失败:', error)
+    }
   }
 
   return (
@@ -240,12 +232,12 @@ export default function HomePage() {
               />
             </Link>
             <Link
-              href="/mobile/orders?status=PENDING"
+              href="/mobile/orders"
               className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <StatCard
                 icon={Clock}
-                title="待审批订单"
+                title="待处理订单"
                 value={data.stats.pendingCount}
                 color="orange"
                 compact

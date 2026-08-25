@@ -2,6 +2,7 @@ import { Prisma, StockStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { resolveGoodsSnapshot } from '@/lib/goods-snapshot'
 import { getShanghaiMonthRange } from '@/lib/shanghai-time'
+import { getUserDisplayNameMap, resolveUserDisplayName } from './user-display.service'
 
 export interface MonthlyStockOutReportFilters {
   month: string
@@ -155,13 +156,8 @@ export class MonthlyStockOutReportService {
       orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
     })
 
-    const creatorIds = Array.from(new Set(stockOuts.map((item) => item.order.createdBy)))
-    const creators = await prisma.user.findMany({
-      where: { id: { in: creatorIds } },
-      select: { id: true, name: true, username: true },
-    })
-    const creatorNameById = new Map(
-      creators.map((creator) => [creator.id, creator.name ?? creator.username])
+    const creatorNameById = await getUserDisplayNameMap(
+      stockOuts.map((item) => item.order.createdBy)
     )
 
     let totalQuantity = new Prisma.Decimal(0)
@@ -228,7 +224,9 @@ export class MonthlyStockOutReportService {
         status: stockOut.status,
         issueAmount: rowIssueAmount.toNumber(),
         orderAmount: stockOut.order.totalAmount.toNumber(),
-        creatorName: creatorNameById.get(stockOut.order.createdBy) ?? stockOut.order.createdBy,
+        creatorName:
+          resolveUserDisplayName(stockOut.order.createdBy, creatorNameById) ??
+          stockOut.order.createdBy,
         orderStatus: stockOut.order.status,
         remark: stockOut.order.remark,
         revokedAt: stockOut.revokedAt,

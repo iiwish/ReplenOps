@@ -1,14 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Table, Button, Modal, InputNumber, message, Space } from 'antd'
-import { ContainerOutlined } from '@ant-design/icons'
+import { Table, Button, Modal, message, Segmented, Space } from 'antd'
+import { AuditOutlined, ContainerOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import {
-  listTracking,
-  getTrackingLogs,
-  returnContainer,
-} from '@/actions/container-tracking-actions'
+import type { Route } from 'next'
+import { useRouter } from 'next/navigation'
+import { listTracking, getTrackingLogs } from '@/actions/container-tracking-actions'
 
 interface TrackingItem {
   id: string
@@ -21,6 +19,7 @@ interface TrackingItem {
   totalBorrowed: number
   totalReturned: number
   currentBorrowed: number
+  pendingReturnQuantity: number
   depositTotal: number
   lastBorrowAt: Date | null
   lastReturnAt: Date | null
@@ -37,17 +36,23 @@ interface LogItem {
   afterBorrowed: number
   remark: string | null
   operatedBy: string
+  operatorName: string
   operatedAt: Date
 }
 
-export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock: boolean }) {
+export default function ContainerTrackingPage({
+  canWriteStock,
+  initialHasUnreturned,
+}: {
+  canWriteStock: boolean
+  initialHasUnreturned: boolean
+}) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [hasUnreturned, setHasUnreturned] = useState(initialHasUnreturned)
   const [trackingData, setTrackingData] = useState<TrackingItem[]>([])
   const [logModalVisible, setLogModalVisible] = useState(false)
-  const [returnModalVisible, setReturnModalVisible] = useState(false)
   const [currentLogs, setCurrentLogs] = useState<LogItem[]>([])
-  const [returnQuantity, setReturnQuantity] = useState<number>(1)
-  const [currentTrackingId, setCurrentTrackingId] = useState<string | null>(null)
 
   const columns: ColumnsType<TrackingItem> = [
     {
@@ -89,6 +94,11 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
       ),
     },
     {
+      title: '待验收',
+      dataIndex: 'pendingReturnQuantity',
+      key: 'pendingReturnQuantity',
+    },
+    {
       title: '押金小计',
       dataIndex: 'depositTotal',
       key: 'depositTotal',
@@ -119,16 +129,6 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
           >
             查看日志
           </Button>
-          {canWriteStock && (
-            <Button
-              type="primary"
-              size="small"
-              onClick={() => handleOpenReturnModal(record)}
-              disabled={record.currentBorrowed === 0}
-            >
-              归还
-            </Button>
-          )}
         </Space>
       ),
     },
@@ -169,8 +169,8 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
     },
     {
       title: '操作人',
-      dataIndex: 'operatedBy',
-      key: 'operatedBy',
+      dataIndex: 'operatorName',
+      key: 'operatorName',
     },
     {
       title: '操作时间',
@@ -197,39 +197,10 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
     }
   }
 
-  const handleOpenReturnModal = (record: TrackingItem) => {
-    setCurrentTrackingId(record.id)
-    setReturnQuantity(record.currentBorrowed)
-    setReturnModalVisible(true)
-  }
-
-  const handleSubmitReturn = async () => {
-    if (!currentTrackingId) return
-
-    setLoading(true)
-    try {
-      const result = await returnContainer({
-        trackingId: currentTrackingId,
-        quantity: returnQuantity,
-      })
-      if (result.success) {
-        message.success('归还成功')
-        setReturnModalVisible(false)
-        void fetchData()
-      } else {
-        message.error(result.message || '归还失败')
-      }
-    } catch {
-      message.error('归还失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await listTracking()
+      const result = await listTracking({ hasUnreturned })
       if (result.success && result.data) {
         setTrackingData(result.data as TrackingItem[])
       } else {
@@ -240,7 +211,7 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [hasUnreturned])
 
   useEffect(() => {
     void fetchData()
@@ -249,6 +220,33 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
   return (
     <div className="p-6">
       <h1 className="mb-4 text-2xl font-bold">包装物台账查询</h1>
+
+      <div className="mb-4 flex justify-end gap-2">
+        {canWriteStock && (
+          <Button
+            icon={<AuditOutlined />}
+            onClick={() => router.push('/admin/container-return' as Route)}
+          >
+            归还验收
+          </Button>
+        )}
+        <Segmented
+          value={hasUnreturned ? 'unreturned' : 'all'}
+          options={[
+            { label: '全部台账', value: 'all' },
+            { label: '待归还', value: 'unreturned' },
+          ]}
+          onChange={(value) => {
+            const nextHasUnreturned = value === 'unreturned'
+            setHasUnreturned(nextHasUnreturned)
+            router.push(
+              (nextHasUnreturned
+                ? '/admin/container-tracking?hasUnreturned=true'
+                : '/admin/container-tracking') as Route
+            )
+          }}
+        />
+      </div>
 
       <Table
         columns={columns}
@@ -273,26 +271,6 @@ export default function ContainerTrackingPage({ canWriteStock }: { canWriteStock
           pagination={{ pageSize: 10 }}
           scroll={{ x: 800 }}
         />
-      </Modal>
-
-      <Modal
-        title="包装物归还"
-        open={returnModalVisible}
-        onOk={handleSubmitReturn}
-        onCancel={() => setReturnModalVisible(false)}
-        confirmLoading={loading}
-      >
-        <div className="space-y-4">
-          <div>
-            <span className="text-gray-500">归还数量：</span>
-            <InputNumber
-              min={1}
-              value={returnQuantity}
-              onChange={(value) => setReturnQuantity(value || 1)}
-              style={{ width: '100%' }}
-            />
-          </div>
-        </div>
       </Modal>
     </div>
   )

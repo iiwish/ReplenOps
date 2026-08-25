@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { Toaster } from '@/components/ui/toaster'
+import { AuthSessionGuard } from '@/components/auth/AuthSessionGuard'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN">
       <body>
         <AntdRegistry hashPriority="low">
+          <AuthSessionGuard />
           {children}
           <Toaster />
         </AntdRegistry>

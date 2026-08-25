@@ -41,7 +41,12 @@ export class DataIntegrityService {
       }),
       prisma.containerTracking.count({ where: { isDeleted: false, store: { isDeleted: true } } }),
       prisma.goods.count({ where: { isDeleted: false, category: { isDeleted: true } } }),
-      prisma.goods.count({ where: { isDeleted: false, container: { isDeleted: true } } }),
+      prisma.goods.count({
+        where: {
+          isDeleted: false,
+          containerBindings: { some: { container: { isDeleted: true } } },
+        },
+      }),
       prisma.inventory.count({
         where: {
           isDeleted: false,

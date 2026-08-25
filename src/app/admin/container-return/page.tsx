@@ -7,7 +7,7 @@ export default async function ContainerReturnListPage() {
 
   return (
     <div style={{ padding: '24px' }}>
-      <h1>包装物归还记录</h1>
+      <h1>包装物归还验收</h1>
       <ContainerReturnList canWriteStock={canPerformAction(user, 'stock:write')} />
     </div>
   )

@@ -15,12 +15,16 @@ import {
   Divider,
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
-import { batchReturnContainers, getReturnableContainers } from '@/actions/container-return-actions'
+import {
+  getReturnableContainers,
+  submitContainerReturnRequest,
+} from '@/actions/container-return-actions'
 
 interface ReturnItem {
   containerId: string
   containerName: string
   currentBorrowed: number
+  availableReturnQuantity: number
   deposit: number
   quantity: number
 }
@@ -30,6 +34,8 @@ interface Container {
   containerId: string
   containerName: string
   currentBorrowed: number
+  pendingReturnQuantity: number
+  availableReturnQuantity: number
   deposit: number
 }
 
@@ -74,7 +80,9 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
     try {
       const result = await getReturnableContainers({ storeId })
       if (result.success && Array.isArray(result.data)) {
-        setContainers(result.data as Container[])
+        setContainers(
+          (result.data as Container[]).filter((container) => container.availableReturnQuantity > 0)
+        )
       } else {
         message.error(result.message || '加载包装物失败')
       }
@@ -111,6 +119,7 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
         containerId: container.containerId,
         containerName: container.containerName,
         currentBorrowed: container.currentBorrowed,
+        availableReturnQuantity: container.availableReturnQuantity,
         deposit: container.deposit,
         quantity: 1,
       },
@@ -145,16 +154,16 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
       return
     }
 
-    const overQuantityItem = items.find((item) => item.quantity > item.currentBorrowed)
+    const overQuantityItem = items.find((item) => item.quantity > item.availableReturnQuantity)
     if (overQuantityItem) {
       message.warning(
-        `${overQuantityItem.containerName} 归还数量(${overQuantityItem.quantity}) 超过在外数量(${overQuantityItem.currentBorrowed})`
+        `${overQuantityItem.containerName} 申请数量超过可归还数量 ${overQuantityItem.availableReturnQuantity}`
       )
       return
     }
 
     startTransition(async () => {
-      const result = await batchReturnContainers({
+      const result = await submitContainerReturnRequest({
         storeId: values.storeId,
         items: items.map((item) => ({
           containerId: item.containerId,
@@ -164,7 +173,7 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
       })
 
       if (result.success) {
-        message.success('包装物归还成功')
+        message.success('归还申请已提交，等待仓库验收')
         form.resetFields()
         setItems([])
         onSuccess?.()
@@ -214,12 +223,15 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
                     <div>
                       <strong>{item.containerName}</strong>
                     </div>
-                    <div style={{ color: '#999', fontSize: 12 }}>在外: {item.currentBorrowed}</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>
+                      可申请: {item.availableReturnQuantity}
+                    </div>
                   </Col>
                   <Col span={10}>
                     <InputNumber
                       min={1}
-                      max={item.currentBorrowed}
+                      max={item.availableReturnQuantity}
+                      precision={0}
                       value={item.quantity}
                       onChange={(val) => handleQuantityChange(index, val)}
                       suffix="个"
@@ -256,7 +268,7 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
               loading={isPending}
               disabled={items.length === 0}
             >
-              确认归还
+              提交归还申请
             </Button>
           </Card>
         </Col>
@@ -284,9 +296,9 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
                         </Col>
                         <Col span={8}>
                           <div>
-                            <strong style={{ color: '#1890ff' }}>归还: {item.quantity}</strong>
+                            <strong style={{ color: '#1890ff' }}>申请: {item.quantity}</strong>
                           </div>
-                          <div style={{ color: '#999', fontSize: 12 }}>剩余: {remaining}</div>
+                          <div style={{ color: '#999', fontSize: 12 }}>验收后在外: {remaining}</div>
                         </Col>
                         <Col span={6} style={{ textAlign: 'right' }}>
                           <div style={{ color: '#faad14', fontSize: 12 }}>押金</div>
@@ -302,11 +314,11 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
                 <div style={{ textAlign: 'right' }}>
                   <Space orientation="vertical" size="small">
                     <div>
-                      归还总数:{' '}
+                      申请总数:{' '}
                       <strong>{items.reduce((sum, item) => sum + item.quantity, 0)} 个</strong>
                     </div>
                     <div>
-                      剩余总数:{' '}
+                      验收后在外总数:{' '}
                       <strong>
                         {items.reduce(
                           (sum, item) => sum + (item.currentBorrowed - item.quantity),
@@ -362,7 +374,10 @@ export function ContainerReturnForm({ onSuccess }: ContainerReturnFormProps) {
                         <strong>{container.containerName}</strong>
                       </div>
                       <div style={{ fontSize: 12, color: '#999' }}>
-                        在外: {container.currentBorrowed}
+                        可申请: {container.availableReturnQuantity}
+                        {container.pendingReturnQuantity > 0
+                          ? `，待验收: ${container.pendingReturnQuantity}`
+                          : ''}
                       </div>
                       <div style={{ fontSize: 12, color: '#faad14' }}>
                         押金: ¥{container.deposit.toFixed(2)}

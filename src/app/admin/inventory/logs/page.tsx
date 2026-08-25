@@ -21,6 +21,7 @@ export default async function InventoryLogsPage({
     startDate?: string
     endDate?: string
     operatorId?: string
+    adjustment?: string
   }>
 }) {
   // 权限验证
@@ -67,6 +68,7 @@ export default async function InventoryLogsPage({
         operatorId: params.operatorId,
       }}
       canAdjustInventory={canPerformAction(user, 'inventory:adjust')}
+      initialAdjustmentOpen={params.adjustment === '1'}
     />
   )
 }

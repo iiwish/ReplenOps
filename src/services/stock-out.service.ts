@@ -4,6 +4,9 @@ import { containerTrackingService } from './container-tracking.service'
 import { releaseOrderInventory } from './inventory-lock.service'
 import { buildGoodsSnapshot, resolveGoodsSnapshot } from '@/lib/goods-snapshot'
 import { getShanghaiDateRange } from '@/lib/shanghai-time'
+import { documentNumberService } from './document-number.service'
+import { getUserDisplayNameMap, resolveUserDisplayName } from './user-display.service'
+import { calculateContainerRequirements } from '@/lib/container-requirements'
 
 // 列表参数接口
 export interface ListStockOutParams {
@@ -32,6 +35,7 @@ export interface StockOutListItem {
   totalCost: number
   remark: string | null
   createdBy: string
+  createdByName: string
   completedAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -54,8 +58,10 @@ export interface StockOutDetail {
   orderCode: string
   orderIsDeleted: boolean
   orderCreatedBy: string
+  orderCreatedByName: string
   orderedAt: Date
   approvedBy: string | null
+  approvedByName: string | null
   approvedAt: Date | null
   orderRemark: string | null
   storeId: string
@@ -66,8 +72,10 @@ export interface StockOutDetail {
   totalCost: number
   remark: string | null
   createdBy: string
+  createdByName: string
   completedAt: Date | null
   revokedBy: string | null
+  revokedByName: string | null
   revokedAt: Date | null
   revokeReason: string | null
   createdAt: Date
@@ -85,46 +93,26 @@ export interface StockOutDetail {
     lineAmount: number
     costAmount: number
   }>
+  containers: Array<{
+    id: string
+    containerId: string
+    containerCode: string
+    containerName: string
+    containerUnit: string
+    expectedQuantity: number
+    shippedQuantity: number
+  }>
 }
 
 export class StockOutService {
   /**
-   * 生成出库单号(格式: SO + YYYYMMDD + 流水号)
-   */
-  private async generateCode(tx?: Prisma.TransactionClient): Promise<string> {
-    const prismaClient = tx || prisma
-    const today = new Date()
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
-    const prefix = `SO${dateStr}`
-
-    const lastStockOut = await prismaClient.stockOut.findFirst({
-      where: {
-        code: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: {
-        code: 'desc',
-      },
-    })
-
-    let sequence = 1
-    if (lastStockOut) {
-      const lastSequence = parseInt(lastStockOut.code.slice(-4))
-      sequence = lastSequence + 1
-    }
-
-    return `${prefix}${sequence.toString().padStart(4, '0')}`
-  }
-
-  /**
    * 从订单自动创建出库单(审批通过时调用)
    *
    * @param orderId 订单ID
-   * @param tx Prisma事务对象(可选,支持外部事务)
+   * @param tx 审批事务，保证订单状态与出库单同时提交
    */
-  async createFromOrder(orderId: string, tx?: Prisma.TransactionClient, warehouseId?: number) {
-    const prismaClient = tx || prisma
+  async createFromOrder(orderId: string, tx: Prisma.TransactionClient, warehouseId?: number) {
+    const prismaClient = tx
     const orderIdInt = Number.parseInt(orderId, 10)
 
     // 查询订单
@@ -133,7 +121,12 @@ export class StockOutService {
       include: {
         items: {
           include: {
-            goods: { include: { category: { select: { name: true } } } },
+            goods: {
+              include: {
+                category: { select: { name: true } },
+                containerBindings: { include: { container: true } },
+              },
+            },
           },
         },
       },
@@ -146,9 +139,6 @@ export class StockOutService {
     if (order.status !== 'APPROVED') {
       throw new Error('只有已审批的订单才能生成出库单')
     }
-
-    // 生成出库单号
-    const code = await this.generateCode(tx)
 
     const warehouse =
       warehouseId !== undefined
@@ -164,6 +154,8 @@ export class StockOutService {
       throw new Error('未找到可用仓库')
     }
 
+    const code = await documentNumberService.next('STOCK_OUT', tx)
+
     // 创建出库单主表
     const stockOut = await prismaClient.stockOut.create({
       data: {
@@ -178,7 +170,25 @@ export class StockOutService {
       },
     })
 
-    // 创建出库单明细
+    const containerRequirements = calculateContainerRequirements(
+      order.items.map((item) => ({
+        goodsId: item.goodsId,
+        goodsName: item.goods.name,
+        goodsUnit: item.goods.unit,
+        quantity: item.quantity.toNumber(),
+        bindings: item.goods.containerBindings.map((binding) => ({
+          containerId: binding.containerId,
+          containerCode: binding.container.code,
+          containerName: binding.container.name,
+          containerUnit: binding.container.unit,
+          goodsQuantityPerContainer: binding.goodsQuantityPerContainer.toNumber(),
+          isActive: binding.container.isActive,
+          isDeleted: binding.container.isDeleted,
+        })),
+      }))
+    )
+
+    // 创建出库单明细，并固化本次出库所用包装物快照。
     for (const item of order.items) {
       const snapshot = item.goodsCodeSnapshot
         ? {
@@ -200,6 +210,20 @@ export class StockOutService {
           salePrice: item.unitPrice, // 数据库兼容字段，业务含义为内部领用价
           snapshotCost: 0, // 成本快照在确认出库时填充
           profit: 0, // 数据库兼容字段，库存系统不计算利润
+        },
+      })
+    }
+
+    for (const container of containerRequirements) {
+      await prismaClient.stockOutContainerItem.create({
+        data: {
+          stockOutId: stockOut.id,
+          containerId: container.containerId,
+          containerCodeSnapshot: container.containerCode,
+          containerNameSnapshot: container.containerName,
+          containerUnitSnapshot: container.containerUnit,
+          expectedQuantity: container.expectedQuantity,
+          shippedQuantity: container.expectedQuantity,
         },
       })
     }
@@ -273,6 +297,7 @@ export class StockOutService {
             salePrice: true,
           },
         },
+        containerItems: { orderBy: { id: 'asc' } },
       },
       orderBy: {
         createdAt: 'desc',
@@ -280,6 +305,8 @@ export class StockOutService {
       skip: (page - 1) * pageSize,
       take: pageSize,
     })
+
+    const userNames = await getUserDisplayNameMap(data.map((item) => item.createdBy))
 
     const formattedData: StockOutListItem[] = data.map((item) => {
       const totalQuantity = item.items.reduce(
@@ -306,6 +333,7 @@ export class StockOutService {
         totalCost: item.totalCost.toNumber(),
         remark: item.remark,
         createdBy: item.createdBy || '',
+        createdByName: resolveUserDisplayName(item.createdBy, userNames) ?? '-',
         completedAt: item.completedAt,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
@@ -359,10 +387,18 @@ export class StockOutService {
             goods: { include: { category: { select: { name: true } } } },
           },
         },
+        containerItems: { orderBy: { id: 'asc' } },
       },
     })
 
     if (!stockOut) return null
+
+    const userNames = await getUserDisplayNameMap([
+      stockOut.order.createdBy,
+      stockOut.order.approvedBy,
+      stockOut.createdBy,
+      stockOut.revokedBy,
+    ])
 
     return {
       id: String(stockOut.id),
@@ -371,8 +407,11 @@ export class StockOutService {
       orderCode: stockOut.order?.code || '',
       orderIsDeleted: stockOut.order.isDeleted,
       orderCreatedBy: stockOut.order.createdBy,
+      orderCreatedByName:
+        resolveUserDisplayName(stockOut.order.createdBy, userNames) ?? stockOut.order.createdBy,
       orderedAt: stockOut.order.orderedAt,
       approvedBy: stockOut.order.approvedBy,
+      approvedByName: resolveUserDisplayName(stockOut.order.approvedBy, userNames),
       approvedAt: stockOut.order.approvedAt,
       orderRemark: stockOut.order.remark,
       storeId: stockOut.order?.store?.id ? String(stockOut.order.store.id) : '',
@@ -383,8 +422,10 @@ export class StockOutService {
       totalCost: stockOut.totalCost.toNumber(),
       remark: stockOut.remark,
       createdBy: stockOut.createdBy || '',
+      createdByName: resolveUserDisplayName(stockOut.createdBy, userNames) ?? '-',
       completedAt: stockOut.completedAt,
       revokedBy: stockOut.revokedBy,
+      revokedByName: resolveUserDisplayName(stockOut.revokedBy, userNames),
       revokedAt: stockOut.revokedAt,
       revokeReason: stockOut.revokeReason,
       createdAt: stockOut.createdAt,
@@ -405,13 +446,26 @@ export class StockOutService {
           costAmount: item.snapshotCost.toNumber() * item.quantity.toNumber(),
         }
       }),
+      containers: stockOut.containerItems.map((item) => ({
+        id: String(item.id),
+        containerId: String(item.containerId),
+        containerCode: item.containerCodeSnapshot,
+        containerName: item.containerNameSnapshot,
+        containerUnit: item.containerUnitSnapshot,
+        expectedQuantity: item.expectedQuantity,
+        shippedQuantity: item.shippedQuantity,
+      })),
     }
   }
 
   /**
    * 确认出库（核心业务逻辑）
    */
-  async complete(id: string, userId: string) {
+  async complete(
+    id: string,
+    userId: string,
+    shippedContainers?: Array<{ itemId: string; shippedQuantity: number }>
+  ) {
     const stockOutId = Number.parseInt(id, 10)
 
     return await prisma.$transaction(async (tx) => {
@@ -420,6 +474,7 @@ export class StockOutService {
         where: { id: stockOutId, isDeleted: false },
         include: {
           items: true,
+          containerItems: true,
           order: true,
         },
       })
@@ -430,6 +485,36 @@ export class StockOutService {
 
       if (stockOut.status !== 'PENDING') {
         throw new Error('只有待出库状态才能确认出库')
+      }
+
+      if (stockOut.order.status !== 'APPROVED') {
+        throw new Error('关联订单不是待出库状态，无法确认出库')
+      }
+
+      if (shippedContainers !== undefined) {
+        const shippedMap = new Map(
+          shippedContainers.map((item) => [Number.parseInt(item.itemId, 10), item.shippedQuantity])
+        )
+        if (
+          shippedMap.size !== stockOut.containerItems.length ||
+          stockOut.containerItems.some((item) => !shippedMap.has(item.id))
+        ) {
+          throw new Error('请确认全部包装物的实际发出数量')
+        }
+        for (const item of stockOut.containerItems) {
+          const shippedQuantity = shippedMap.get(item.id)
+          if (
+            shippedQuantity === undefined ||
+            !Number.isInteger(shippedQuantity) ||
+            shippedQuantity < 0
+          ) {
+            throw new Error('包装物实际发出数量必须是非负整数')
+          }
+          await tx.stockOutContainerItem.update({
+            where: { id: item.id },
+            data: { shippedQuantity },
+          })
+        }
       }
 
       const claimed = await tx.stockOut.updateMany({
@@ -534,13 +619,13 @@ export class StockOutService {
         throw new Error('出库单状态已变化，请刷新后重试')
       }
 
-      // 4. 更新订单状态为已完成
+      // 4. 仓库发货后，订单进入待收货状态。
       await tx.order.update({
         where: { id: stockOut.orderId },
         data: {
-          status: 'COMPLETED',
+          status: 'PROCESSING',
           lockedWarehouseId: null,
-          completedAt: new Date(),
+          completedAt: null,
         },
       })
 
