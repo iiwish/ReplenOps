@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { Prisma, StockStatus } from '@prisma/client'
 import { costCalculator } from './cost-calculator.service'
 import { buildGoodsSnapshot, resolveGoodsSnapshot } from '@/lib/goods-snapshot'
+import { documentNumberService } from './document-number.service'
+import { getUserDisplayNameMap, resolveUserDisplayName } from './user-display.service'
 
 // 列表参数接口
 export interface ListStockInParams {
@@ -48,7 +50,9 @@ export interface StockInListItem {
   totalAmount: number
   remark: string | null
   createdBy: string
+  createdByName: string
   approvedBy: string | null
+  approvedByName: string | null
   approvedAt: Date | null
   completedAt: Date | null
   createdAt: Date
@@ -74,7 +78,9 @@ export interface StockInDetail {
   totalAmount: number
   remark: string | null
   createdBy: string
+  createdByName: string
   approvedBy: string | null
+  approvedByName: string | null
   approvedAt: Date | null
   completedAt: Date | null
   createdAt: Date
@@ -93,32 +99,6 @@ export interface StockInDetail {
 }
 
 export class StockInService {
-  /**
-   * 生成入库单号（格式：SI + YYYYMMDD + 流水号）
-   */
-  private async generateCode(): Promise<string> {
-    const today = new Date()
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '') // YYYYMMDD
-
-    // 查询今天已有的入库单数量
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0))
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999))
-
-    const count = await prisma.stockIn.count({
-      where: {
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    })
-
-    // 流水号（4位，从0001开始）
-    const serial = String(count + 1).padStart(4, '0')
-
-    return `SI${dateStr}${serial}`
-  }
-
   /**
    * 获取入库单列表（分页）
    */
@@ -192,6 +172,10 @@ export class StockInService {
     })
 
     // 转换数据格式
+    const userNames = await getUserDisplayNameMap(
+      data.flatMap((item) => [item.createdBy, item.approvedBy])
+    )
+
     const formattedData: StockInListItem[] = data.map((item) => ({
       id: String(item.id),
       code: item.code,
@@ -201,7 +185,9 @@ export class StockInService {
       totalAmount: Number(item.totalAmount),
       remark: item.remark,
       createdBy: item.createdBy,
+      createdByName: resolveUserDisplayName(item.createdBy, userNames) ?? item.createdBy,
       approvedBy: item.approvedBy,
+      approvedByName: resolveUserDisplayName(item.approvedBy, userNames),
       approvedAt: item.approvedAt,
       completedAt: item.completedAt,
       createdAt: item.createdAt,
@@ -286,6 +272,7 @@ export class StockInService {
     const goodsMap = new Map(goodsList.map((g) => [g.id, g]))
 
     const { isDeleted: _isDeleted, warehouse, items, ...rest } = stockIn
+    const userNames = await getUserDisplayNameMap([rest.createdBy, rest.approvedBy])
 
     return {
       ...rest,
@@ -293,6 +280,8 @@ export class StockInService {
       warehouseId: String(rest.warehouseId),
       warehouseName: warehouse.name,
       totalAmount: Number(rest.totalAmount),
+      createdByName: resolveUserDisplayName(rest.createdBy, userNames) ?? rest.createdBy,
+      approvedByName: resolveUserDisplayName(rest.approvedBy, userNames),
       items: items.map((item) => {
         const goods = goodsMap.get(item.goodsId)
         if (!goods) {
@@ -349,38 +338,38 @@ export class StockInService {
     // 计算总金额
     const totalAmount = data.items.reduce((sum, item) => sum + item.quantity * item.price, 0)
 
-    // 生成入库单号
-    const code = await this.generateCode()
+    const stockIn = await prisma.$transaction(async (tx) => {
+      const code = await documentNumberService.next('STOCK_IN', tx)
 
-    // 创建入库单
-    const stockIn = await prisma.stockIn.create({
-      data: {
-        code,
-        warehouseId,
-        status: data.submitForApproval ? 'PENDING' : 'PENDING', // 默认为PENDING状态
-        totalAmount,
-        remark: data.remark,
-        createdBy: data.createdBy,
-        items: {
-          create: data.items.map((item) => {
-            const goodsId = Number.parseInt(item.goodsId, 10)
-            const goodsItem = goodsMap.get(goodsId)
-            if (!goodsItem) {
-              throw new Error('商品不存在')
-            }
-            return {
-              goodsId,
-              ...buildGoodsSnapshot(goodsItem),
-              quantity: item.quantity,
-              unitPrice: item.price,
-              totalPrice: item.quantity * item.price,
-            }
-          }),
+      return tx.stockIn.create({
+        data: {
+          code,
+          warehouseId,
+          status: data.submitForApproval ? 'PENDING' : 'PENDING', // 默认为PENDING状态
+          totalAmount,
+          remark: data.remark,
+          createdBy: data.createdBy,
+          items: {
+            create: data.items.map((item) => {
+              const goodsId = Number.parseInt(item.goodsId, 10)
+              const goodsItem = goodsMap.get(goodsId)
+              if (!goodsItem) {
+                throw new Error('商品不存在')
+              }
+              return {
+                goodsId,
+                ...buildGoodsSnapshot(goodsItem),
+                quantity: item.quantity,
+                unitPrice: item.price,
+                totalPrice: item.quantity * item.price,
+              }
+            }),
+          },
         },
-      },
-      select: {
-        id: true,
-      },
+        select: {
+          id: true,
+        },
+      })
     })
 
     // 返回完整详情

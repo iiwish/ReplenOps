@@ -1,37 +1,60 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Table, Card, Form, Select, DatePicker, Button, Space, Tag, message } from 'antd'
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'antd'
+import { CheckOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { getReturnLogs } from '@/actions/container-return-actions'
+import {
+  completeContainerReturn,
+  getContainerReturnRequests,
+  rejectContainerReturn,
+} from '@/actions/container-return-actions'
 
-interface LogsResult {
-  data: LogItem[]
-  total: number
+type ReturnStatus = 'PENDING' | 'COMPLETED' | 'REJECTED' | 'CANCELLED'
+
+interface ReturnRequestItem {
+  id: string
+  containerId: string
+  containerCode: string
+  containerName: string
+  containerUnit: string
+  requestedQuantity: number
+  receivedQuantity: number | null
 }
 
-interface StoreListItem {
+interface ReturnRequest {
   id: string
   code: string
-  name: string
+  storeId: string
+  storeName: string
+  status: ReturnStatus
+  remark: string | null
+  submittedBy: string
+  submittedByName: string
+  submittedAt: Date
+  reviewedBy: string | null
+  reviewedByName: string | null
+  reviewedAt: Date | null
+  reviewReason: string | null
+  items: ReturnRequestItem[]
 }
 
-interface LogItem {
-  id: string
-  containerTrackingId: string
-  orderId: string | null
-  orderCode: string | null
-  opType: string
-  quantity: number
-  beforeBorrowed: number
-  afterBorrowed: number
-  remark: string | null
-  operatedBy: string
-  operatedAt: Date
-  storeName: string
-  containerName: string
+interface RequestsResult {
+  data: ReturnRequest[]
+  total: number
 }
 
 interface ContainerReturnListProps {
@@ -40,162 +63,197 @@ interface ContainerReturnListProps {
   canWriteStock: boolean
 }
 
+const statusMeta: Record<ReturnStatus, { text: string; color: string }> = {
+  PENDING: { text: '待验收', color: 'processing' },
+  COMPLETED: { text: '已验收', color: 'success' },
+  REJECTED: { text: '已驳回', color: 'error' },
+  CANCELLED: { text: '已取消', color: 'default' },
+}
+
 export function ContainerReturnList({
   storeId,
   containerId,
   canWriteStock,
 }: ContainerReturnListProps) {
   const [form] = Form.useForm()
-  const [stores, setStores] = useState<StoreListItem[]>([])
+  const [stores, setStores] = useState<Array<{ id: string; name: string }>>([])
   const [containers, setContainers] = useState<Array<{ id: string; name: string }>>([])
-  const [logs, setLogs] = useState<LogItem[]>([])
+  const [requests, setRequests] = useState<ReturnRequest[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  const [accepting, setAccepting] = useState<ReturnRequest | null>(null)
+  const [received, setReceived] = useState<Record<string, number>>({})
+  const [acceptRemark, setAcceptRemark] = useState('')
+  const [rejecting, setRejecting] = useState<ReturnRequest | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
-  const loadStores = async () => {
-    try {
-      const response = await fetch('/api/stores/user', {
-        cache: 'no-store',
-      })
-
-      if (response.ok) {
-        const result = await response.json()
+  const loadRequests = useCallback(
+    async (currentPage: number, currentPageSize: number) => {
+      setLoading(true)
+      try {
+        const values = form.getFieldsValue()
+        const result = await getContainerReturnRequests({
+          storeId: values.storeId,
+          containerId: values.containerId,
+          status: values.status,
+          dateFrom: values.dateFrom?.format('YYYY-MM-DD'),
+          dateTo: values.dateTo?.format('YYYY-MM-DD'),
+          page: currentPage,
+          pageSize: currentPageSize,
+        })
         if (result.success && result.data) {
-          setStores(result.data)
+          const data = result.data as RequestsResult
+          setRequests(data.data)
+          setTotal(data.total)
         } else {
-          message.error(result.message || '加载门店失败')
+          message.error(result.message || '加载归还申请失败')
         }
-      } else {
-        message.error('加载门店失败')
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error('加载门店失败:', error)
-      message.error('加载门店失败')
-    }
-  }
+    },
+    [form]
+  )
 
-  const loadContainers = async () => {
-    try {
-      const response = await fetch('/api/containers', {
-        cache: 'no-store',
+  useEffect(() => {
+    form.setFieldsValue({ storeId, containerId, status: 'PENDING' })
+    void Promise.all([
+      fetch('/api/stores/user', { cache: 'no-store' }).then((response) => response.json()),
+      fetch('/api/containers', { cache: 'no-store' }).then((response) => response.json()),
+    ])
+      .then(([storeResult, containerResult]) => {
+        if (storeResult.success && storeResult.data) setStores(storeResult.data)
+        if (Array.isArray(containerResult)) setContainers(containerResult)
       })
+      .catch(() => message.error('加载筛选项失败'))
+    void loadRequests(1, 20)
+  }, [containerId, form, loadRequests, storeId])
 
-      if (response.ok) {
-        const result = await response.json()
-        setContainers(result || [])
-      } else {
-        message.error('加载包装物失败')
-      }
-    } catch (error) {
-      console.error('加载包装物失败:', error)
-      message.error('加载包装物失败')
-    }
+  const openAccept = (request: ReturnRequest) => {
+    setAccepting(request)
+    setAcceptRemark('')
+    setReceived(Object.fromEntries(request.items.map((item) => [item.id, item.requestedQuantity])))
   }
 
-  const loadLogs = async (currentPage = page, currentPageSize = pageSize) => {
+  const submitAccept = async () => {
+    if (!accepting) return
     setLoading(true)
     try {
-      const values = form.getFieldsValue()
-      const result = await getReturnLogs({
-        storeId: values.storeId,
-        containerId: values.containerId,
-        dateFrom: values.dateFrom ? values.dateFrom.format('YYYY-MM-DD') : undefined,
-        dateTo: values.dateTo ? values.dateTo.format('YYYY-MM-DD') : undefined,
-        page: currentPage,
-        pageSize: currentPageSize,
+      const result = await completeContainerReturn({
+        returnId: accepting.id,
+        items: accepting.items.map((item) => ({
+          itemId: item.id,
+          receivedQuantity: received[item.id] ?? 0,
+        })),
+        remark: acceptRemark || undefined,
       })
-
-      if (result.success && result.data) {
-        const data = result.data as LogsResult
-        setLogs(data.data)
-        setTotal(data.total)
-      } else {
-        message.error(result.message || '加载归还记录失败')
+      if (!result.success) {
+        message.error(result.message || '验收失败')
+        return
       }
-    } catch (error) {
-      console.error('加载归还记录失败:', error)
-      message.error('加载归还记录失败')
+      message.success(result.message)
+      setAccepting(null)
+      await loadRequests(page, pageSize)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSearch = () => {
-    setPage(1)
-    loadLogs(1, pageSize)
+  const submitReject = async () => {
+    if (!rejecting || !rejectReason.trim()) {
+      message.warning('请填写驳回原因')
+      return
+    }
+    setLoading(true)
+    try {
+      const result = await rejectContainerReturn({
+        returnId: rejecting.id,
+        reason: rejectReason,
+      })
+      if (!result.success) {
+        message.error(result.message || '驳回失败')
+        return
+      }
+      message.success(result.message)
+      setRejecting(null)
+      setRejectReason('')
+      await loadRequests(page, pageSize)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReset = () => {
-    form.resetFields()
-    setPage(1)
-    loadLogs(1, pageSize)
-  }
-
-  const columns: ColumnsType<LogItem> = [
+  const columns: ColumnsType<ReturnRequest> = [
+    { title: '归还单号', dataIndex: 'code', width: 180 },
+    { title: '门店', dataIndex: 'storeName', width: 140 },
     {
-      title: '归还时间',
-      dataIndex: 'operatedAt',
-      width: 160,
-      render: (date: Date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
-    },
-    {
-      title: '门店名称',
-      dataIndex: 'storeName',
-      width: 120,
-    },
-    {
-      title: '包装物名称',
-      dataIndex: 'containerName',
-      width: 120,
-    },
-    {
-      title: '归还数量',
-      dataIndex: 'quantity',
+      title: '申请数量',
       width: 100,
-      render: (qty: number) => <Tag color="green">{qty} 个</Tag>,
+      render: (_, request) => request.items.reduce((sum, item) => sum + item.requestedQuantity, 0),
     },
     {
-      title: '变动情况',
-      width: 150,
-      render: (_: unknown, record: LogItem) => (
-        <span>
-          <span style={{ color: '#999' }}>{record.beforeBorrowed}</span>
-          <span style={{ margin: '0 8px' }}>→</span>
-          <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{record.afterBorrowed}</span>
-        </span>
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (status: ReturnStatus) => (
+        <Tag color={statusMeta[status].color}>{statusMeta[status].text}</Tag>
       ),
     },
     {
-      title: '关联订单',
-      dataIndex: 'orderCode',
-      width: 120,
-      render: (code: string | null) => (code ? <Tag color="blue">{code}</Tag> : <Tag>无</Tag>),
+      title: '提交时间',
+      dataIndex: 'submittedAt',
+      width: 170,
+      render: (date: Date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+    },
+    { title: '提交人', dataIndex: 'submittedByName', width: 110 },
+    {
+      title: '处理人',
+      dataIndex: 'reviewedByName',
+      width: 110,
+      render: (name: string | null) => name || '-',
     },
     {
-      title: '备注',
-      dataIndex: 'remark',
+      title: '备注/处理原因',
       ellipsis: true,
-      render: (remark: string | null) => remark || '-',
+      render: (_, request) => request.reviewReason || request.remark || '-',
+    },
+    {
+      title: '操作',
+      width: 170,
+      fixed: 'right',
+      render: (_, request) =>
+        canWriteStock && request.status === 'PENDING' ? (
+          <Space>
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => openAccept(request)}
+            >
+              验收
+            </Button>
+            <Button
+              danger
+              size="small"
+              icon={<StopOutlined />}
+              onClick={() => {
+                setRejecting(request)
+                setRejectReason('')
+              }}
+            >
+              驳回
+            </Button>
+          </Space>
+        ) : (
+          '-'
+        ),
     },
   ]
 
-  useEffect(() => {
-    loadStores()
-    loadContainers()
-    loadLogs()
-  }, [])
-
-  useEffect(() => {
-    if (storeId || containerId) {
-      form.setFieldsValue({ storeId, containerId })
-      loadLogs(1, pageSize)
-    }
-  }, [storeId, containerId])
-
   return (
-    <Card>
+    <>
       <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
         <Form.Item name="storeId">
           <Select
@@ -203,70 +261,159 @@ export function ContainerReturnList({
             style={{ width: 150 }}
             allowClear
             showSearch
-            options={stores.map((s) => ({ label: s.name, value: s.id }))}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            optionFilterProp="label"
+            options={stores.map((store) => ({ label: store.name, value: store.id }))}
           />
         </Form.Item>
-
         <Form.Item name="containerId">
           <Select
             placeholder="选择包装物"
             style={{ width: 150 }}
             allowClear
             showSearch
-            options={containers.map((c) => ({ label: c.name, value: c.id }))}
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            optionFilterProp="label"
+            options={containers.map((container) => ({
+              label: container.name,
+              value: container.id,
+            }))}
           />
         </Form.Item>
-
+        <Form.Item name="status">
+          <Select
+            placeholder="处理状态"
+            style={{ width: 120 }}
+            allowClear
+            options={Object.entries(statusMeta).map(([value, meta]) => ({
+              value,
+              label: meta.text,
+            }))}
+          />
+        </Form.Item>
         <Form.Item name="dateFrom">
-          <DatePicker placeholder="开始日期" style={{ width: 150 }} />
+          <DatePicker placeholder="开始日期" />
         </Form.Item>
-
         <Form.Item name="dateTo">
-          <DatePicker placeholder="结束日期" style={{ width: 150 }} />
+          <DatePicker placeholder="结束日期" />
         </Form.Item>
-
         <Form.Item>
           <Space>
-            <Button type="primary" onClick={handleSearch}>
+            <Button
+              type="primary"
+              onClick={() => {
+                setPage(1)
+                void loadRequests(1, pageSize)
+              }}
+            >
               查询
             </Button>
-            <Button onClick={handleReset}>重置</Button>
-            <Button icon={<ReloadOutlined />} onClick={() => loadLogs()}>
-              刷新
+            <Button
+              onClick={() => {
+                form.resetFields()
+                form.setFieldValue('status', 'PENDING')
+                setPage(1)
+                void loadRequests(1, pageSize)
+              }}
+            >
+              重置
             </Button>
-            {canWriteStock && (
-              <Button type="primary" icon={<PlusOutlined />} href="/admin/container-return/new">
-                登记归还
-              </Button>
-            )}
+            <Button
+              icon={<ReloadOutlined />}
+              aria-label="刷新"
+              onClick={() => void loadRequests(page, pageSize)}
+            />
           </Space>
         </Form.Item>
       </Form>
 
       <Table
         columns={columns}
-        dataSource={logs}
-        loading={loading}
+        dataSource={requests}
         rowKey="id"
+        loading={loading}
+        scroll={{ x: 1270 }}
+        expandable={{
+          expandedRowRender: (request) => (
+            <Table
+              size="small"
+              pagination={false}
+              rowKey="id"
+              dataSource={request.items}
+              columns={[
+                { title: '包装物编码', dataIndex: 'containerCode' },
+                { title: '包装物', dataIndex: 'containerName' },
+                { title: '申请数量', dataIndex: 'requestedQuantity' },
+                {
+                  title: '实收数量',
+                  dataIndex: 'receivedQuantity',
+                  render: (value: number | null) => value ?? '-',
+                },
+              ]}
+            />
+          ),
+        }}
         pagination={{
           current: page,
           pageSize,
           total,
           showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (newPage, newPageSize) => {
-            setPage(newPage)
-            setPageSize(newPageSize || 20)
-            loadLogs(newPage, newPageSize || 20)
+          showTotal: (count) => `共 ${count} 条`,
+          onChange: (nextPage, nextPageSize) => {
+            setPage(nextPage)
+            setPageSize(nextPageSize)
+            void loadRequests(nextPage, nextPageSize)
           },
         }}
       />
-    </Card>
+
+      <Modal
+        title={accepting ? `验收归还单 ${accepting.code}` : '验收归还单'}
+        open={Boolean(accepting)}
+        onCancel={() => setAccepting(null)}
+        onOk={() => void submitAccept()}
+        confirmLoading={loading}
+        okText="确认验收"
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          {accepting?.items.map((item) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ flex: 1 }}>{item.containerName}</span>
+              <span>申请 {item.requestedQuantity}</span>
+              <InputNumber
+                min={0}
+                max={item.requestedQuantity}
+                precision={0}
+                value={received[item.id]}
+                onChange={(value) =>
+                  setReceived((current) => ({ ...current, [item.id]: value ?? 0 }))
+                }
+              />
+            </div>
+          ))}
+          <Input.TextArea
+            rows={3}
+            value={acceptRemark}
+            onChange={(event) => setAcceptRemark(event.target.value)}
+            placeholder="验收备注（可选）"
+          />
+        </Space>
+      </Modal>
+
+      <Modal
+        title={rejecting ? `驳回归还单 ${rejecting.code}` : '驳回归还单'}
+        open={Boolean(rejecting)}
+        onCancel={() => setRejecting(null)}
+        onOk={() => void submitReject()}
+        confirmLoading={loading}
+        okButtonProps={{ danger: true }}
+        okText="确认驳回"
+      >
+        <Input.TextArea
+          rows={4}
+          value={rejectReason}
+          onChange={(event) => setRejectReason(event.target.value)}
+          placeholder="请输入驳回原因"
+        />
+      </Modal>
+    </>
   )
 }

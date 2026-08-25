@@ -9,6 +9,12 @@ import type { InventoryQueryResult } from '@/services/inventory-query.service'
 
 interface InventoryQueryListClientProps {
   initialData: InventoryQueryResult
+  initialFilters: {
+    warehouseIds: string[]
+    categoryId?: string
+    stockStatus: string
+    keyword?: string
+  }
   warehouses: Array<{ id: number; code: string; name: string }>
   categories: Array<{ id: string; name: string }>
 }
@@ -17,29 +23,47 @@ type InventoryRecord = InventoryQueryResult['data'][number]
 
 export default function InventoryQueryListClient({
   initialData,
+  initialFilters,
   warehouses,
   categories,
 }: InventoryQueryListClientProps) {
   const router = useRouter()
-  const [selectedWarehouses, setSelectedWarehouses] = useState<string[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string>()
-  const [stockStatus, setStockStatus] = useState<string>('all')
-  const [searchKeyword, setSearchKeyword] = useState('')
+  const [selectedWarehouses, setSelectedWarehouses] = useState<string[]>(
+    initialFilters.warehouseIds
+  )
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(
+    initialFilters.categoryId
+  )
+  const [stockStatus, setStockStatus] = useState(initialFilters.stockStatus)
+  const [searchKeyword, setSearchKeyword] = useState(initialFilters.keyword ?? '')
 
   const buildUrl = (updates: Record<string, string | string[] | undefined>) => {
+    const nextFilters: Record<string, string | string[] | undefined> = {
+      page: '1',
+      warehouseIds: selectedWarehouses,
+      categoryId: selectedCategory,
+      keyword: searchKeyword,
+      stockStatus,
+      ...updates,
+    }
     const params = new URLSearchParams()
-    if (updates.page) params.set('page', String(updates.page))
-    if (updates.warehouseIds) {
-      if (Array.isArray(updates.warehouseIds)) {
-        updates.warehouseIds.forEach((id) => params.append('warehouseIds', id))
+    const setParam = (name: string, value: string | string[] | undefined) => {
+      const normalizedValue = Array.isArray(value) ? value[0] : value
+      if (normalizedValue) params.set(name, normalizedValue)
+    }
+
+    setParam('page', nextFilters.page)
+    if (nextFilters.warehouseIds) {
+      if (Array.isArray(nextFilters.warehouseIds)) {
+        nextFilters.warehouseIds.forEach((id) => params.append('warehouseIds', id))
       } else {
-        params.set('warehouseIds', updates.warehouseIds)
+        params.set('warehouseIds', nextFilters.warehouseIds)
       }
     }
-    if (updates.categoryId) params.set('categoryId', String(updates.categoryId))
-    if (updates.goodsId) params.set('goodsId', String(updates.goodsId))
-    if (updates.keyword) params.set('keyword', String(updates.keyword))
-    if (updates.stockStatus) params.set('stockStatus', String(updates.stockStatus))
+    setParam('categoryId', nextFilters.categoryId)
+    setParam('goodsId', nextFilters.goodsId)
+    setParam('keyword', nextFilters.keyword)
+    setParam('stockStatus', nextFilters.stockStatus)
 
     const queryString = params.toString()
     router.push(`/admin/inventory/query${queryString ? `?${queryString}` : ''}` as Route)
@@ -171,7 +195,7 @@ export default function InventoryQueryListClient({
                 style={{ width: 200 }}
                 value={selectedWarehouses}
                 onChange={handleWarehouseChange}
-                options={warehouses.map((w) => ({ label: w.name, value: w.id }))}
+                options={warehouses.map((w) => ({ label: w.name, value: String(w.id) }))}
                 allowClear
               />
 

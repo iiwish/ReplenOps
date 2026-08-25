@@ -6,7 +6,7 @@ export default async function NewContainerReturnPage() {
 
   return (
     <div style={{ padding: '24px' }}>
-      <h1>包装物归还登记</h1>
+      <h1>代门店提交归还申请</h1>
       <ContainerReturnForm />
     </div>
   )

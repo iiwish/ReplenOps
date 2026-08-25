@@ -30,11 +30,27 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(loginUrl)
 }
 
+function getLoginPath(request: NextRequest): string {
+  const loginUrl = new URL('/login', request.url)
+  loginUrl.searchParams.set('redirect', getPathWithSearch(request.nextUrl))
+  return `${loginUrl.pathname}${loginUrl.search}`
+}
+
 function isApiRequest(pathname: string): boolean {
   return pathname.startsWith('/api')
 }
 
 function authRequiredResponse(request: NextRequest) {
+  if (request.headers.has('next-action')) {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+        'x-action-redirect': `${getLoginPath(request)};replace`,
+      },
+    })
+  }
+
   if (isApiRequest(request.nextUrl.pathname)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -57,6 +73,58 @@ function getRefreshToken(request: NextRequest): string | undefined {
 function getExpiresAt(request: NextRequest): number | undefined {
   const expiresAt = request.cookies.get('replenops_expires_at')?.value
   return expiresAt ? parseInt(expiresAt, 10) : undefined
+}
+
+type RefreshedToken = NonNullable<Awaited<ReturnType<typeof refreshAccessToken>>>
+
+function getRefreshedRequestHeaders(
+  request: NextRequest,
+  refreshedToken: RefreshedToken,
+  expiresAt: number
+): Headers {
+  const requestHeaders = new Headers(request.headers)
+  const requestCookies = new Map(
+    request.cookies.getAll().map((cookie) => [cookie.name, cookie.value] as const)
+  )
+
+  requestCookies.set('replenops_access_token', refreshedToken.access_token)
+  if (refreshedToken.refresh_token) {
+    requestCookies.set('replenops_refresh_token', refreshedToken.refresh_token)
+  }
+  requestCookies.set('replenops_expires_at', expiresAt.toString())
+  requestHeaders.set(
+    'cookie',
+    Array.from(requestCookies, ([name, value]) => `${name}=${encodeURIComponent(value)}`).join('; ')
+  )
+
+  return requestHeaders
+}
+
+function applyRefreshedSession(
+  response: NextResponse,
+  refreshedToken: RefreshedToken | null,
+  expiresAt: number,
+  config: DomainRoutingConfig
+): NextResponse {
+  if (!refreshedToken) return response
+
+  const sessionCookieOptions = getSessionCookieOptions(config)
+
+  response.cookies.set('replenops_access_token', refreshedToken.access_token, {
+    ...sessionCookieOptions,
+  })
+
+  if (refreshedToken.refresh_token) {
+    response.cookies.set('replenops_refresh_token', refreshedToken.refresh_token, {
+      ...sessionCookieOptions,
+    })
+  }
+
+  response.cookies.set('replenops_expires_at', expiresAt.toString(), {
+    ...sessionCookieOptions,
+  })
+
+  return response
 }
 
 async function verifyTokenAndGetUser(token: string): Promise<AuthUser | null> {
@@ -122,6 +190,7 @@ export async function proxy(request: NextRequest) {
   const refreshToken = getRefreshToken(request)
   const expiresAt = getExpiresAt(request)
   let refreshedToken: Awaited<ReturnType<typeof refreshAccessToken>> = null
+  let refreshedExpiresAt = 0
 
   if (!accessToken) {
     return authRequiredResponse(request)
@@ -141,6 +210,7 @@ export async function proxy(request: NextRequest) {
 
       accessToken = newToken.access_token
       refreshedToken = newToken
+      refreshedExpiresAt = now + newToken.expires_in * 1000
     } catch (error) {
       console.error('Token refresh failed:', error)
       return authRequiredResponse(request)
@@ -156,54 +226,58 @@ export async function proxy(request: NextRequest) {
   const roles = getUserRolesFromAuthUser(user)
 
   if (roles.length === 0) {
-    return NextResponse.json({ error: 'User does not have a valid role' }, { status: 403 })
+    return applyRefreshedSession(
+      NextResponse.json({ error: 'User does not have a valid role' }, { status: 403 }),
+      refreshedToken,
+      refreshedExpiresAt,
+      domainRoutingConfig
+    )
   }
 
   if (!hasPermission(roles, pathname)) {
     if (isApiRequest(pathname)) {
-      return NextResponse.json(
-        { error: 'You do not have permission to access this resource' },
-        { status: 403 }
+      return applyRefreshedSession(
+        NextResponse.json(
+          { error: 'You do not have permission to access this resource' },
+          { status: 403 }
+        ),
+        refreshedToken,
+        refreshedExpiresAt,
+        domainRoutingConfig
       )
     }
 
     const redirectPath = getRedirectRoute(roles, pathname)
     if (redirectPath !== pathname) {
       const redirectUrl = new URL(redirectPath, request.url)
-      return NextResponse.redirect(redirectUrl)
+      return applyRefreshedSession(
+        NextResponse.redirect(redirectUrl),
+        refreshedToken,
+        refreshedExpiresAt,
+        domainRoutingConfig
+      )
     }
 
-    return NextResponse.json(
-      { error: 'You do not have permission to access this resource' },
-      { status: 403 }
+    return applyRefreshedSession(
+      NextResponse.json(
+        { error: 'You do not have permission to access this resource' },
+        { status: 403 }
+      ),
+      refreshedToken,
+      refreshedExpiresAt,
+      domainRoutingConfig
     )
   }
 
-  const response = NextResponse.next()
-
-  if (refreshedToken) {
-    const sessionCookieOptions = getSessionCookieOptions(domainRoutingConfig)
-
-    response.cookies.set('replenops_access_token', refreshedToken.access_token, {
-      ...sessionCookieOptions,
-    })
-
-    if (refreshedToken.refresh_token) {
-      response.cookies.set('replenops_refresh_token', refreshedToken.refresh_token, {
-        ...sessionCookieOptions,
+  const response = refreshedToken
+    ? NextResponse.next({
+        request: {
+          headers: getRefreshedRequestHeaders(request, refreshedToken, refreshedExpiresAt),
+        },
       })
-    }
+    : NextResponse.next()
 
-    response.cookies.set(
-      'replenops_expires_at',
-      (now + refreshedToken.expires_in * 1000).toString(),
-      {
-        ...sessionCookieOptions,
-      }
-    )
-  }
-
-  return response
+  return applyRefreshedSession(response, refreshedToken, refreshedExpiresAt, domainRoutingConfig)
 }
 
 export const config = {

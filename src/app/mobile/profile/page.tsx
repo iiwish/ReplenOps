@@ -3,10 +3,10 @@ import { MOBILE_ACCESS_ROLES } from '@/lib/rbac'
 import type { UserRole } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { User, LogOut, ChevronRight } from 'lucide-react'
+import { User, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import type { Route } from 'next'
+import { MobileLogoutButton } from './MobileLogoutButton'
 
 const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: '超级管理员',
@@ -67,12 +67,7 @@ export default async function MobileProfilePage() {
       {/* 退出登录 */}
       <Card>
         <CardContent className="pt-6">
-          <Button variant="destructive" className="min-h-[48px] w-full" asChild>
-            <Link href="/api/auth/logout">
-              <LogOut className="mr-2 h-5 w-5" />
-              退出登录
-            </Link>
-          </Button>
+          <MobileLogoutButton />
         </CardContent>
       </Card>
 

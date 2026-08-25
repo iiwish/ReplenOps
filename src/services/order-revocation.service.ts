@@ -136,10 +136,10 @@ export class OrderRevocationService {
         })
 
         if (tracking) {
-          const returnQty = log.quantity.toNumber()
-          const beforeBorrowed = tracking.currentBorrowed.toNumber()
+          const returnQty = log.quantity
+          const beforeBorrowed = tracking.currentBorrowed
 
-          if (beforeBorrowed < returnQty) {
+          if (beforeBorrowed - tracking.pendingReturnQuantity < returnQty) {
             throw new Error(`包装物 ${log.containerTrackingId} 在外数量不足，无法撤销订单自动归还`)
           }
 
@@ -162,6 +162,7 @@ export class OrderRevocationService {
           await tx.containerLog.create({
             data: {
               containerTrackingId: log.containerTrackingId,
+              containerId: log.containerId,
               orderId: orderIdInt,
               opType: 'RETURN',
               quantity: returnQty,
@@ -293,7 +294,7 @@ export class OrderRevocationService {
     const containers = containerLogs.map((log) => ({
       containerId: String(log.tracking!.container.id),
       containerName: log.tracking!.container.name,
-      quantity: log.quantity.toNumber(),
+      quantity: log.quantity,
     }))
 
     return {

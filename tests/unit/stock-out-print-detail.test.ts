@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const stockOutMocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
+  findUsers: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     stockOut: { findFirst: stockOutMocks.findFirst },
+    user: { findMany: stockOutMocks.findUsers },
     $disconnect: vi.fn(),
   },
 }))
@@ -20,6 +22,11 @@ describe('stock-out printable detail', () => {
 
   it('loads order context, goods specifications, and active detail rows', async () => {
     const now = new Date('2026-08-02T10:00:00.000Z')
+    stockOutMocks.findUsers.mockResolvedValue([
+      { id: 'store-user', username: 'store-code', name: '门店张三' },
+      { id: 'approver', username: 'approver-code', name: '审批李四' },
+      { id: 'warehouse-user', username: 'warehouse-code', name: '仓库王五' },
+    ])
     stockOutMocks.findFirst.mockResolvedValue({
       id: 8,
       code: 'SO202608020001',
@@ -72,6 +79,7 @@ describe('stock-out printable detail', () => {
           },
         },
       ],
+      containerItems: [],
     })
 
     const { stockOutService } = await import('@/services/stock-out.service')
@@ -88,7 +96,10 @@ describe('stock-out printable detail', () => {
     expect(result).toMatchObject({
       orderCode: 'OR202608020001',
       orderCreatedBy: 'store-user',
+      orderCreatedByName: '门店张三',
       approvedBy: 'approver',
+      approvedByName: '审批李四',
+      createdByName: '仓库王五',
       orderRemark: '上午送达',
       storeName: '一号门店',
       items: [
@@ -100,6 +111,7 @@ describe('stock-out printable detail', () => {
           lineAmount: 16,
         },
       ],
+      containers: [],
     })
   })
 })

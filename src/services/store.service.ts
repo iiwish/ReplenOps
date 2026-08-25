@@ -13,7 +13,7 @@ import { userService } from './user.service'
 export interface ListStoresParams {
   page?: number
   pageSize?: number
-  keyword?: string // 搜索关键词（名称或编码）
+  keyword?: string // 搜索关键词（门店名称、编码或管理员）
 }
 
 // 创建门店 DTO
@@ -42,7 +42,10 @@ export interface StoreListItem {
   contactName: string | null
   contactPhone: string | null
   isActive: boolean
-  adminCount: number
+  admins: Array<{
+    userId: string
+    displayName: string
+  }>
   createdAt: Date
   updatedAt: Date
 }
@@ -94,18 +97,31 @@ export class StoreService {
       isDeleted: false,
     }
 
-    // 如果有搜索关键词，按名称或编码搜索
+    // 如果有搜索关键词，按门店或管理员信息搜索
     if (keyword) {
       where.OR = [
         { name: { contains: keyword, mode: 'insensitive' } },
         { code: { contains: keyword, mode: 'insensitive' } },
+        {
+          storeAdmins: {
+            some: {
+              user: {
+                OR: [
+                  { name: { contains: keyword, mode: 'insensitive' } },
+                  { username: { contains: keyword, mode: 'insensitive' } },
+                  { email: { contains: keyword, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        },
       ]
     }
 
     // 查询总数
     const total = await prisma.store.count({ where })
 
-    // 查询数据（包含管理员数量）
+    // 查询数据（包含管理员姓名）
     const data = await prisma.store.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -121,15 +137,22 @@ export class StoreService {
         isActive: true,
         createdAt: true,
         updatedAt: true,
-        _count: {
+        storeAdmins: {
           select: {
-            storeAdmins: true,
+            userId: true,
+            user: {
+              select: {
+                name: true,
+                username: true,
+              },
+            },
           },
+          orderBy: { createdAt: 'asc' },
         },
       },
     })
 
-    // 转换数据，添加 adminCount 字段
+    // 转换数据，添加管理员显示姓名
     const transformedData: StoreListItem[] = data.map((item) => ({
       id: String(item.id),
       code: item.code,
@@ -138,7 +161,10 @@ export class StoreService {
       contactName: item.contactName,
       contactPhone: item.contactPhone,
       isActive: item.isActive,
-      adminCount: item._count.storeAdmins,
+      admins: item.storeAdmins.map((admin) => ({
+        userId: admin.userId,
+        displayName: admin.user.name || admin.user.username,
+      })),
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     }))

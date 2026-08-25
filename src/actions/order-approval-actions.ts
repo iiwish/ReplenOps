@@ -16,47 +16,12 @@ const rejectOrderSchema = z.object({
   reason: z.string().min(5, '拒绝原因至少5个字符'),
 })
 
-const batchApproveSchema = z.object({
-  orderIds: z.array(z.string()).min(1, '至少选择一个订单'),
-})
-
 // 通用响应接口
 interface ActionResponse<T = unknown> {
   success: boolean
   message?: string
   data?: T
   errors?: Record<string, string[]>
-}
-
-/**
- * 获取待审批订单列表
- */
-export async function getPendingOrders(params: {
-  page?: number
-  pageSize?: number
-  storeId?: string
-  startDate?: string
-  endDate?: string
-  minAmount?: number
-  maxAmount?: number
-  keyword?: string
-}): Promise<ActionResponse> {
-  try {
-    await requireActionPermission('order:review')
-
-    const result = await orderApprovalService.listPendingOrders(params)
-
-    return {
-      success: true,
-      data: result,
-    }
-  } catch (error) {
-    console.error('获取待审批订单列表失败:', error)
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : '获取列表失败',
-    }
-  }
 }
 
 /**
@@ -102,9 +67,9 @@ export async function approveOrder(data: {
     )
 
     // 刷新页面缓存
-    revalidatePath('/admin/order-approval')
     revalidatePath('/admin/orders')
     revalidatePath('/admin/stock-out')
+    revalidatePath('/mobile/orders')
 
     return {
       success: true,
@@ -150,8 +115,8 @@ export async function rejectOrder(data: {
     )
 
     // 刷新页面缓存
-    revalidatePath('/admin/order-approval')
     revalidatePath('/admin/orders')
+    revalidatePath('/mobile/orders')
 
     return {
       success: true,
@@ -171,51 +136,6 @@ export async function rejectOrder(data: {
     return {
       success: false,
       message: error instanceof Error ? error.message : '拒绝失败',
-    }
-  }
-}
-
-/**
- * 批量审批订单
- */
-export async function batchApproveOrders(data: { orderIds: string[] }): Promise<ActionResponse> {
-  try {
-    const user = await requireActionPermission('order:review')
-
-    // Zod 验证
-    const validatedData = batchApproveSchema.parse(data)
-
-    // 调用 Service
-    const results = await orderApprovalService.batchApprove(validatedData.orderIds, user.id)
-
-    // 统计成功失败数量
-    const successCount = results.filter((r) => r.success).length
-    const failCount = results.length - successCount
-
-    // 刷新页面缓存
-    revalidatePath('/admin/order-approval')
-    revalidatePath('/admin/orders')
-    revalidatePath('/admin/stock-out')
-
-    return {
-      success: true,
-      message: `批量审批完成: 成功${successCount}个, 失败${failCount}个`,
-      data: results,
-    }
-  } catch (error) {
-    console.error('批量审批失败:', error)
-
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        message: '数据验证失败',
-        errors: error.flatten().fieldErrors as Record<string, string[]>,
-      }
-    }
-
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : '批量审批失败',
     }
   }
 }

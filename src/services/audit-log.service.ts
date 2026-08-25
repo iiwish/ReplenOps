@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@prisma/client'
 import ExcelJS from 'exceljs'
+import { getUserDisplayNameMap, resolveUserDisplayName } from './user-display.service'
 
 export interface ListAuditLogsParams {
   page?: number
@@ -17,6 +18,7 @@ export interface AuditLogListItem {
   action: string
   reason?: string
   operatedBy: string
+  operatorName: string
   operatorIp?: string
   orderId?: string
   orderCode?: string
@@ -39,6 +41,7 @@ export interface AuditLogDetail {
   action: string
   reason?: string
   operatedBy: string
+  operatorName: string
   operatorIp?: string
   orderId?: string
   orderCode?: string
@@ -110,11 +113,14 @@ export class AuditLogService {
       prisma.approvalLog.count({ where }),
     ])
 
+    const userNames = await getUserDisplayNameMap(logs.map((log) => log.operatedBy))
+
     const items: AuditLogListItem[] = logs.map((log) => ({
       id: String(log.id),
       action: log.action,
       reason: log.reason || undefined,
       operatedBy: log.operatedBy,
+      operatorName: resolveUserDisplayName(log.operatedBy, userNames) ?? log.operatedBy,
       operatorIp: log.operatorIp || undefined,
       orderId: log.orderId !== null ? String(log.orderId) : undefined,
       orderCode: log.order?.code || undefined,
@@ -162,11 +168,14 @@ export class AuditLogService {
       throw new Error('审计日志不存在')
     }
 
+    const userNames = await getUserDisplayNameMap([log.operatedBy])
+
     return {
       id: String(log.id),
       action: log.action,
       reason: log.reason || undefined,
       operatedBy: log.operatedBy,
+      operatorName: resolveUserDisplayName(log.operatedBy, userNames) ?? log.operatedBy,
       operatorIp: log.operatorIp || undefined,
       orderId: log.orderId !== null ? String(log.orderId) : undefined,
       orderCode: log.order?.code || undefined,
@@ -205,6 +214,21 @@ export class AuditLogService {
     })
   }
 
+  async getOperators(): Promise<Array<{ id: string; name: string }>> {
+    const logs = await prisma.approvalLog.findMany({
+      distinct: ['operatedBy'],
+      select: { operatedBy: true },
+      orderBy: { operatedBy: 'asc' },
+    })
+    const identifiers = logs.map((log) => log.operatedBy)
+    const userNames = await getUserDisplayNameMap(identifiers)
+
+    return identifiers.map((identifier) => ({
+      id: identifier,
+      name: resolveUserDisplayName(identifier, userNames) ?? identifier,
+    }))
+  }
+
   async exportToExcel(params: ListAuditLogsParams): Promise<Buffer> {
     const result = await this.list(params)
 
@@ -213,7 +237,7 @@ export class AuditLogService {
     const rows = result.data.map((log) => [
       new Date(log.createdAt).toLocaleString('zh-CN'),
       log.action,
-      log.operatedBy,
+      log.operatorName,
       log.operatorIp || '-',
       log.orderCode || `${log.entityType} #${log.entityId || '-'}`,
       log.reason || '-',

@@ -4,63 +4,42 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireActionPermission } from '@/lib/action-permissions'
 import { goodsService } from '@/services/goods.service'
+import { GOODS_CODE_PATTERN } from '@/lib/goods-code-policy'
 
 // Zod 验证 Schema
-const goodsSchema = z
-  .object({
-    code: z
-      .string()
-      .min(1, '商品编码不能为空')
-      .regex(/^G\d{6}$/, '商品编码格式错误，应为 G + 6位数字（如 G000001）'),
-    name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
-    categoryId: z.string().min(1, '请选择商品分类'),
-    spec: z.string().optional(),
-    unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
-    measureType: z.enum(['INT', 'DECIMAL'], {
-      message: '请选择计量类型',
-    }),
-    costPrice: z.coerce.number().min(0, '成本价不能为负数'),
-    partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
-    defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
-    containerId: z.string().optional(),
-    containerRatio: z.coerce
-      .number()
-      .int('包装物配比必须是整数')
-      .min(0, '包装物配比不能为负数')
-      .optional(),
-    imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
-    description: z.string().optional().nullable(),
-  })
-  .refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
-    message: '绑定包装物时配比必须大于0',
-    path: ['containerRatio'],
-  })
+const goodsSchema = z.object({
+  code: z
+    .string()
+    .min(1, '商品编码不能为空')
+    .regex(GOODS_CODE_PATTERN, '商品编码格式错误，应为 G + 6位数字（如 G000001）'),
+  name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
+  categoryId: z.string().min(1, '请选择商品分类'),
+  spec: z.string().optional(),
+  unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
+  measureType: z.enum(['INT', 'DECIMAL'], {
+    message: '请选择计量类型',
+  }),
+  costPrice: z.coerce.number().min(0, '成本价不能为负数'),
+  partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
+  defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
+  imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
+  description: z.string().optional().nullable(),
+})
 
-const updateGoodsSchema = z
-  .object({
-    name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
-    categoryId: z.string().min(1, '请选择商品分类'),
-    spec: z.string().optional(),
-    unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
-    measureType: z.enum(['INT', 'DECIMAL'], {
-      message: '请选择计量类型',
-    }),
-    costPrice: z.coerce.number().min(0, '成本价不能为负数'),
-    partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
-    defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
-    containerId: z.string().optional(),
-    containerRatio: z.coerce
-      .number()
-      .int('包装物配比必须是整数')
-      .min(0, '包装物配比不能为负数')
-      .optional(),
-    imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
-    description: z.string().optional().nullable(),
-  })
-  .refine((data) => !data.containerId || (data.containerRatio && data.containerRatio > 0), {
-    message: '绑定包装物时配比必须大于0',
-    path: ['containerRatio'],
-  })
+const updateGoodsSchema = z.object({
+  name: z.string().min(2, '商品名称至少2个字符').max(50, '商品名称最多50个字符'),
+  categoryId: z.string().min(1, '请选择商品分类'),
+  spec: z.string().optional(),
+  unit: z.string().min(1, '单位不能为空').max(10, '单位最多10个字符'),
+  measureType: z.enum(['INT', 'DECIMAL'], {
+    message: '请选择计量类型',
+  }),
+  costPrice: z.coerce.number().min(0, '成本价不能为负数'),
+  partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
+  defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
+  imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
+  description: z.string().optional().nullable(),
+})
 
 // 通用响应接口
 interface ActionResponse<T = unknown> {
@@ -68,6 +47,18 @@ interface ActionResponse<T = unknown> {
   message?: string
   data?: T
   errors?: Record<string, string[]>
+}
+
+export async function getNextGoodsCode(): Promise<ActionResponse<string>> {
+  try {
+    await requireActionPermission('goods:write')
+    return { success: true, data: await goodsService.getNextCode() }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '生成商品编码失败',
+    }
+  }
 }
 
 /**
@@ -87,8 +78,6 @@ export async function createGoods(formData: FormData): Promise<ActionResponse> {
       costPrice: formData.get('costPrice'),
       partnerPrice: formData.get('partnerPrice'),
       defaultInPrice: formData.get('defaultInPrice'),
-      containerId: (formData.get('containerId') as string) || undefined,
-      containerRatio: formData.get('containerRatio') || 0,
       imageUrl: (formData.get('imageUrl') as string) || undefined,
       description: (formData.get('description') as string) || undefined,
     }
@@ -155,8 +144,6 @@ export async function updateGoods(id: string, formData: FormData): Promise<Actio
       costPrice: formData.get('costPrice'),
       partnerPrice: formData.get('partnerPrice'),
       defaultInPrice: formData.get('defaultInPrice'),
-      containerId: (formData.get('containerId') as string) || undefined,
-      containerRatio: formData.get('containerRatio') || 0,
       imageUrl: (formData.get('imageUrl') as string) || undefined,
       description: (formData.get('description') as string) || undefined,
     }

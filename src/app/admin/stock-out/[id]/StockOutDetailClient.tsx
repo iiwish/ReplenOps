@@ -18,6 +18,7 @@ import {
   Statistic,
   Alert,
   Input,
+  InputNumber,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -50,16 +51,40 @@ export default function StockOutDetailClient({
   const [loading, setLoading] = useState(false)
 
   const handleComplete = () => {
+    const shippedQuantities = new Map(
+      stockOut.containers.map((item) => [item.id, item.shippedQuantity])
+    )
     Modal.confirm({
       title: '确认出库',
-      content: `确定要确认出库单"${stockOut.code}"吗？此操作将扣减库存并记录出库成本。`,
+      content: (
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <div>确认后将扣减库存、登记包装物，并将订单转为待收货。</div>
+          {stockOut.containers.map((item) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ flex: 1 }}>{item.containerName}</span>
+              <span>建议 {item.expectedQuantity}</span>
+              <InputNumber
+                min={0}
+                precision={0}
+                defaultValue={item.shippedQuantity}
+                onChange={(value) => shippedQuantities.set(item.id, value ?? 0)}
+              />
+            </div>
+          ))}
+        </Space>
+      ),
       okText: '确认',
       cancelText: '取消',
       okButtonProps: { danger: true },
       onOk: async () => {
         setLoading(true)
         try {
-          const result = await completeStockOut(stockOut.id)
+          const result = await completeStockOut(stockOut.id, {
+            containers: stockOut.containers.map((item) => ({
+              itemId: item.id,
+              shippedQuantity: shippedQuantities.get(item.id) ?? 0,
+            })),
+          })
           if (result.success) {
             router.refresh()
             Modal.confirm({
@@ -187,6 +212,14 @@ export default function StockOutDetailClient({
     },
   ]
 
+  const containerColumns: ColumnsType<StockOutDetail['containers'][number]> = [
+    { title: '包装物编码', dataIndex: 'containerCode' },
+    { title: '包装物名称', dataIndex: 'containerName' },
+    { title: '单位', dataIndex: 'containerUnit', width: 80 },
+    { title: '建议数量', dataIndex: 'expectedQuantity', width: 100, align: 'right' },
+    { title: '实际发出', dataIndex: 'shippedQuantity', width: 100, align: 'right' },
+  ]
+
   const config = statusMap[stockOut.status as keyof typeof statusMap] ?? {
     text: stockOut.status,
     color: 'default',
@@ -251,13 +284,13 @@ export default function StockOutDetailClient({
                   ? dayjs(stockOut.completedAt).format('YYYY-MM-DD HH:mm:ss')
                   : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="创建人">{stockOut.createdBy}</Descriptions.Item>
+              <Descriptions.Item label="创建人">{stockOut.createdByName}</Descriptions.Item>
               {stockOut.revokedAt && (
                 <>
                   <Descriptions.Item label="取消时间">
                     {dayjs(stockOut.revokedAt).format('YYYY-MM-DD HH:mm:ss')}
                   </Descriptions.Item>
-                  <Descriptions.Item label="取消人">{stockOut.revokedBy}</Descriptions.Item>
+                  <Descriptions.Item label="取消人">{stockOut.revokedByName}</Descriptions.Item>
                   <Descriptions.Item label="取消原因" span={2}>
                     {stockOut.revokeReason}
                   </Descriptions.Item>
@@ -301,6 +334,17 @@ export default function StockOutDetailClient({
               }}
             />
           </Card>
+
+          {stockOut.containers.length > 0 && (
+            <Card title="包装物明细" style={{ marginTop: 16 }}>
+              <Table
+                columns={containerColumns}
+                dataSource={stockOut.containers}
+                rowKey="id"
+                pagination={false}
+              />
+            </Card>
+          )}
         </Col>
 
         <Col span={8}>
@@ -328,7 +372,7 @@ export default function StockOutDetailClient({
           {stockOut.status === 'COMPLETED' && (
             <Card title="操作说明" style={{ marginBottom: 16 }}>
               <Alert
-                message="出库已完成"
+                message="发货已完成，等待门店确认收货"
                 description="库存已扣减并记录成本。如需撤销，请进入关联订单执行撤销。"
                 type="success"
                 showIcon

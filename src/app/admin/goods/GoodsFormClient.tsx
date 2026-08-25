@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Form, Input, InputNumber, Button, message, Space, Select, Radio } from 'antd'
 import { createGoods, updateGoods } from '@/actions/goods-actions'
-import { listContainers } from '@/actions/container-actions'
 import { GOODS_CODE_PATTERN, shouldValidateGoodsCode } from '@/lib/goods-code-policy'
 
 const { TextArea } = Input
@@ -18,22 +17,14 @@ export interface GoodsFormData {
   costPrice: number
   partnerPrice: number
   defaultInPrice: number
-  containerId?: string | null
-  containerRatio?: number
   imageUrl?: string
   description?: string
-}
-
-interface ContainerOption {
-  id: string
-  code: string
-  name: string
-  unit: string
 }
 
 interface GoodsFormClientProps {
   mode: 'create' | 'edit'
   initialValues?: GoodsFormData & { id: string }
+  initialCode?: string
   categories: Array<{ id: string; code: string; name: string }>
   onCancel: () => void
   onSuccess: () => void
@@ -42,13 +33,13 @@ interface GoodsFormClientProps {
 export default function GoodsFormClient({
   mode,
   initialValues,
+  initialCode,
   categories,
   onCancel,
   onSuccess,
 }: GoodsFormClientProps) {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [containers, setContainers] = useState<ContainerOption[]>([])
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsFormData) => {
@@ -91,29 +82,11 @@ export default function GoodsFormClient({
     }
   }
 
-  useEffect(() => {
-    const loadContainers = async () => {
-      const result = await listContainers()
-      if (result.success && Array.isArray(result.data)) {
-        setContainers(
-          result.data.map((container) => ({
-            id: container.id,
-            code: container.code,
-            name: container.name,
-            unit: container.unit,
-          }))
-        )
-      }
-    }
-
-    void loadContainers()
-  }, [])
-
   return (
     <Form
       form={form}
       layout="vertical"
-      initialValues={initialValues || { measureType: 'INT' }}
+      initialValues={initialValues || { code: initialCode, measureType: 'INT' }}
       onFinish={handleSubmit}
       style={{ maxWidth: 800 }}
     >
@@ -186,48 +159,6 @@ export default function GoodsFormClient({
           style={{ width: 150 }}
         >
           <Input placeholder="如：瓶、kg、箱" maxLength={10} />
-        </Form.Item>
-      </Space>
-
-      <Space style={{ width: '100%' }} size="large" align="start">
-        <Form.Item
-          label="绑定包装物"
-          name="containerId"
-          style={{ width: 250 }}
-          tooltip="出库完成后，会按商品数量和配比自动借出包装物"
-        >
-          <Select
-            allowClear
-            placeholder="不绑定包装物"
-            options={containers.map((container) => ({
-              label: `${container.name} (${container.code})`,
-              value: container.id,
-            }))}
-            showSearch
-            filterOption={(input, option) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="包装物配比"
-          name="containerRatio"
-          style={{ width: 180 }}
-          dependencies={['containerId']}
-          rules={[
-            ({ getFieldValue }) => ({
-              validator(_, value: number | undefined) {
-                if (!getFieldValue('containerId') || (value && value > 0)) {
-                  return Promise.resolve()
-                }
-                return Promise.reject(new Error('绑定包装物时请输入配比'))
-              },
-            }),
-          ]}
-          tooltip="每多少个商品需要 1 个包装物，例如 30 个鸡蛋/框则填 30"
-        >
-          <InputNumber placeholder="如：30" min={0} precision={0} step={1} style={{ width: 180 }} />
         </Form.Item>
       </Space>
 

@@ -47,7 +47,6 @@ export async function adjustStock(data: {
     // 重新验证缓存
     revalidatePath('/admin/inventory/logs')
     revalidatePath('/admin/inventory/query')
-    revalidatePath('/admin/inventory/adjustment')
 
     return {
       success: true,

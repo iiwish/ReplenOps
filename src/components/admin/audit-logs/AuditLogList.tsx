@@ -58,8 +58,8 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
     },
     {
       title: '操作人',
-      dataIndex: 'operatedBy',
-      key: 'operatedBy',
+      dataIndex: 'operatorName',
+      key: 'operatorName',
       width: 120,
       sorter: true,
     },

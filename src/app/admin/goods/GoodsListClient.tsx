@@ -2,17 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Modal,
-  message,
-  Card,
-  Select,
-} from 'antd'
+import { Table, Button, Input, Space, Tag, Modal, message, Card, Select } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -22,7 +12,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { deleteGoods, toggleGoodsStatus } from '@/actions/goods-actions'
+import { deleteGoods, getNextGoodsCode, toggleGoodsStatus } from '@/actions/goods-actions'
 import type { PaginatedGoodsResult } from '@/services/goods.service'
 import GoodsFormClient from './GoodsFormClient'
 
@@ -36,10 +26,7 @@ interface GoodsListClientProps {
 type GoodsRecord = PaginatedGoodsResult['data'][number]
 type GoodsFormMode = 'create' | 'edit'
 
-export default function GoodsListClient({
-  initialData,
-  categories,
-}: GoodsListClientProps) {
+export default function GoodsListClient({ initialData, categories }: GoodsListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -47,11 +34,27 @@ export default function GoodsListClient({
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<GoodsFormMode>('create')
   const [editingGoods, setEditingGoods] = useState<GoodsRecord | null>(null)
+  const [nextGoodsCode, setNextGoodsCode] = useState<string>()
+  const [codeLoading, setCodeLoading] = useState(false)
 
-  const handleOpenCreateModal = () => {
-    setFormMode('create')
-    setEditingGoods(null)
-    setFormModalOpen(true)
+  const handleOpenCreateModal = async () => {
+    setCodeLoading(true)
+    try {
+      const result = await getNextGoodsCode()
+      if (!result.success || !result.data) {
+        message.error(result.message || '生成商品编码失败')
+        return
+      }
+
+      setFormMode('create')
+      setEditingGoods(null)
+      setNextGoodsCode(result.data)
+      setFormModalOpen(true)
+    } catch {
+      message.error('生成商品编码失败')
+    } finally {
+      setCodeLoading(false)
+    }
   }
 
   const handleOpenEditModal = (record: GoodsRecord) => {
@@ -181,11 +184,7 @@ export default function GoodsListClient({
       key: 'measureType',
       width: 100,
       render: (measureType: 'INT' | 'DECIMAL') =>
-        measureType === 'INT' ? (
-          <Tag color="blue">整数</Tag>
-        ) : (
-          <Tag color="green">小数</Tag>
-        ),
+        measureType === 'INT' ? <Tag color="blue">整数</Tag> : <Tag color="green">小数</Tag>,
     },
     {
       title: '成本价',
@@ -210,20 +209,6 @@ export default function GoodsListClient({
       width: 120,
       align: 'right',
       render: (price: number) => `¥${price.toFixed(2)}`,
-    },
-    {
-      title: '包装物',
-      key: 'container',
-      width: 150,
-      render: (_value: unknown, record) =>
-        record.containerName ? (
-          <span>
-            {record.containerName}
-            <Tag style={{ marginLeft: 8 }}>{record.containerRatio}:1</Tag>
-          </span>
-        ) : (
-          '-'
-        ),
     },
     {
       title: '状态',
@@ -289,11 +274,7 @@ export default function GoodsListClient({
   return (
     <div>
       <Card variant="borderless">
-        <Space
-          orientation="vertical"
-          size="middle"
-          style={{ width: '100%' }}
-        >
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* 顶部操作栏 */}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Space>
@@ -324,7 +305,8 @@ export default function GoodsListClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={handleOpenCreateModal}
+              loading={codeLoading}
+              onClick={() => void handleOpenCreateModal()}
             >
               新增商品
             </Button>
@@ -370,6 +352,7 @@ export default function GoodsListClient({
         {formModalOpen && (
           <GoodsFormClient
             mode={formMode}
+            initialCode={formMode === 'create' ? nextGoodsCode : undefined}
             initialValues={
               editingGoods
                 ? {
@@ -383,8 +366,6 @@ export default function GoodsListClient({
                     costPrice: editingGoods.costPrice,
                     partnerPrice: editingGoods.partnerPrice,
                     defaultInPrice: editingGoods.defaultInPrice,
-                    containerId: editingGoods.containerId,
-                    containerRatio: editingGoods.containerRatio,
                     imageUrl: editingGoods.imageUrl || undefined,
                     description: editingGoods.description || undefined,
                   }

@@ -61,6 +61,16 @@ export default async function InventoryQueryPage({
   return (
     <InventoryQueryListClient
       initialData={initialData}
+      initialFilters={{
+        warehouseIds: warehouseIds
+          ? Array.isArray(warehouseIds)
+            ? warehouseIds
+            : [warehouseIds]
+          : [],
+        categoryId,
+        stockStatus,
+        keyword,
+      }}
       warehouses={warehouses}
       categories={categories}
     />

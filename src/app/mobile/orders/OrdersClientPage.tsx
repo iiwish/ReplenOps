@@ -17,7 +17,8 @@ const PAGE_SIZE = 20
 const STATUS_FILTERS: Record<string, string[] | undefined> = {
   all: undefined,
   pending: ['PENDING'],
-  receipt: ['APPROVED', 'PROCESSING'],
+  shipping: ['APPROVED'],
+  receipt: ['PROCESSING'],
   completed: ['COMPLETED'],
   rejected: ['REJECTED'],
   cancelled: ['CANCELLED'],
@@ -25,7 +26,7 @@ const STATUS_FILTERS: Record<string, string[] | undefined> = {
 
 const STATUS_TO_TAB: Record<string, string> = {
   PENDING: 'pending',
-  APPROVED: 'receipt',
+  APPROVED: 'shipping',
   PROCESSING: 'receipt',
   COMPLETED: 'completed',
   REJECTED: 'rejected',
@@ -37,7 +38,7 @@ const STATUS_MAP: Record<
   { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
 > = {
   PENDING: { text: '待审批', variant: 'default' },
-  APPROVED: { text: '待收货', variant: 'secondary' },
+  APPROVED: { text: '待发货', variant: 'secondary' },
   PROCESSING: { text: '待收货', variant: 'secondary' },
   COMPLETED: { text: '已完成', variant: 'outline' },
   REJECTED: { text: '已拒绝', variant: 'destructive' },
@@ -176,7 +177,8 @@ export default function OrdersClientPage() {
   }, [initialTab, loadOrders, selectedStoreId])
 
   const pendingCount = statusCounts.PENDING || 0
-  const receiptCount = (statusCounts.APPROVED || 0) + (statusCounts.PROCESSING || 0)
+  const shippingCount = statusCounts.APPROVED || 0
+  const receiptCount = statusCounts.PROCESSING || 0
   const completedCount = statusCounts.COMPLETED || 0
   const rejectedCount = statusCounts.REJECTED || 0
   const cancelledCount = statusCounts.CANCELLED || 0
@@ -258,7 +260,9 @@ export default function OrdersClientPage() {
           <CardContent className="flex items-center justify-between border-t bg-muted/30 px-4 py-2.5">
             <span className="text-xs text-muted-foreground">订单金额</span>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-primary">¥{order.totalAmount.toFixed(2)}</span>
+              <span className="text-lg font-bold text-primary">
+                ¥{order.totalAmount.toFixed(2)}
+              </span>
               <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </div>
           </CardContent>
@@ -285,7 +289,10 @@ export default function OrdersClientPage() {
     return (
       <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
         <p className="text-sm text-muted-foreground">{error}</p>
-        <Button variant="outline" onClick={() => void loadOrders(1, false, appliedKeyword, activeStatuses)}>
+        <Button
+          variant="outline"
+          onClick={() => void loadOrders(1, false, appliedKeyword, activeStatuses)}
+        >
           重新加载
         </Button>
       </div>
@@ -294,7 +301,8 @@ export default function OrdersClientPage() {
 
   const allOrders = orders
   const pendingOrders = orders.filter((order) => order.status === 'PENDING')
-  const receiptOrders = orders.filter((order) => order.status === 'APPROVED' || order.status === 'PROCESSING')
+  const shippingOrders = orders.filter((order) => order.status === 'APPROVED')
+  const receiptOrders = orders.filter((order) => order.status === 'PROCESSING')
   const completedOrders = orders.filter((order) => order.status === 'COMPLETED')
   const rejectedOrders = orders.filter((order) => order.status === 'REJECTED')
   const cancelledOrders = orders.filter((order) => order.status === 'CANCELLED')
@@ -309,37 +317,45 @@ export default function OrdersClientPage() {
                 value="all"
                 className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
-                全部 <span className="ml-1 tabular-nums text-xs opacity-75">{totalOrderCount}</span>
+                全部 <span className="ml-1 text-xs tabular-nums opacity-75">{totalOrderCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="pending"
                 className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
-                待审批 <span className="ml-1 tabular-nums text-xs opacity-75">{pendingCount}</span>
+                待审批 <span className="ml-1 text-xs tabular-nums opacity-75">{pendingCount}</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="shipping"
+                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
+                待发货 <span className="ml-1 text-xs tabular-nums opacity-75">{shippingCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="receipt"
                 className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
-                待收货 <span className="ml-1 tabular-nums text-xs opacity-75">{receiptCount}</span>
+                待收货 <span className="ml-1 text-xs tabular-nums opacity-75">{receiptCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
                 className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
-                已完成 <span className="ml-1 tabular-nums text-xs opacity-75">{completedCount}</span>
+                已完成{' '}
+                <span className="ml-1 text-xs tabular-nums opacity-75">{completedCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="rejected"
                 className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
-                已拒绝 <span className="ml-1 tabular-nums text-xs opacity-75">{rejectedCount}</span>
+                已拒绝 <span className="ml-1 text-xs tabular-nums opacity-75">{rejectedCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="cancelled"
                 className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
               >
-                已取消 <span className="ml-1 tabular-nums text-xs opacity-75">{cancelledCount}</span>
+                已取消{' '}
+                <span className="ml-1 text-xs tabular-nums opacity-75">{cancelledCount}</span>
               </TabsTrigger>
             </TabsList>
             <Button
@@ -399,28 +415,49 @@ export default function OrdersClientPage() {
           {allOrders.length > 0 ? allOrders.map(renderOrderCard) : renderEmptyState('暂无订单')}
         </TabsContent>
         <TabsContent value="pending" className="mt-3 space-y-2.5">
-          {pendingOrders.length > 0 ? pendingOrders.map(renderOrderCard) : renderEmptyState('暂无待审批订单')}
+          {pendingOrders.length > 0
+            ? pendingOrders.map(renderOrderCard)
+            : renderEmptyState('暂无待审批订单')}
+        </TabsContent>
+        <TabsContent value="shipping" className="mt-3 space-y-2.5">
+          {shippingOrders.length > 0
+            ? shippingOrders.map(renderOrderCard)
+            : renderEmptyState('暂无待发货订单')}
         </TabsContent>
         <TabsContent value="receipt" className="mt-3 space-y-2.5">
-          {receiptOrders.length > 0 ? receiptOrders.map(renderOrderCard) : renderEmptyState('暂无待收货订单')}
+          {receiptOrders.length > 0
+            ? receiptOrders.map(renderOrderCard)
+            : renderEmptyState('暂无待收货订单')}
         </TabsContent>
         <TabsContent value="completed" className="mt-3 space-y-2.5">
-          {completedOrders.length > 0 ? completedOrders.map(renderOrderCard) : renderEmptyState('暂无已完成订单')}
+          {completedOrders.length > 0
+            ? completedOrders.map(renderOrderCard)
+            : renderEmptyState('暂无已完成订单')}
         </TabsContent>
         <TabsContent value="rejected" className="mt-3 space-y-2.5">
-          {rejectedOrders.length > 0 ? rejectedOrders.map(renderOrderCard) : renderEmptyState('暂无已拒绝订单')}
+          {rejectedOrders.length > 0
+            ? rejectedOrders.map(renderOrderCard)
+            : renderEmptyState('暂无已拒绝订单')}
         </TabsContent>
         <TabsContent value="cancelled" className="mt-3 space-y-2.5">
-          {cancelledOrders.length > 0 ? cancelledOrders.map(renderOrderCard) : renderEmptyState('暂无已取消订单')}
+          {cancelledOrders.length > 0
+            ? cancelledOrders.map(renderOrderCard)
+            : renderEmptyState('暂无已取消订单')}
         </TabsContent>
       </Tabs>
 
-      {error && orders.length > 0 && <p className="text-center text-xs text-destructive">{error}</p>}
+      {error && orders.length > 0 && (
+        <p className="text-center text-xs text-destructive">{error}</p>
+      )}
 
-      <div ref={loadMoreRef} className="flex min-h-12 items-center justify-center py-2 text-xs text-muted-foreground">
+      <div
+        ref={loadMoreRef}
+        className="flex min-h-12 items-center justify-center py-2 text-xs text-muted-foreground"
+      >
         {loadingMore && (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />正在加载更多订单...
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            正在加载更多订单...
           </>
         )}
         {!loadingMore && hasMore && '继续下滑加载更多'}

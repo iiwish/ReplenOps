@@ -1,27 +1,15 @@
 import { prisma } from '@/lib/prisma'
 import { StockOutService } from './stock-out.service'
-import { Prisma } from '@prisma/client'
 import { resolveGoodsSnapshot } from '@/lib/goods-snapshot'
-import { getShanghaiDateRange } from '@/lib/shanghai-time'
 import {
   assertOrderInventoryLocked,
   lockOrderInventory,
   releaseOrderInventory,
 } from './inventory-lock.service'
+import { getUserDisplayNameMap, resolveUserDisplayName } from './user-display.service'
+import { calculateContainerRequirements } from '@/lib/container-requirements'
 
 const stockOutService = new StockOutService()
-
-// 列表参数
-export interface ListPendingOrdersParams {
-  page?: number
-  pageSize?: number
-  storeId?: string
-  startDate?: string
-  endDate?: string
-  minAmount?: number
-  maxAmount?: number
-  keyword?: string
-}
 
 // 审批结果
 export interface ApprovalResult {
@@ -31,104 +19,6 @@ export interface ApprovalResult {
 }
 
 export class OrderApprovalService {
-  /**
-   * 获取待审批订单列表
-   */
-  async listPendingOrders(params: ListPendingOrdersParams) {
-    const {
-      page = 1,
-      pageSize = 20,
-      storeId,
-      startDate,
-      endDate,
-      minAmount,
-      maxAmount,
-      keyword,
-    } = params
-
-    const where: Prisma.OrderWhereInput = {
-      status: 'PENDING', // 只显示待审批的
-      isDeleted: false,
-    }
-
-    // 门店筛选
-    if (storeId) {
-      where.storeId = Number.parseInt(storeId, 10)
-    }
-
-    // 日期范围筛选
-    if (startDate || endDate) {
-      const range = getShanghaiDateRange(startDate, endDate)
-      where.orderedAt = {
-        ...(range.start ? { gte: range.start } : {}),
-        ...(range.endExclusive ? { lt: range.endExclusive } : {}),
-      }
-    }
-
-    // 金额范围筛选
-    if (minAmount !== undefined || maxAmount !== undefined) {
-      where.totalAmount = {}
-      if (minAmount !== undefined) {
-        where.totalAmount.gte = minAmount
-      }
-      if (maxAmount !== undefined) {
-        where.totalAmount.lte = maxAmount
-      }
-    }
-
-    // 关键词搜索
-    if (keyword) {
-      where.OR = [
-        { code: { contains: keyword, mode: 'insensitive' } },
-        { remark: { contains: keyword, mode: 'insensitive' } },
-      ]
-    }
-
-    // 查询总数
-    const total = await prisma.order.count({ where })
-
-    // 查询列表
-    const data = await prisma.order.findMany({
-      where,
-      include: {
-        store: {
-          select: {
-            name: true,
-          },
-        },
-        items: {
-          select: {
-            goodsId: true,
-          },
-        },
-      },
-      orderBy: {
-        orderedAt: 'desc',
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    })
-
-    return {
-      data: data.map((order) => ({
-        id: order.id,
-        code: order.code,
-        storeId: order.storeId,
-        storeName: order.storeNameSnapshot ?? order.store.name,
-        status: order.status,
-        totalAmount: Number(order.totalAmount),
-        itemCount: order.items.length, // 商品种类数
-        remark: order.remark,
-        createdBy: order.createdBy,
-        orderedAt: order.orderedAt,
-      })),
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    }
-  }
-
   /**
    * 获取订单详情(含库存检查)
    */
@@ -154,6 +44,21 @@ export class OrderApprovalService {
                 spec: true,
                 categoryId: true,
                 category: { select: { name: true } },
+                containerBindings: {
+                  select: {
+                    containerId: true,
+                    goodsQuantityPerContainer: true,
+                    container: {
+                      select: {
+                        code: true,
+                        name: true,
+                        unit: true,
+                        isActive: true,
+                        isDeleted: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -164,6 +69,8 @@ export class OrderApprovalService {
     if (!order) {
       throw new Error('订单不存在')
     }
+
+    const userNames = await getUserDisplayNameMap([order.createdBy])
 
     // 批量查询库存
     const goodsIds = order.items.map((item) => item.goodsId)
@@ -249,6 +156,26 @@ export class OrderApprovalService {
 
     // 检查是否所有商品库存充足
     const canApprove = itemsWithStock.every((item) => item.stockStatus !== 'insufficient')
+    const containerRequirements = calculateContainerRequirements(
+      order.items.map((item, index) => {
+        const itemWithStock = itemsWithStock[index]!
+        return {
+          goodsId: item.goodsId,
+          goodsName: itemWithStock.goodsName,
+          goodsUnit: itemWithStock.goodsUnit,
+          quantity: Number(item.quantity),
+          bindings: item.goods.containerBindings.map((binding) => ({
+            containerId: binding.containerId,
+            containerCode: binding.container.code,
+            containerName: binding.container.name,
+            containerUnit: binding.container.unit,
+            goodsQuantityPerContainer: Number(binding.goodsQuantityPerContainer),
+            isActive: binding.container.isActive,
+            isDeleted: binding.container.isDeleted,
+          })),
+        }
+      })
+    )
 
     return {
       id: order.id,
@@ -261,8 +188,10 @@ export class OrderApprovalService {
       totalAmount: Number(order.totalAmount),
       remark: order.remark,
       createdBy: order.createdBy,
+      createdByName: resolveUserDisplayName(order.createdBy, userNames) ?? order.createdBy,
       orderedAt: order.orderedAt,
       items: itemsWithStock,
+      containers: containerRequirements,
       canApprove,
     }
   }
@@ -442,33 +371,6 @@ export class OrderApprovalService {
         message: '已拒绝订单',
       }
     })
-  }
-
-  /**
-   * 批量审批
-   */
-  async batchApprove(orderIds: string[], userId: string) {
-    const results = []
-
-    for (const orderId of orderIds) {
-      try {
-        const result = await this.approve(orderId, userId)
-        results.push({
-          orderId,
-          success: true,
-          message: result.message,
-          stockOutId: result.stockOutId,
-        })
-      } catch (error) {
-        results.push({
-          orderId,
-          success: false,
-          message: error instanceof Error ? error.message : '未知错误',
-        })
-      }
-    }
-
-    return results
   }
 }
 

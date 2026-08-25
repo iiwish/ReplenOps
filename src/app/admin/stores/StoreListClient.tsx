@@ -2,16 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Modal,
-  message,
-  Card,
-} from 'antd'
+import { Table, Button, Input, Space, Tag, Modal, message, Card } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -35,9 +26,7 @@ interface StoreListClientProps {
 type StoreRecord = PaginatedStoreResult['data'][number]
 type StoreFormMode = 'create' | 'edit'
 
-export default function StoreListClient({
-  initialData,
-}: StoreListClientProps) {
+export default function StoreListClient({ initialData }: StoreListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
@@ -155,14 +144,21 @@ export default function StoreListClient({
     },
     {
       title: '管理员',
-      dataIndex: 'adminCount',
-      key: 'adminCount',
-      width: 100,
-      render: (count: number) => (
-        <Tag icon={<UserOutlined />} color="blue">
-          {count} 人
-        </Tag>
-      ),
+      dataIndex: 'admins',
+      key: 'admins',
+      width: 220,
+      render: (admins: StoreRecord['admins']) =>
+        admins.length > 0 ? (
+          <Space size={[4, 4]} wrap>
+            {admins.map((admin) => (
+              <Tag key={admin.userId} icon={<UserOutlined />} color="blue">
+                {admin.displayName}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <span style={{ color: '#8c8c8c' }}>未设置</span>
+        ),
     },
     {
       title: '状态',
@@ -236,15 +232,11 @@ export default function StoreListClient({
   return (
     <div>
       <Card variant="borderless">
-        <Space
-          orientation="vertical"
-          size="middle"
-          style={{ width: '100%' }}
-        >
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* 顶部操作栏 */}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Search
-              placeholder="搜索门店名称或编码"
+              placeholder="搜索门店名称、编码或管理员"
               allowClear
               enterButton={<SearchOutlined />}
               style={{ width: 300 }}
@@ -252,11 +244,7 @@ export default function StoreListClient({
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={handleSearch}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreateModal}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
               新增门店
             </Button>
           </div>
@@ -282,7 +270,7 @@ export default function StoreListClient({
                 router.push(`/admin/stores?${params.toString()}`)
               },
             }}
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1320 }}
           />
         </Space>
       </Card>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { getOrderById } from '@/actions/order-actions'
 import { revokeOrder } from '@/actions/order-revocation-actions'
 import { RevokeOrderModal } from '@/components/admin/orders/RevokeOrderModal'
+import { OrderApprovalModal } from '@/components/admin/orders/OrderApprovalModal'
 import dayjs from 'dayjs'
 import Link from 'next/link'
 
@@ -17,14 +18,18 @@ interface OrderDetail {
   totalAmount: number
   remark: string | null
   createdBy: string
+  createdByName: string
   orderedAt: Date
   createdAt: Date
   approvedBy?: string | null
+  approvedByName?: string | null
   approvedAt?: Date | null
+  completedAt?: Date | null
   stockOut: {
     id: string
     code: string
     status: string
+    completedAt: Date | null
   } | null
   items: Array<{
     id: string
@@ -43,20 +48,27 @@ type OrderDetailItem = OrderDetail['items'][number]
 // 订单状态配置
 const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING: { label: '待审批', color: 'orange' },
-  APPROVED: { label: '已审批', color: 'blue' },
+  APPROVED: { label: '待出库', color: 'blue' },
   REJECTED: { label: '已拒绝', color: 'red' },
-  PROCESSING: { label: '配货中', color: 'cyan' },
+  PROCESSING: { label: '待收货', color: 'cyan' },
   COMPLETED: { label: '已完成', color: 'green' },
   CANCELLED: { label: '已取消', color: 'default' },
 }
 
-export function OrderDetailClient({ orderId }: { orderId: string }) {
+export function OrderDetailClient({
+  orderId,
+  canReviewOrders,
+}: {
+  orderId: string
+  canReviewOrders: boolean
+}) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showRevokeModal, setShowRevokeModal] = useState(false)
   const [revokeLoading, setRevokeLoading] = useState(false)
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -177,14 +189,14 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
           <Descriptions.Item label="下单时间">
             {dayjs(order.orderedAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
-          <Descriptions.Item label="下单人">{order.createdBy}</Descriptions.Item>
+          <Descriptions.Item label="下单人">{order.createdByName}</Descriptions.Item>
           {order.stockOut && (
             <Descriptions.Item label="关联出库单">
               <Link href={`/admin/stock-out/${order.stockOut.id}`}>{order.stockOut.code}</Link>
             </Descriptions.Item>
           )}
           {order.approvedBy && (
-            <Descriptions.Item label="审批人">{order.approvedBy}</Descriptions.Item>
+            <Descriptions.Item label="审批人">{order.approvedByName}</Descriptions.Item>
           )}
           {order.approvedAt && (
             <Descriptions.Item label="审批时间">
@@ -232,7 +244,7 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
                   <div className="text-sm text-gray-500">
                     {dayjs(order.orderedAt).format('YYYY-MM-DD HH:mm:ss')}
                   </div>
-                  <div className="text-sm text-gray-500">创建人: {order.createdBy}</div>
+                  <div className="text-sm text-gray-500">创建人: {order.createdByName}</div>
                 </div>
               ),
             },
@@ -251,7 +263,56 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
                           </div>
                         )}
                         {order.approvedBy && (
-                          <div className="text-sm text-gray-500">审批人: {order.approvedBy}</div>
+                          <div className="text-sm text-gray-500">
+                            审批人: {order.approvedByName}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            ...(order.stockOut && order.status !== 'REJECTED' && order.status !== 'CANCELLED'
+              ? [
+                  {
+                    color: 'green',
+                    children: (
+                      <div>
+                        <div className="font-semibold">待出库单已生成</div>
+                        <div className="text-sm text-gray-500">出库单: {order.stockOut.code}</div>
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            ...(order.stockOut?.status === 'COMPLETED'
+              ? [
+                  {
+                    color: 'green',
+                    children: (
+                      <div>
+                        <div className="font-semibold">仓库已发货</div>
+                        {order.stockOut.completedAt && (
+                          <div className="text-sm text-gray-500">
+                            {dayjs(order.stockOut.completedAt).format('YYYY-MM-DD HH:mm:ss')}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            ...(order.status === 'COMPLETED'
+              ? [
+                  {
+                    color: 'green',
+                    children: (
+                      <div>
+                        <div className="font-semibold">门店已确认收货</div>
+                        {order.completedAt && (
+                          <div className="text-sm text-gray-500">
+                            {dayjs(order.completedAt).format('YYYY-MM-DD HH:mm:ss')}
+                          </div>
                         )}
                       </div>
                     ),
@@ -266,10 +327,10 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
       <div>
         <Space>
           <Button onClick={() => router.back()}>返回</Button>
-          {order.status === 'PENDING' && (
-            <Link href={`/admin/order-approval/${order.id}`}>
-              <Button type="primary">去审批</Button>
-            </Link>
+          {order.status === 'PENDING' && canReviewOrders && (
+            <Button type="primary" onClick={() => setShowApprovalModal(true)}>
+              审批订单
+            </Button>
           )}
           {order.stockOut && (
             <Link href={`/admin/stock-out/${order.stockOut.id}`}>
@@ -291,6 +352,17 @@ export function OrderDetailClient({ orderId }: { orderId: string }) {
         onConfirm={handleRevoke}
         onCancel={() => setShowRevokeModal(false)}
         loading={revokeLoading}
+      />
+
+      <OrderApprovalModal
+        open={showApprovalModal}
+        orderId={showApprovalModal ? orderId : null}
+        orderCode={order.code}
+        onCancel={() => setShowApprovalModal(false)}
+        onCompleted={async () => {
+          setShowApprovalModal(false)
+          await loadData()
+        }}
       />
     </div>
   )

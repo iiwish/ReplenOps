@@ -45,7 +45,7 @@ export function AuditLogDetail({ log, onBack }: AuditLogDetailProps) {
             {dayjs(log.createdAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
           <Descriptions.Item label="操作类型">{getActionTag(log.action)}</Descriptions.Item>
-          <Descriptions.Item label="操作人">{log.operatedBy}</Descriptions.Item>
+          <Descriptions.Item label="操作人">{log.operatorName}</Descriptions.Item>
           <Descriptions.Item label="IP地址">{log.operatorIp || '-'}</Descriptions.Item>
           <Descriptions.Item label="操作说明">{log.reason || '-'}</Descriptions.Item>
           <Descriptions.Item label="业务对象">
