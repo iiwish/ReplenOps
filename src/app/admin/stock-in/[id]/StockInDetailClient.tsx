@@ -56,9 +56,7 @@ const statusMap = {
   },
 }
 
-export default function StockInDetailClient({
-  data,
-}: StockInDetailClientProps) {
+export default function StockInDetailClient({ data }: StockInDetailClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -133,7 +131,7 @@ export default function StockInDetailClient({
   const handleComplete = () => {
     Modal.confirm({
       title: '确认入库',
-        content: `确定要将入库单 "${data.code}" 确认入库吗？入库后将更新库存数量。`,
+      content: `确定要将入库单 "${data.code}" 确认入库吗？入库后将更新库存数量。`,
       okText: '确认入库',
       cancelText: '取消',
       onOk: async () => {
@@ -223,9 +221,7 @@ export default function StockInDetailClient({
       width: 120,
       align: 'right',
       render: (quantity: number, record) =>
-        record.measureType === 'INT'
-          ? quantity.toFixed(0)
-          : quantity.toFixed(3),
+        record.measureType === 'INT' ? quantity.toFixed(0) : quantity.toFixed(3),
     },
     {
       title: '单价（元）',
@@ -258,6 +254,7 @@ export default function StockInDetailClient({
         <p style={{ color: '#999', fontSize: 12 }}>
           {new Date(data.createdAt).toLocaleString('zh-CN')}
         </p>
+        <p style={{ color: '#999', fontSize: 12 }}>创建人：{data.createdByName}</p>
       </>
     ),
   })
@@ -273,6 +270,7 @@ export default function StockInDetailClient({
           <p style={{ color: '#999', fontSize: 12 }}>
             {new Date(data.approvedAt).toLocaleString('zh-CN')}
           </p>
+          <p style={{ color: '#999', fontSize: 12 }}>审批人：{data.approvedByName}</p>
         </>
       ),
     })
@@ -316,9 +314,7 @@ export default function StockInDetailClient({
               >
                 返回
               </Button>
-              <span style={{ fontSize: 20, fontWeight: 'bold' }}>
-                入库单详情
-              </span>
+              <span style={{ fontSize: 20, fontWeight: 'bold' }}>入库单详情</span>
             </div>
             <Space>
               {data.status === 'PENDING' && (
@@ -326,17 +322,11 @@ export default function StockInDetailClient({
                   <Button
                     type="default"
                     icon={<EditOutlined />}
-                    onClick={() =>
-                      router.push(`/admin/stock-in/${data.id}/edit`)
-                    }
+                    onClick={() => router.push(`/admin/stock-in/${data.id}/edit`)}
                   >
                     编辑
                   </Button>
-                  <Button
-                    type="primary"
-                    onClick={handleApprove}
-                    loading={loading}
-                  >
+                  <Button type="primary" onClick={handleApprove} loading={loading}>
                     审批通过
                   </Button>
                   <Button danger onClick={handleReject} loading={loading}>
@@ -346,11 +336,7 @@ export default function StockInDetailClient({
               )}
 
               {data.status === 'APPROVED' && (
-                <Button
-                  type="primary"
-                  onClick={handleComplete}
-                  loading={loading}
-                >
+                <Button type="primary" onClick={handleComplete} loading={loading}>
                   确认入库
                 </Button>
               )}
@@ -367,17 +353,13 @@ export default function StockInDetailClient({
         {/* 基本信息 */}
         <Card title="基本信息" variant="borderless">
           <Descriptions column={2}>
-            <Descriptions.Item label="入库单号">
-              {data.code}
-            </Descriptions.Item>
+            <Descriptions.Item label="入库单号">{data.code}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag icon={statusConfig.icon} color={statusConfig.color}>
                 {statusConfig.text}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="仓库">
-              {data.warehouseName}
-            </Descriptions.Item>
+            <Descriptions.Item label="仓库">{data.warehouseName}</Descriptions.Item>
             <Descriptions.Item label="总金额">
               <span style={{ fontSize: 16, fontWeight: 'bold', color: '#ff4d4f' }}>
                 ¥{data.totalAmount.toFixed(2)}
@@ -386,10 +368,14 @@ export default function StockInDetailClient({
             <Descriptions.Item label="创建时间">
               {new Date(data.createdAt).toLocaleString('zh-CN')}
             </Descriptions.Item>
+            <Descriptions.Item label="创建人">{data.createdByName}</Descriptions.Item>
             {data.approvedAt && (
-              <Descriptions.Item label="审批时间">
-                {new Date(data.approvedAt).toLocaleString('zh-CN')}
-              </Descriptions.Item>
+              <>
+                <Descriptions.Item label="审批时间">
+                  {new Date(data.approvedAt).toLocaleString('zh-CN')}
+                </Descriptions.Item>
+                <Descriptions.Item label="审批人">{data.approvedByName}</Descriptions.Item>
+              </>
             )}
             {data.completedAt && (
               <Descriptions.Item label="入库时间">

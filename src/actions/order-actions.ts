@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { orderService } from '@/services/order.service'
 import type { CartRestoreItem } from '@/services/order.service'
-import { orderingScheduleService } from '@/services/ordering-schedule.service'
 import { requireActionPermission } from '@/lib/action-permissions'
 import { getCurrentUser } from '@/lib/session.server'
 import { assertCanOperateStore } from '@/lib/store-access'
@@ -73,22 +72,6 @@ export async function createOrder(data: {
     const validatedData = createOrderSchema.parse(data)
 
     await assertCanOperateStore(user, Number.parseInt(validatedData.storeId, 10))
-
-    // 检查报货时间窗口
-    const isWithinTime = await orderingScheduleService.isWithinOrderingTime()
-    if (!isWithinTime) {
-      const status = await orderingScheduleService.getOrderingStatus()
-      if (status.nextOrderingTime) {
-        return {
-          success: false,
-          message: `当前不在报货时间内，下次报货时间为${status.nextOrderingTime.dayName} ${status.nextOrderingTime.startTime}`,
-        }
-      }
-      return {
-        success: false,
-        message: '当前不在报货时间内，请在工作日 07:30-18:30 内报货',
-      }
-    }
 
     // 调用 Service 创建
     const order = await orderService.create({
@@ -159,6 +142,33 @@ export async function getOrders(params: {
     return {
       success: false,
       message: error instanceof Error ? error.message : '获取订单列表失败',
+    }
+  }
+}
+
+/**
+ * 获取门店当前待处理订单（移动端下单入口使用）。
+ */
+export async function getActiveOrderForStore(storeId: string): Promise<ActionResponse> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return { success: false, message: '用户未登录' }
+    }
+
+    const validatedStoreId = z.string().regex(/^\d+$/, '门店ID无效').parse(storeId)
+    const order = await orderService.getActiveOrderForStore(validatedStoreId, user)
+
+    return { success: true, data: order }
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof z.ZodError
+          ? '门店ID无效'
+          : error instanceof Error
+            ? error.message
+            : '获取待处理订单失败',
     }
   }
 }

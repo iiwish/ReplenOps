@@ -25,10 +25,16 @@ interface Props {
 }
 
 // 关联单据类型配置
-const REFERENCE_TYPE_CONFIG: Record<string, { label: string; routePrefix: string }> = {
-  STOCK_IN: { label: '入库单', routePrefix: '/admin/stock-in' },
-  STOCK_OUT: { label: '出库单', routePrefix: '/admin/stock-out' },
-  ADJUSTMENT: { label: '库存调整', routePrefix: '/admin/inventory/adjustment' },
+const REFERENCE_TYPE_CONFIG: Record<
+  string,
+  { label: string; getHref: (referenceId: string) => Route }
+> = {
+  STOCK_IN: { label: '入库单', getHref: (id) => `/admin/stock-in/${id}` as Route },
+  STOCK_OUT: { label: '出库单', getHref: (id) => `/admin/stock-out/${id}` as Route },
+  ADJUSTMENT: {
+    label: '库存调整',
+    getHref: () => '/admin/inventory/logs?changeTypes=ADJUSTMENT' as Route,
+  },
 }
 
 export default function CostHistoryListClient({ initialData, warehouses, initialFilters }: Props) {
@@ -130,12 +136,8 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
       return <Text type="secondary">{referenceType}</Text>
     }
 
-    if (!config.routePrefix) {
-      return <Text type="secondary">{config.label}</Text>
-    }
-
     return (
-      <Link href={`${config.routePrefix}/${referenceId}` as Route}>
+      <Link href={config.getHref(referenceId)}>
         <Text className="text-blue-600 hover:underline">{config.label}</Text>
       </Link>
     )

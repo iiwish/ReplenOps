@@ -125,7 +125,7 @@ export function RevokeOrderModal({
             label="撤销原因"
             rules={[
               { required: true, message: '请输入撤销原因' },
-              { min: 10, message: '撤销原因至少 10 个字符' },
+              { min: 3, message: '撤销原因至少 3 个字符' },
               { max: 500, message: '撤销原因不能超过 500 字' },
             ]}
           >

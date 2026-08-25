@@ -1,7 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import type { AuthUser } from '@/lib/auth'
 import { assertCanReadStore, canReadAllStores, getAccessibleStoreIds } from '@/lib/store-access'
-import { getShanghaiMonth, getShanghaiMonthRange } from '@/lib/shanghai-time'
+import {
+  getShanghaiDate,
+  getShanghaiDateRange,
+  getShanghaiMonth,
+  getShanghaiMonthRange,
+} from '@/lib/shanghai-time'
 
 export interface TodayStats {
   orderCount: number
@@ -31,11 +36,7 @@ export class DashboardService {
   async getTodayStats(storeId?: string, user?: AuthUser): Promise<TodayStats> {
     const storeScope = await this.getStoreScope(storeId, user)
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    const todayRange = getShanghaiDateRange(getShanghaiDate(), getShanghaiDate())
     const monthRange = getShanghaiMonthRange(getShanghaiMonth())
     const monthOrderScope = {
       ...(storeScope !== undefined && { storeId: storeScope }),
@@ -55,14 +56,14 @@ export class DashboardService {
       prisma.order.count({
         where: {
           ...(storeScope !== undefined && { storeId: storeScope }),
-          createdAt: { gte: today, lt: tomorrow },
+          orderedAt: { gte: todayRange.start, lt: todayRange.endExclusive },
           isDeleted: false,
         },
       }),
       prisma.order.count({
         where: {
           ...(storeScope !== undefined && { storeId: storeScope }),
-          status: { in: ['PENDING', 'APPROVED'] },
+          status: { in: ['PENDING', 'APPROVED', 'PROCESSING'] },
           isDeleted: false,
         },
       }),
@@ -127,7 +128,7 @@ export class DashboardService {
     const pendingReceiptOrders = await prisma.order.count({
       where: {
         ...(storeScope !== undefined && { storeId: storeScope }),
-        status: { in: ['APPROVED', 'PROCESSING'] },
+        status: 'PROCESSING',
         isDeleted: false,
       },
     })
@@ -149,7 +150,7 @@ export class DashboardService {
         title: '待收货订单',
         description: '有订单待收货处理',
         count: pendingReceiptOrders,
-        link: '/mobile/orders?status=APPROVED',
+        link: '/mobile/orders?status=PROCESSING',
       },
       containersToReturn: {
         id: 'containers-return',

@@ -49,18 +49,7 @@ export const menuItems: MenuItemConfig[] = [
     key: 'orders',
     label: '订单管理',
     icon: <ShoppingCartOutlined />,
-    children: [
-      {
-        key: 'order-list',
-        label: '订单列表',
-        path: '/admin/orders',
-      },
-      {
-        key: 'order-approval',
-        label: '订单审批',
-        path: '/admin/order-approval',
-      },
-    ],
+    path: '/admin/orders',
   },
   {
     key: 'inventory',
@@ -93,11 +82,6 @@ export const menuItems: MenuItemConfig[] = [
         path: '/admin/inventory/logs',
       },
       {
-        key: 'inventory-adjustment',
-        label: '库存调整',
-        path: '/admin/inventory/adjustment',
-      },
-      {
         key: 'cost-history',
         label: '成本变动',
         path: '/admin/inventory/cost-history',
@@ -108,18 +92,7 @@ export const menuItems: MenuItemConfig[] = [
     key: 'stores',
     label: '门店管理',
     icon: <ShopOutlined />,
-    children: [
-      {
-        key: 'store-list',
-        label: '门店列表',
-        path: '/admin/stores',
-      },
-      {
-        key: 'store-admins',
-        label: '门店管理员',
-        path: '/admin/store-admins',
-      },
-    ],
+    path: '/admin/stores',
   },
   {
     key: 'containers',
@@ -138,7 +111,7 @@ export const menuItems: MenuItemConfig[] = [
       },
       {
         key: 'container-return',
-        label: '归还记录',
+        label: '归还验收',
         path: '/admin/container-return',
       },
     ],

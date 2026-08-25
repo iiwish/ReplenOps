@@ -11,6 +11,7 @@ export interface AuditLogFiltersProps {
     filters: Omit<ListAuditLogsInput, 'page' | 'pageSize'> & { page: number; pageSize: number }
   ) => void
   loading?: boolean
+  operators: Array<{ id: string; name: string }>
 }
 
 const actionOptions = [
@@ -30,6 +31,7 @@ interface FormValues {
 export default function AuditLogFilters({
   onFiltersChange,
   loading = false,
+  operators,
 }: AuditLogFiltersProps) {
   const [form] = Form.useForm<FormValues>()
 
@@ -86,8 +88,18 @@ export default function AuditLogFilters({
           />
         </Form.Item>
 
-        <Form.Item<FormValues> name="operatorId" label="操作人ID">
-          <Input placeholder="输入操作人ID" style={{ width: 150 }} />
+        <Form.Item<FormValues> name="operatorId" label="操作人">
+          <Select
+            placeholder="全部"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            options={operators.map((operator) => ({
+              label: operator.name,
+              value: operator.id,
+            }))}
+            style={{ width: 150 }}
+          />
         </Form.Item>
 
         <Form.Item<FormValues> name="dateRange" label="时间范围">

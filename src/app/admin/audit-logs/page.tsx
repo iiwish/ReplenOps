@@ -10,10 +10,17 @@ export default async function AuditLogsPage() {
   const roles = user ? getUserRoles(user) : []
   const isSuperAdmin = roles.includes('super_admin')
 
-  const result = await auditLogService.list({
-    page: 1,
-    pageSize: 20,
-  })
+  const [result, operators] = await Promise.all([
+    auditLogService.list({
+      page: 1,
+      pageSize: 20,
+    }),
+    isSuperAdmin
+      ? auditLogService.getOperators()
+      : Promise.resolve(user ? [{ id: user.id, name: user.name || user.username }] : []),
+  ])
 
-  return <AuditLogListClient initialData={result} isSuperAdmin={isSuperAdmin} />
+  return (
+    <AuditLogListClient initialData={result} isSuperAdmin={isSuperAdmin} operators={operators} />
+  )
 }

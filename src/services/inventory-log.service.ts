@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { InventoryChangeType, Prisma } from '@prisma/client'
+import {
+  getUserDisplayNameMap,
+  resolveUserDisplayName,
+  type UserDisplayNameMap,
+} from './user-display.service'
 
 // 列表参数接口
 export interface ListInventoryLogParams {
@@ -75,7 +80,7 @@ export class InventoryLogService {
         }
       }
     },
-    operatorNameById: Map<string, string>
+    operatorNameById: UserDisplayNameMap
   ): InventoryLogDetailItem {
     return {
       id: String(item.id),
@@ -93,22 +98,9 @@ export class InventoryLogService {
       referenceId: item.referenceId,
       remark: item.remark,
       operatorId: item.operatedBy,
-      operatorName: operatorNameById.get(item.operatedBy) ?? item.operatedBy,
+      operatorName: resolveUserDisplayName(item.operatedBy, operatorNameById) ?? item.operatedBy,
       createdAt: item.createdAt,
     }
-  }
-
-  private async getOperatorNameMap(operatorIds: string[]): Promise<Map<string, string>> {
-    if (operatorIds.length === 0) {
-      return new Map()
-    }
-
-    const users = await prisma.user.findMany({
-      where: { id: { in: Array.from(new Set(operatorIds)) } },
-      select: { id: true, username: true, name: true },
-    })
-
-    return new Map(users.map((user) => [user.id, user.name || user.username]))
   }
 
   /**
@@ -212,7 +204,7 @@ export class InventoryLogService {
       },
     })
 
-    const operatorNameById = await this.getOperatorNameMap(data.map((item) => item.operatedBy))
+    const operatorNameById = await getUserDisplayNameMap(data.map((item) => item.operatedBy))
     const formattedData: InventoryLogDetailItem[] = data.map((item) =>
       this.toInventoryLogDetailItem(item, operatorNameById)
     )
@@ -271,7 +263,7 @@ export class InventoryLogService {
       },
     })
 
-    const operatorNameById = await this.getOperatorNameMap(data.map((item) => item.operatedBy))
+    const operatorNameById = await getUserDisplayNameMap(data.map((item) => item.operatedBy))
     return data.map((item) => this.toInventoryLogDetailItem(item, operatorNameById))
   }
 
@@ -282,11 +274,11 @@ export class InventoryLogService {
       orderBy: { operatedBy: 'asc' },
     })
     const operatorIds = logs.map((log) => log.operatedBy)
-    const operatorNameById = await this.getOperatorNameMap(operatorIds)
+    const operatorNameById = await getUserDisplayNameMap(operatorIds)
 
     return operatorIds.map((id) => ({
       id,
-      username: operatorNameById.get(id) ?? id,
+      username: resolveUserDisplayName(id, operatorNameById) ?? id,
     }))
   }
 }

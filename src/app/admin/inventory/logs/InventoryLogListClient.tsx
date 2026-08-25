@@ -1,8 +1,8 @@
 'use client'
 
 import type { Route } from 'next'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   Card,
   Table,
@@ -20,12 +20,14 @@ import {
   FilterOutlined,
   ReloadOutlined,
   FileExcelOutlined,
+  EditOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PaginatedInventoryLogResult } from '@/services/inventory-log.service'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import Link from 'next/link'
+import InventoryAdjustmentModal from '@/components/admin/inventory/InventoryAdjustmentModal'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
@@ -43,6 +45,7 @@ interface Props {
     operatorId?: string
   }
   canAdjustInventory: boolean
+  initialAdjustmentOpen: boolean
 }
 
 type InventoryLogRecord = PaginatedInventoryLogResult['data'][number]
@@ -73,9 +76,20 @@ export default function InventoryLogListClient({
   operators,
   initialFilters,
   canAdjustInventory,
+  initialAdjustmentOpen,
 }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false)
+
+  useEffect(() => {
+    if (!canAdjustInventory || !initialAdjustmentOpen) return
+
+    const frame = requestAnimationFrame(() => setAdjustmentOpen(true))
+    return () => cancelAnimationFrame(frame)
+  }, [canAdjustInventory, initialAdjustmentOpen])
 
   // 筛选状态
   const [filters, setFilters] = useState({
@@ -149,6 +163,29 @@ export default function InventoryLogListClient({
     const link = document.createElement('a')
     link.href = `/api/inventory/logs/export${query ? `?${query}` : ''}`
     link.click()
+  }
+
+  const openAdjustment = () => {
+    setAdjustmentOpen(true)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('adjustment', '1')
+    router.replace(`${pathname}?${params.toString()}` as Route, { scroll: false })
+  }
+
+  const closeAdjustment = () => {
+    setAdjustmentOpen(false)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('adjustment')
+    router.replace(`${pathname}${params.size > 0 ? `?${params.toString()}` : ''}` as Route, {
+      scroll: false,
+    })
+  }
+
+  const handleAdjustmentCompleted = async () => {
+    closeAdjustment()
+    setLoading(true)
+    router.refresh()
+    setTimeout(() => setLoading(false), 500)
   }
 
   // 分页处理
@@ -304,8 +341,8 @@ export default function InventoryLogListClient({
               导出
             </Button>
             {canAdjustInventory && (
-              <Button type="link" href="/admin/inventory/adjustment">
-                手动调整库存
+              <Button type="primary" icon={<EditOutlined />} onClick={openAdjustment}>
+                调整库存
               </Button>
             )}
             <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
@@ -419,6 +456,13 @@ export default function InventoryLogListClient({
           scroll={{ x: 1400 }}
         />
       </Card>
+
+      <InventoryAdjustmentModal
+        open={adjustmentOpen}
+        warehouses={warehouses}
+        onCancel={closeAdjustment}
+        onCompleted={handleAdjustmentCompleted}
+      />
     </div>
   )
 }
