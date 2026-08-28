@@ -1,0 +1,11 @@
+<svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <title>商品图片占位图</title>
+  <rect width="800" height="800" fill="#f3f5f4"/>
+  <rect x="205" y="224" width="390" height="352" rx="28" fill="#ffffff" stroke="#cbd5d1" stroke-width="12"/>
+  <path d="M211 309h378" stroke="#cbd5d1" stroke-width="12"/>
+  <path d="M400 224v352" stroke="#cbd5d1" stroke-width="12"/>
+  <path d="M264 309l136-79 136 79" fill="none" stroke="#78938a" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M310 401h180M310 453h180M310 505h112" stroke="#78938a" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="537" cy="522" r="72" fill="#f26b5b"/>
+  <path d="M505 522h64M537 490v64" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+</svg>

@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next'
+import { brand } from '@/config/brand'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'ReplenOps',
-    short_name: 'ReplenOps',
-    description: '门店订货与库存协同平台',
+    name: brand.name,
+    short_name: brand.name,
+    description: brand.description,
     start_url: '/mobile',
     scope: '/mobile',
     display: 'standalone',

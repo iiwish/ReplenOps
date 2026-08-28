@@ -5,6 +5,17 @@ import { z } from 'zod'
 import { requireActionPermission } from '@/lib/action-permissions'
 import { goodsService } from '@/services/goods.service'
 import { GOODS_CODE_PATTERN } from '@/lib/goods-code-policy'
+import { isAllowedProductImageSource } from '@/lib/product-image'
+
+const productImageSourceSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === '' || isAllowedProductImageSource(value),
+    '图片地址应为 public/images 下的站内路径或 HTTP(S) URL'
+  )
+  .optional()
+  .nullable()
 
 // Zod 验证 Schema
 const goodsSchema = z.object({
@@ -22,7 +33,7 @@ const goodsSchema = z.object({
   costPrice: z.coerce.number().min(0, '成本价不能为负数'),
   partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
   defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
-  imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
+  imageUrl: productImageSourceSchema,
   description: z.string().optional().nullable(),
 })
 
@@ -37,7 +48,7 @@ const updateGoodsSchema = z.object({
   costPrice: z.coerce.number().min(0, '成本价不能为负数'),
   partnerPrice: z.coerce.number().min(0, '领用价不能为负数'),
   defaultInPrice: z.coerce.number().min(0, '默认入库价不能为负数'),
-  imageUrl: z.string().url('图片URL格式错误').optional().nullable().or(z.literal('')),
+  imageUrl: productImageSourceSchema,
   description: z.string().optional().nullable(),
 })
 

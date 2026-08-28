@@ -1,9 +1,10 @@
 'use client'
 
-import { ImageOff } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
+import { brand } from '@/config/brand'
 import { cn } from '@/lib/utils'
+import { isRemoteProductImageSource, normalizeProductImageSource } from '@/lib/product-image'
 
 interface ProductImageProps {
   src: string | null | undefined
@@ -12,18 +13,8 @@ interface ProductImageProps {
   sizes: string
 }
 
-function normalizeImageUrl(source: string | null | undefined): string | null {
-  const trimmedSource = source?.trim()
-
-  if (!trimmedSource) {
-    return null
-  }
-
-  return trimmedSource.replace(/(\.(?:avif|gif|jpe?g|png|webp))_\d+x\d+(?=$|\?)/i, '$1')
-}
-
 export function ProductImage({ src, alt, className, sizes }: ProductImageProps) {
-  const imageSource = normalizeImageUrl(src)
+  const imageSource = normalizeProductImageSource(src)
   const [failedSource, setFailedSource] = useState<string | null>(null)
   const canRenderImage = imageSource !== null && failedSource !== imageSource
 
@@ -41,11 +32,18 @@ export function ProductImage({ src, alt, className, sizes }: ProductImageProps) 
           fill
           sizes={sizes}
           className="object-cover"
+          unoptimized={isRemoteProductImageSource(imageSource)}
           onError={() => setFailedSource(imageSource)}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center" role="img" aria-label={`${alt} 暂无图片`}>
-          <ImageOff className="h-5 w-5" aria-hidden="true" />
+        <div className="relative h-full w-full" role="img" aria-label={`${alt} 暂无图片`}>
+          <Image
+            src={brand.productPlaceholderPath}
+            alt=""
+            fill
+            sizes={sizes}
+            className="object-cover"
+          />
         </div>
       )}
     </div>

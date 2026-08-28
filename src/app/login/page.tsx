@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
+import { BrandLogo } from '@/components/BrandLogo'
+import { brand } from '@/config/brand'
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
@@ -49,8 +51,15 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">ReplenOps</h1>
-          <p className="mt-2 text-sm text-gray-600">门店订货与库存协同平台</p>
+          <h1>
+            <BrandLogo
+              priority
+              className="justify-center"
+              logoClassName="h-12 w-12"
+              textClassName="text-3xl font-bold text-gray-900"
+            />
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">{brand.description}</p>
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow-lg">

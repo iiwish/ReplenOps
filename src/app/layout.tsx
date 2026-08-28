@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthSessionGuard } from '@/components/auth/AuthSessionGuard'
+import { brand } from '@/config/brand'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -14,14 +15,18 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'ReplenOps',
-    template: '%s | ReplenOps',
+    default: brand.name,
+    template: `%s | ${brand.name}`,
   },
-  description: '门店订货与库存协同平台',
+  description: brand.description,
+  icons: {
+    icon: brand.logoPath,
+    apple: '/icons/icon-192x192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'ReplenOps',
+    title: brand.name,
   },
 }
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Form, Input, InputNumber, Button, message, Space, Select, Radio } from 'antd'
 import { createGoods, updateGoods } from '@/actions/goods-actions'
 import { GOODS_CODE_PATTERN, shouldValidateGoodsCode } from '@/lib/goods-code-policy'
+import { isAllowedProductImageSource } from '@/lib/product-image'
 
 const { TextArea } = Input
 
@@ -231,12 +232,22 @@ export default function GoodsFormClient({
       </Space>
 
       <Form.Item
-        label="图片URL"
+        label="图片地址"
         name="imageUrl"
-        rules={[{ type: 'url', message: '请输入有效的URL' }]}
-        tooltip="商品图片链接（可选）"
+        rules={[
+          {
+            validator: async (_, value?: string) => {
+              if (!value || isAllowedProductImageSource(value.trim())) {
+                return
+              }
+
+              throw new Error('请输入 public/images 下的站内路径或有效的 HTTP(S) URL')
+            },
+          },
+        ]}
+        tooltip="可填写 public/images 目录中的站内路径或外部图片链接"
       >
-        <Input placeholder="https://example.com/image.jpg" />
+        <Input placeholder="/images/products/example.jpg 或 https://example.com/image.jpg" />
       </Form.Item>
 
       <Form.Item label="商品描述" name="description" tooltip="商品详细描述（可选）">

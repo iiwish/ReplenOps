@@ -4,6 +4,7 @@ import type { Route } from 'next'
 import { Layout, Menu } from 'antd'
 import { usePathname, useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
+import { BrandLogo } from '@/components/BrandLogo'
 import {
   getKeyToPathMap,
   getMenuItems,
@@ -86,16 +87,11 @@ export default function AppSidebar({ collapsed, roles }: AppSidebarProps) {
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
-        <div
-          style={{
-            color: '#fff',
-            fontSize: collapsed ? 14 : 18,
-            fontWeight: 'bold',
-            transition: 'all 0.2s',
-          }}
-        >
-          {collapsed ? 'RO' : 'ReplenOps'}
-        </div>
+        <BrandLogo
+          compact={collapsed}
+          logoClassName={collapsed ? 'h-8 w-8' : 'h-9 w-9'}
+          textClassName="text-white"
+        />
       </div>
 
       {/* 菜单 */}
