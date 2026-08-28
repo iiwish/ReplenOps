@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Input, Space, Tag, Modal, message, Card, Select } from 'antd'
+import { Table, Button, Input, Space, Tag, Modal, message, Select, Empty } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -21,12 +21,17 @@ const { Search } = Input
 interface GoodsListClientProps {
   initialData: PaginatedGoodsResult
   categories: Array<{ id: string; code: string; name: string }>
+  canWrite: boolean
 }
 
 type GoodsRecord = PaginatedGoodsResult['data'][number]
 type GoodsFormMode = 'create' | 'edit'
 
-export default function GoodsListClient({ initialData, categories }: GoodsListClientProps) {
+export default function GoodsListClient({
+  initialData,
+  categories,
+  canWrite,
+}: GoodsListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -160,31 +165,21 @@ export default function GoodsListClient({ initialData, categories }: GoodsListCl
       fixed: 'left',
     },
     {
-      title: '分类',
-      dataIndex: 'categoryName',
-      key: 'categoryName',
-      width: 120,
-    },
-    {
-      title: '规格',
-      dataIndex: 'spec',
-      key: 'spec',
-      width: 100,
-      render: (spec: string | null) => spec || '-',
+      title: '分类 / 规格',
+      key: 'categoryAndSpec',
+      width: 170,
+      render: (_, record) => (
+        <div>
+          <div>{record.categoryName}</div>
+          <div className="text-xs text-gray-500">{record.spec || '未设置规格'}</div>
+        </div>
+      ),
     },
     {
       title: '单位',
       dataIndex: 'unit',
       key: 'unit',
       width: 80,
-    },
-    {
-      title: '计量类型',
-      dataIndex: 'measureType',
-      key: 'measureType',
-      width: 100,
-      render: (measureType: 'INT' | 'DECIMAL') =>
-        measureType === 'INT' ? <Tag color="blue">整数</Tag> : <Tag color="green">小数</Tag>,
     },
     {
       title: '成本价',
@@ -226,157 +221,167 @@ export default function GoodsListClient({ initialData, categories }: GoodsListCl
           </Tag>
         ),
     },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 170,
-      render: (date: Date) => new Date(date).toLocaleString('zh-CN'),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEditModal(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggleStatus(record)}
-            disabled={loading}
-          >
-            {record.isActive ? '禁用' : '启用'}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            disabled={loading}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
+    ...(canWrite
+      ? [
+          {
+            title: '操作',
+            key: 'action',
+            width: 200,
+            fixed: 'right' as const,
+            render: (_: unknown, record: GoodsRecord) => (
+              <Space size="small">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => handleOpenEditModal(record)}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => handleToggleStatus(record)}
+                  disabled={loading}
+                >
+                  {record.isActive ? '禁用' : '启用'}
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(record)}
+                  disabled={loading}
+                >
+                  删除
+                </Button>
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
     <div>
-      <Card variant="borderless">
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          {/* 顶部操作栏 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Space>
-              <Select
-                placeholder="请选择分类"
-                allowClear
-                style={{ width: 200 }}
-                value={selectedCategory}
-                onChange={handleCategoryChange}
-                options={[
-                  { label: '全部分类', value: '' },
-                  ...categories.map((cat) => ({
-                    label: cat.name,
-                    value: cat.id,
-                  })),
-                ]}
-              />
-              <Search
-                placeholder="搜索商品名称或编码"
-                allowClear
-                enterButton={<SearchOutlined />}
-                style={{ width: 300 }}
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                onSearch={handleSearch}
-              />
-            </Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              loading={codeLoading}
-              onClick={() => void handleOpenCreateModal()}
-            >
-              新增商品
-            </Button>
-          </div>
-
-          {/* 表格 */}
-          <Table
-            columns={columns}
-            dataSource={initialData.data}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              current: initialData.page,
-              pageSize: initialData.pageSize,
-              total: initialData.total,
-              showSizeChanger: false,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: (page) => {
-                const params = new URLSearchParams()
-                params.set('page', page.toString())
-                if (searchKeyword) {
-                  params.set('search', searchKeyword)
-                }
-                if (selectedCategory) {
-                  params.set('categoryId', selectedCategory)
-                }
-                router.push(`/admin/goods?${params.toString()}`)
-              },
-            }}
-            scroll={{ x: 1500 }}
-          />
-        </Space>
-      </Card>
-
-      <Modal
-        title={formMode === 'create' ? '新增商品' : '编辑商品'}
-        open={formModalOpen}
-        onCancel={handleCloseFormModal}
-        footer={null}
-        width={900}
-        destroyOnHidden
-      >
-        {formModalOpen && (
-          <GoodsFormClient
-            mode={formMode}
-            initialCode={formMode === 'create' ? nextGoodsCode : undefined}
-            initialValues={
-              editingGoods
-                ? {
-                    id: editingGoods.id,
-                    code: editingGoods.code,
-                    name: editingGoods.name,
-                    categoryId: editingGoods.categoryId,
-                    spec: editingGoods.spec || undefined,
-                    unit: editingGoods.unit,
-                    measureType: editingGoods.measureType,
-                    costPrice: editingGoods.costPrice,
-                    partnerPrice: editingGoods.partnerPrice,
-                    defaultInPrice: editingGoods.defaultInPrice,
-                    imageUrl: editingGoods.imageUrl || undefined,
-                    description: editingGoods.description || undefined,
-                  }
-                : undefined
-            }
-            categories={categories}
-            onCancel={handleCloseFormModal}
-            onSuccess={handleFormSuccess}
-          />
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="m-0 text-2xl font-semibold">商品档案</h1>
+          <p className="mb-0 mt-1 text-sm text-gray-500">查询商品、价格与启用状态。</p>
+        </div>
+        {canWrite && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            loading={codeLoading}
+            onClick={() => void handleOpenCreateModal()}
+          >
+            新增商品
+          </Button>
         )}
-      </Modal>
+      </div>
+
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        <div className="flex flex-wrap gap-2">
+          <Space>
+            <Select
+              placeholder="请选择分类"
+              allowClear
+              style={{ width: 200 }}
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              options={[
+                { label: '全部分类', value: '' },
+                ...categories.map((cat) => ({
+                  label: cat.name,
+                  value: cat.id,
+                })),
+              ]}
+            />
+            <Search
+              placeholder="搜索商品名称或编码"
+              allowClear
+              enterButton={<SearchOutlined />}
+              style={{ width: 300 }}
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onSearch={handleSearch}
+            />
+          </Space>
+        </div>
+
+        {/* 表格 */}
+        <Table
+          columns={columns}
+          dataSource={initialData.data}
+          rowKey="id"
+          loading={loading}
+          locale={{
+            emptyText: (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有符合条件的商品" />
+            ),
+          }}
+          pagination={{
+            current: initialData.page,
+            pageSize: initialData.pageSize,
+            total: initialData.total,
+            showSizeChanger: false,
+            showTotal: (total) => `共 ${total} 条`,
+            onChange: (page) => {
+              const params = new URLSearchParams()
+              params.set('page', page.toString())
+              if (searchKeyword) {
+                params.set('search', searchKeyword)
+              }
+              if (selectedCategory) {
+                params.set('categoryId', selectedCategory)
+              }
+              router.push(`/admin/goods?${params.toString()}`)
+            },
+          }}
+          scroll={{ x: 1050 }}
+        />
+      </Space>
+
+      {canWrite && (
+        <Modal
+          title={formMode === 'create' ? '新增商品' : '编辑商品'}
+          open={formModalOpen}
+          onCancel={handleCloseFormModal}
+          footer={null}
+          width={900}
+          destroyOnHidden
+        >
+          {formModalOpen && (
+            <GoodsFormClient
+              mode={formMode}
+              initialCode={formMode === 'create' ? nextGoodsCode : undefined}
+              initialValues={
+                editingGoods
+                  ? {
+                      id: editingGoods.id,
+                      code: editingGoods.code,
+                      name: editingGoods.name,
+                      categoryId: editingGoods.categoryId,
+                      spec: editingGoods.spec || undefined,
+                      unit: editingGoods.unit,
+                      measureType: editingGoods.measureType,
+                      costPrice: editingGoods.costPrice,
+                      partnerPrice: editingGoods.partnerPrice,
+                      defaultInPrice: editingGoods.defaultInPrice,
+                      imageUrl: editingGoods.imageUrl || undefined,
+                      description: editingGoods.description || undefined,
+                    }
+                  : undefined
+              }
+              categories={categories}
+              onCancel={handleCloseFormModal}
+              onSuccess={handleFormSuccess}
+            />
+          )}
+        </Modal>
+      )}
     </div>
   )
 }

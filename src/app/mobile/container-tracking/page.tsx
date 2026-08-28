@@ -38,7 +38,7 @@ function TrackingCard({ tracking }: TrackingCardProps) {
           <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>在外数量</div>
           <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>
             {tracking.currentBorrowed}
-            <span style={{ fontSize: 14, marginLeft: 4 }}>个</span>
+            <span style={{ fontSize: 14, marginLeft: 4 }}>{tracking.containerUnit}</span>
           </div>
         </div>
 
@@ -122,10 +122,6 @@ export default function MobileTrackingPage() {
 
   return (
     <div style={{ padding: '16px', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20, margin: 0, flex: 1, textAlign: 'center' }}>包装物台账</h1>
-      </div>
-
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>加载中...</div>
       ) : trackings.length === 0 ? (

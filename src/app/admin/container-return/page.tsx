@@ -1,14 +1,7 @@
-import { ContainerReturnList } from '@/components/admin/containers/ContainerReturnList'
 import { requirePageAccess } from '@/lib/rbac-server'
-import { canPerformAction } from '@/lib/action-permissions'
+import { redirect } from 'next/navigation'
 
 export default async function ContainerReturnListPage() {
-  const { user } = await requirePageAccess('/admin/container-return')
-
-  return (
-    <div style={{ padding: '24px' }}>
-      <h1>包装物归还验收</h1>
-      <ContainerReturnList canWriteStock={canPerformAction(user, 'stock:write')} />
-    </div>
-  )
+  await requirePageAccess('/admin/container-return')
+  redirect('/admin/containers?view=returns')
 }

@@ -155,9 +155,12 @@ export class DashboardService {
       containersToReturn: {
         id: 'containers-return',
         type: 'container',
-        title: '包装物待归还',
-        description: '有包装物需归还',
-        count: containerTrackings.length,
+        title: '可归还包装物',
+        description: '当前门店可申请归还的包装物数量',
+        count: containerTrackings.reduce(
+          (sum, tracking) => sum + tracking.currentBorrowed - tracking.pendingReturnQuantity,
+          0
+        ),
         link: '/mobile/container-return',
       },
     }

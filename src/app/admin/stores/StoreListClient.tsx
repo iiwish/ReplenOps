@@ -21,12 +21,13 @@ const { Search } = Input
 
 interface StoreListClientProps {
   initialData: PaginatedStoreResult
+  canManage: boolean
 }
 
 type StoreRecord = PaginatedStoreResult['data'][number]
 type StoreFormMode = 'create' | 'edit'
 
-export default function StoreListClient({ initialData }: StoreListClientProps) {
+export default function StoreListClient({ initialData, canManage }: StoreListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
@@ -183,50 +184,54 @@ export default function StoreListClient({ initialData }: StoreListClientProps) {
       width: 170,
       render: (date: Date) => new Date(date).toLocaleString('zh-CN'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 280,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEditModal(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<UserOutlined />}
-            onClick={() => router.push(`/admin/stores/${record.id}/admins`)}
-          >
-            管理员
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggleStatus(record)}
-            disabled={loading}
-          >
-            {record.isActive ? '禁用' : '启用'}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            disabled={loading}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
+    ...(canManage
+      ? [
+          {
+            title: '操作',
+            key: 'action',
+            width: 280,
+            fixed: 'right' as const,
+            render: (_: unknown, record: StoreRecord) => (
+              <Space size="small">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => handleOpenEditModal(record)}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<UserOutlined />}
+                  onClick={() => router.push(`/admin/stores/${record.id}/admins`)}
+                >
+                  管理员
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => handleToggleStatus(record)}
+                  disabled={loading}
+                >
+                  {record.isActive ? '禁用' : '启用'}
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(record)}
+                  disabled={loading}
+                >
+                  删除
+                </Button>
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -244,9 +249,11 @@ export default function StoreListClient({ initialData }: StoreListClientProps) {
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={handleSearch}
             />
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
-              新增门店
-            </Button>
+            {canManage && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+                新增门店
+              </Button>
+            )}
           </div>
 
           {/* 表格 */}
@@ -275,34 +282,36 @@ export default function StoreListClient({ initialData }: StoreListClientProps) {
         </Space>
       </Card>
 
-      <Modal
-        title={formMode === 'create' ? '新增门店' : '编辑门店'}
-        open={formModalOpen}
-        onCancel={handleCloseFormModal}
-        footer={null}
-        width={680}
-        destroyOnHidden
-      >
-        {formModalOpen && (
-          <StoreFormClient
-            mode={formMode}
-            initialValues={
-              editingStore
-                ? {
-                    id: editingStore.id,
-                    code: editingStore.code,
-                    name: editingStore.name,
-                    address: editingStore.address || undefined,
-                    contactName: editingStore.contactName || undefined,
-                    contactPhone: editingStore.contactPhone || undefined,
-                  }
-                : undefined
-            }
-            onCancel={handleCloseFormModal}
-            onSuccess={handleFormSuccess}
-          />
-        )}
-      </Modal>
+      {canManage && (
+        <Modal
+          title={formMode === 'create' ? '新增门店' : '编辑门店'}
+          open={formModalOpen}
+          onCancel={handleCloseFormModal}
+          footer={null}
+          width={680}
+          destroyOnHidden
+        >
+          {formModalOpen && (
+            <StoreFormClient
+              mode={formMode}
+              initialValues={
+                editingStore
+                  ? {
+                      id: editingStore.id,
+                      code: editingStore.code,
+                      name: editingStore.name,
+                      address: editingStore.address || undefined,
+                      contactName: editingStore.contactName || undefined,
+                      contactPhone: editingStore.contactPhone || undefined,
+                    }
+                  : undefined
+              }
+              onCancel={handleCloseFormModal}
+              onSuccess={handleFormSuccess}
+            />
+          )}
+        </Modal>
+      )}
     </div>
   )
 }

@@ -2,16 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Modal,
-  message,
-  Card,
-} from 'antd'
+import { Table, Button, Input, Space, Tag, Modal, message, Card } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -29,6 +20,7 @@ const { Search } = Input
 
 interface GoodsCategoryListClientProps {
   initialData: PaginatedGoodsCategoryResult
+  canWrite: boolean
 }
 
 type GoodsCategoryRecord = PaginatedGoodsCategoryResult['data'][number]
@@ -36,6 +28,7 @@ type GoodsCategoryFormMode = 'create' | 'edit'
 
 export default function GoodsCategoryListClient({
   initialData,
+  canWrite,
 }: GoodsCategoryListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -170,52 +163,52 @@ export default function GoodsCategoryListClient({
       width: 170,
       render: (date: Date) => new Date(date).toLocaleString('zh-CN'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      fixed: 'right',
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEditModal(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggleStatus(record)}
-            disabled={loading}
-          >
-            {record.isActive ? '禁用' : '启用'}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            disabled={loading}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
+    ...(canWrite
+      ? [
+          {
+            title: '操作',
+            key: 'action',
+            width: 200,
+            fixed: 'right' as const,
+            render: (_: unknown, record: GoodsCategoryRecord) => (
+              <Space size="small">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => handleOpenEditModal(record)}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => handleToggleStatus(record)}
+                  disabled={loading}
+                >
+                  {record.isActive ? '禁用' : '启用'}
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDelete(record)}
+                  disabled={loading}
+                >
+                  删除
+                </Button>
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ]
 
   return (
     <div>
       <Card variant="borderless">
-        <Space
-          orientation="vertical"
-          size="middle"
-          style={{ width: '100%' }}
-        >
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* 顶部操作栏 */}
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Search
@@ -227,13 +220,11 @@ export default function GoodsCategoryListClient({
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={handleSearch}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreateModal}
-            >
-              新增分类
-            </Button>
+            {canWrite && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+                新增分类
+              </Button>
+            )}
           </div>
 
           {/* 表格 */}
@@ -262,32 +253,34 @@ export default function GoodsCategoryListClient({
         </Space>
       </Card>
 
-      <Modal
-        title={formMode === 'create' ? '新增分类' : '编辑分类'}
-        open={formModalOpen}
-        onCancel={handleCloseFormModal}
-        footer={null}
-        width={640}
-        destroyOnHidden
-      >
-        {formModalOpen && (
-          <GoodsCategoryFormClient
-            mode={formMode}
-            initialValues={
-              editingCategory
-                ? {
-                    id: editingCategory.id,
-                    code: editingCategory.code,
-                    name: editingCategory.name,
-                    sortOrder: editingCategory.sortOrder,
-                  }
-                : undefined
-            }
-            onCancel={handleCloseFormModal}
-            onSuccess={handleFormSuccess}
-          />
-        )}
-      </Modal>
+      {canWrite && (
+        <Modal
+          title={formMode === 'create' ? '新增分类' : '编辑分类'}
+          open={formModalOpen}
+          onCancel={handleCloseFormModal}
+          footer={null}
+          width={640}
+          destroyOnHidden
+        >
+          {formModalOpen && (
+            <GoodsCategoryFormClient
+              mode={formMode}
+              initialValues={
+                editingCategory
+                  ? {
+                      id: editingCategory.id,
+                      code: editingCategory.code,
+                      name: editingCategory.name,
+                      sortOrder: editingCategory.sortOrder,
+                    }
+                  : undefined
+              }
+              onCancel={handleCloseFormModal}
+              onSuccess={handleFormSuccess}
+            />
+          )}
+        </Modal>
+      )}
     </div>
   )
 }

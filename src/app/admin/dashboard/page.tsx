@@ -5,6 +5,8 @@ import { getAdminDashboardData } from '@/actions/dashboard-actions'
 import { DashboardMetricLink } from '@/components/admin/dashboard/DashboardMetricLink'
 import { QuickActions } from '@/components/admin/dashboard/QuickActions'
 import { getShanghaiDate } from '@/lib/shanghai-time'
+import { canPerformAction } from '@/lib/action-permissions'
+import type { QuickActionIcon } from '@/components/admin/dashboard/QuickActions'
 
 export default async function DashboardPage() {
   const { user } = await requirePageAccess('/admin/dashboard')
@@ -36,6 +38,18 @@ export default async function DashboardPage() {
   const weeklyGrowth = calculateWeeklyGrowth()
   const today = getShanghaiDate()
   const todayOrdersHref = `/admin/orders?startDate=${today}&endDate=${today}` as Route
+  const quickActions: Array<{ icon: QuickActionIcon; title: string; path: string }> = [
+    ...(canPerformAction(user, 'stock:write')
+      ? [{ icon: 'stock-in' as const, title: '新增入库', path: '/admin/stock-in/new' }]
+      : []),
+    { icon: 'orders', title: '订单管理', path: '/admin/orders' },
+    ...(canPerformAction(user, 'stock:read')
+      ? [
+          { icon: 'inventory' as const, title: '库存查询', path: '/admin/inventory/query' },
+          { icon: 'containers' as const, title: '包装物', path: '/admin/containers' },
+        ]
+      : []),
+  ]
 
   return (
     <div>
@@ -71,8 +85,8 @@ export default async function DashboardPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <DashboardMetricLink
-            href={'/admin/container-tracking?hasUnreturned=true' as Route}
-            title="待归还包装物"
+            href={'/admin/containers?view=outstanding' as Route}
+            title="在外包装物"
             value={todayStats.containerToReturnCount}
             compact
           />
@@ -129,14 +143,7 @@ export default async function DashboardPage() {
       </Row>
 
       <Card title="快捷操作" variant="borderless" style={{ marginTop: 16 }}>
-        <QuickActions
-          actions={[
-            { icon: '📦', title: '新增入库', path: '/admin/stock-in/new' },
-            { icon: '🛒', title: '订单管理', path: '/admin/orders' },
-            { icon: '📊', title: '库存查询', path: '/admin/inventory/query' },
-            { icon: '📦', title: '包装物管理', path: '/admin/containers' },
-          ]}
-        />
+        <QuickActions actions={quickActions} />
       </Card>
     </div>
   )

@@ -10,7 +10,8 @@ export default defineConfig({
   outputDir: path.join(projectRoot, 'test-results'),
   timeout: 30000,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // E2E specs share one local database and dev server, so serialize them to avoid cross-test races.
+  workers: 1,
   use: {
     baseURL,
     trace: 'on-first-retry',

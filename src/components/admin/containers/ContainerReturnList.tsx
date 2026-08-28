@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   Button,
   DatePicker,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -189,9 +190,9 @@ export function ContainerReturnList({
     { title: '归还单号', dataIndex: 'code', width: 180 },
     { title: '门店', dataIndex: 'storeName', width: 140 },
     {
-      title: '申请数量',
+      title: '包装物种类',
       width: 100,
-      render: (_, request) => request.items.reduce((sum, item) => sum + item.requestedQuantity, 0),
+      render: (_, request) => `${request.items.length} 种`,
     },
     {
       title: '状态',
@@ -330,6 +331,11 @@ export function ContainerReturnList({
         dataSource={requests}
         rowKey="id"
         loading={loading}
+        locale={{
+          emptyText: (
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前没有符合条件的归还申请" />
+          ),
+        }}
         scroll={{ x: 1270 }}
         expandable={{
           expandedRowRender: (request) => (
@@ -341,11 +347,15 @@ export function ContainerReturnList({
               columns={[
                 { title: '包装物编码', dataIndex: 'containerCode' },
                 { title: '包装物', dataIndex: 'containerName' },
-                { title: '申请数量', dataIndex: 'requestedQuantity' },
+                {
+                  title: '申请数量',
+                  render: (_value, item) => `${item.requestedQuantity} ${item.containerUnit}`,
+                },
                 {
                   title: '实收数量',
                   dataIndex: 'receivedQuantity',
-                  render: (value: number | null) => value ?? '-',
+                  render: (value: number | null, item) =>
+                    value === null ? '-' : `${value} ${item.containerUnit}`,
                 },
               ]}
             />
@@ -377,12 +387,15 @@ export function ContainerReturnList({
           {accepting?.items.map((item) => (
             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ flex: 1 }}>{item.containerName}</span>
-              <span>申请 {item.requestedQuantity}</span>
+              <span>
+                申请 {item.requestedQuantity} {item.containerUnit}
+              </span>
               <InputNumber
                 min={0}
                 max={item.requestedQuantity}
                 precision={0}
                 value={received[item.id]}
+                suffix={item.containerUnit}
                 onChange={(value) =>
                   setReceived((current) => ({ ...current, [item.id]: value ?? 0 }))
                 }
