@@ -1,23 +1,46 @@
 'use client'
 
-import { Card, Col, Row } from 'antd'
+import type { Route } from 'next'
+import Link from 'next/link'
+import { Col, Row } from 'antd'
+import {
+  ContainerOutlined,
+  DatabaseOutlined,
+  InboxOutlined,
+  ShoppingCartOutlined,
+} from '@ant-design/icons'
+
+export type QuickActionIcon = 'stock-in' | 'orders' | 'inventory' | 'containers'
+
+const icons: Record<QuickActionIcon, React.ReactNode> = {
+  'stock-in': <DatabaseOutlined />,
+  orders: <ShoppingCartOutlined />,
+  inventory: <InboxOutlined />,
+  containers: <ContainerOutlined />,
+}
 
 interface QuickActionCardProps {
-  icon: string
+  icon: QuickActionIcon
   title: string
   path: string
 }
 
 function QuickActionCard({ icon, title, path }: QuickActionCardProps) {
-  const handleClick = () => {
-    window.location.href = path
-  }
-
   return (
-    <Card variant="borderless" hoverable style={{ textAlign: 'center' }} onClick={handleClick}>
-      <div style={{ fontSize: 32, marginBottom: 8 }}>{icon}</div>
+    <Link
+      href={path as Route}
+      style={{
+        display: 'block',
+        color: 'inherit',
+        textAlign: 'center',
+        padding: '16px 12px',
+        border: '1px solid #f0f0f0',
+        borderRadius: 6,
+      }}
+    >
+      <div style={{ fontSize: 28, marginBottom: 8, color: '#1677ff' }}>{icons[icon]}</div>
       <div>{title}</div>
-    </Card>
+    </Link>
   )
 }
 

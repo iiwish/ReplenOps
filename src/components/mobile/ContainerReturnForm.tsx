@@ -1,21 +1,34 @@
 'use client'
 
-import { useCallback, useEffect, useState, useTransition } from 'react'
-import { Card, Button, Input, InputNumber, Modal, Form, message } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Empty,
+  Input,
+  InputNumber,
+  Modal,
+  Space,
+  Spin,
+  Tag,
+  message,
+} from 'antd'
+import { SendOutlined } from '@ant-design/icons'
 import {
   cancelContainerReturn,
   getStoreContainerReturnRequests,
   getReturnableContainers,
   submitContainerReturnRequest,
 } from '@/actions/container-return-actions'
+import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 
 interface ReturnableContainer {
   trackingId: string
   containerId: string
   containerName: string
+  containerUnit: string
   currentBorrowed: number
   pendingReturnQuantity: number
   availableReturnQuantity: number
@@ -39,32 +52,47 @@ interface PendingReturnRequest {
 }
 
 export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFormProps) {
-  const [form] = Form.useForm()
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
   const { selectedStoreId, availableStores } = useStoreSelectionStore()
-
-  const selectedStore = availableStores.find((s) => s.id === selectedStoreId)
-
+  const selectedStore = availableStores.find((store) => store.id === selectedStoreId)
   const [containers, setContainers] = useState<ReturnableContainer[]>([])
   const [pendingRequests, setPendingRequests] = useState<PendingReturnRequest[]>([])
-  const [selectedContainer, setSelectedContainer] = useState<ReturnableContainer | null>(null)
-  const [showModal, setShowModal] = useState(false)
+  const [quantities, setQuantities] = useState<Record<string, number>>({})
+  const [remark, setRemark] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const loadRequestId = useRef(0)
 
+  const selectedItems = useMemo(
+    () =>
+      containers
+        .map((container) => ({ container, quantity: quantities[container.containerId] ?? 0 }))
+        .filter((item) => item.quantity > 0),
+    [containers, quantities]
+  )
   const loadContainers = useCallback(async () => {
+    const requestId = ++loadRequestId.current
+
     if (!selectedStore?.id) {
-      message.error('未选择门店')
+      setContainers([])
+      setPendingRequests([])
+      setLoading(false)
       return
     }
 
+    setLoading(true)
+    setContainers([])
+    setPendingRequests([])
     try {
       const [result, requestsResult] = await Promise.all([
         getReturnableContainers({ storeId: selectedStore.id }),
         getStoreContainerReturnRequests({ storeId: selectedStore.id, page: 1, pageSize: 20 }),
       ])
+
+      if (requestId !== loadRequestId.current) return
+
       if (result.success && result.data) {
-        const data = result.data as ReturnableContainer[]
-        setContainers(data)
+        setContainers(result.data as ReturnableContainer[])
       } else {
         message.error(result.message || '加载包装物失败')
       }
@@ -75,46 +103,41 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
         message.error(requestsResult.message || '加载待验收申请失败')
       }
     } catch (error) {
-      console.error('加载包装物失败:', error)
-      message.error('加载包装物失败')
+      if (requestId === loadRequestId.current) {
+        console.error('加载包装物失败:', error)
+        message.error('加载包装物失败')
+      }
+    } finally {
+      if (requestId === loadRequestId.current) {
+        setLoading(false)
+      }
     }
-  }, [selectedStore])
+  }, [selectedStore?.id])
 
-  const handleContainerSelect = (container: ReturnableContainer) => {
-    if (container.availableReturnQuantity <= 0) return
-    setSelectedContainer(container)
-    setShowModal(true)
+  const updateQuantity = (container: ReturnableContainer, quantity: number) => {
+    const normalized = Math.max(0, Math.min(quantity, container.availableReturnQuantity))
+    setQuantities((current) => ({ ...current, [container.containerId]: normalized }))
   }
 
-  const handleReturnAll = () => {
-    if (selectedContainer) {
-      form.setFieldValue('quantity', selectedContainer.availableReturnQuantity)
-    }
-  }
-
-  const handleSubmit = async (values: { quantity: number; remark?: string }) => {
-    if (!selectedContainer || !selectedStore?.id) {
-      return
-    }
+  const handleSubmit = () => {
+    if (!selectedStore?.id || selectedItems.length === 0) return
 
     startTransition(async () => {
       const result = await submitContainerReturnRequest({
         storeId: selectedStore.id,
-        items: [
-          {
-            containerId: selectedContainer.containerId,
-            quantity: values.quantity,
-          },
-        ],
-        remark: values.remark,
+        items: selectedItems.map(({ container, quantity }) => ({
+          containerId: container.containerId,
+          quantity,
+        })),
+        remark: remark.trim() || undefined,
       })
 
       if (result.success) {
         message.success('归还申请已提交，等待仓库验收')
-        setShowModal(false)
-        setSelectedContainer(null)
-        form.resetFields()
-        loadContainers()
+        setShowConfirm(false)
+        setQuantities({})
+        setRemark('')
+        await loadContainers()
         onSuccess?.()
       } else {
         message.error(result.message || '包装物归还失败')
@@ -146,105 +169,102 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
   }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadContainers()
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    setQuantities({})
+    setRemark('')
+    setShowConfirm(false)
+    void loadContainers()
   }, [loadContainers])
 
   return (
-    <div style={{ padding: '16px', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => router.back()} style={{ fontSize: 16 }}>
-          返回
-        </Button>
-        <h1 style={{ flex: 1, textAlign: 'center', fontSize: 20, margin: 0 }}>包装物归还</h1>
+    <section className="min-h-full bg-gray-50 px-4 py-4">
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3">
+        <div className="text-sm font-medium text-gray-700">归还门店</div>
+        <StoreSelector />
       </div>
 
-      <Card>
-        <div style={{ marginBottom: 16, padding: '8px 0' }}>
-          <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>当前门店</div>
-          <div style={{ fontSize: 18, fontWeight: 'bold' }}>{selectedStore?.name || '未选择'}</div>
+      {!selectedStore ? (
+        <div className="rounded-lg border border-gray-200 bg-white py-12">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={availableStores.length === 0 ? '当前账号没有可操作门店' : '请先选择门店'}
+          />
         </div>
+      ) : loading ? (
+        <div className="rounded-lg border border-gray-200 bg-white py-12 text-center">
+          <Spin />
+          <div className="mt-2 text-sm text-gray-500">正在加载包装物</div>
+        </div>
+      ) : containers.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white py-12">
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前门店暂无可归还包装物" />
+        </div>
+      ) : (
+        <Space orientation="vertical" size={10} style={{ width: '100%' }}>
+          {containers.map((container) => {
+            const quantity = quantities[container.containerId] ?? 0
+            const isSelected = quantity > 0
 
-        {containers.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-            暂无可归还的包装物
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 12,
-            }}
-          >
-            {containers.map((container) => (
-              <Card
-                key={container.trackingId}
-                hoverable={container.availableReturnQuantity > 0}
-                onClick={() => handleContainerSelect(container)}
-                style={{
-                  textAlign: 'center',
-                  minHeight: 120,
-                  opacity: container.availableReturnQuantity > 0 ? 1 : 0.65,
-                }}
-              >
-                <div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
-                  {container.containerName}
-                </div>
-                <div
-                  style={{
-                    fontSize: 24,
-                    color: '#faad14',
-                    fontWeight: 'bold',
-                    marginBottom: 8,
-                  }}
-                >
-                  {container.availableReturnQuantity}
-                  <span style={{ fontSize: 14, marginLeft: 4 }}>个</span>
-                </div>
-                <div style={{ fontSize: 14, color: '#999' }}>
-                  {container.availableReturnQuantity > 0 ? '可申请归还' : '全部等待仓库验收'}
-                </div>
-                {container.pendingReturnQuantity > 0 && (
-                  <div style={{ fontSize: 13, color: '#1677ff', marginTop: 4 }}>
-                    待验收 {container.pendingReturnQuantity} 个
+            return (
+              <Card key={container.trackingId} size="small" loading={loading}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-gray-900">
+                      {container.containerName}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      当前在外 {container.currentBorrowed} {container.containerUnit}
+                      {container.pendingReturnQuantity > 0 && (
+                        <span>
+                          ，待验收 {container.pendingReturnQuantity} {container.containerUnit}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div
-                  style={{
-                    fontSize: 16,
-                    color: '#faad14',
-                    marginTop: 8,
-                  }}
-                >
-                  押金: ¥{container.deposit.toFixed(2)}
+                  <Tag color={container.availableReturnQuantity > 0 ? 'blue' : 'default'}>
+                    可归还 {container.availableReturnQuantity} {container.containerUnit}
+                  </Tag>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                  <Checkbox
+                    checked={isSelected}
+                    disabled={container.availableReturnQuantity <= 0}
+                    onChange={(event) =>
+                      updateQuantity(
+                        container,
+                        event.target.checked ? container.availableReturnQuantity : 0
+                      )
+                    }
+                  >
+                    加入本次归还
+                  </Checkbox>
+                  <InputNumber
+                    aria-label={`${container.containerName}归还数量`}
+                    min={1}
+                    max={container.availableReturnQuantity}
+                    precision={0}
+                    disabled={!isSelected}
+                    value={isSelected ? quantity : null}
+                    suffix={container.containerUnit}
+                    onChange={(value) => updateQuantity(container, value ?? 0)}
+                    style={{ width: 118 }}
+                  />
                 </div>
               </Card>
-            ))}
-          </div>
-        )}
-      </Card>
+            )
+          })}
+        </Space>
+      )}
 
       {pendingRequests.length > 0 && (
-        <Card title="待仓库验收" style={{ marginTop: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+          <h2 className="m-0 text-base font-semibold">待仓库验收</h2>
+          <div className="mt-3 divide-y divide-gray-100">
             {pendingRequests.map((request) => (
-              <div
-                key={request.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingBottom: 12,
-                  borderBottom: '1px solid #f0f0f0',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{request.code}</div>
-                  <div style={{ color: '#666', fontSize: 13, marginTop: 4 }}>
+              <div key={request.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{request.code}</div>
+                  <div className="mt-1 text-xs leading-5 text-gray-500">
                     {request.items
                       .map(
                         (item) =>
@@ -259,105 +279,55 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
               </div>
             ))}
           </div>
-        </Card>
+        </div>
+      )}
+
+      {selectedItems.length > 0 && (
+        <div className="sticky bottom-20 z-20 mt-4 rounded-lg border border-blue-200 bg-white p-3 shadow-lg">
+          <Button
+            type="primary"
+            size="large"
+            block
+            icon={<SendOutlined />}
+            onClick={() => setShowConfirm(true)}
+          >
+            提交 {selectedItems.length} 种包装物
+          </Button>
+        </div>
       )}
 
       <Modal
-        title={`归还 ${selectedContainer?.containerName}`}
-        open={showModal}
-        onCancel={() => setShowModal(false)}
-        footer={null}
-        width="90%"
-        style={{ maxWidth: 400 }}
+        title="确认归还申请"
+        open={showConfirm}
+        onCancel={() => setShowConfirm(false)}
+        onOk={handleSubmit}
+        okText="提交申请"
+        cancelText="继续修改"
+        confirmLoading={isPending}
+        width="calc(100% - 32px)"
+        style={{ maxWidth: 440 }}
       >
-        {selectedContainer && (
-          <Form form={form} onFinish={handleSubmit} layout="vertical">
-            <div
-              style={{
-                textAlign: 'center',
-                marginBottom: 24,
-                padding: '16px',
-                backgroundColor: '#f6ffed',
-                borderRadius: 8,
-              }}
-            >
-              <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>可申请归还数量</div>
-              <div
-                style={{
-                  fontSize: 36,
-                  fontWeight: 'bold',
-                  color: '#faad14',
-                }}
-              >
-                {selectedContainer.availableReturnQuantity}
-                <span style={{ fontSize: 20, marginLeft: 8 }}>个</span>
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm">
+            {selectedItems.map(({ container, quantity }) => (
+              <div key={container.containerId} className="flex justify-between gap-3 py-1">
+                <span>{container.containerName}</span>
+                <strong>
+                  {quantity} {container.containerUnit}
+                </strong>
               </div>
-              <div style={{ fontSize: 16, color: '#faad14', marginTop: 8 }}>
-                当前在外 {selectedContainer.currentBorrowed} 个
-                {selectedContainer.pendingReturnQuantity > 0
-                  ? `，其中 ${selectedContainer.pendingReturnQuantity} 个待验收`
-                  : ''}
-              </div>
-            </div>
-
-            <Form.Item
-              name="quantity"
-              label="归还数量"
-              rules={[
-                { required: true, message: '请输入归还数量' },
-                {
-                  type: 'number',
-                  min: 1,
-                  max: selectedContainer.availableReturnQuantity,
-                  message: `归还数量必须在1-${selectedContainer.availableReturnQuantity}之间`,
-                },
-              ]}
-            >
-              <InputNumber
-                style={{ width: '100%', fontSize: 24, height: 50 }}
-                placeholder="输入归还数量"
-                min={1}
-                max={selectedContainer.availableReturnQuantity}
-                precision={0}
-                size="large"
-              />
-            </Form.Item>
-
-            <div style={{ marginBottom: 16 }}>
-              <Button
-                block
-                size="large"
-                onClick={handleReturnAll}
-                style={{
-                  fontSize: 16,
-                  height: 50,
-                  backgroundColor: '#e6f7ff',
-                  borderColor: '#e6f7ff',
-                }}
-              >
-                全部申请归还 ({selectedContainer.availableReturnQuantity})
-              </Button>
-            </div>
-
-            <Form.Item name="remark" label="备注（可选）">
-              <Input.TextArea rows={3} placeholder="请输入备注" />
-            </Form.Item>
-
-            <Form.Item style={{ marginBottom: 0 }}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                size="large"
-                loading={isPending}
-                style={{ fontSize: 18, height: 56 }}
-              >
-                提交归还申请
-              </Button>
-            </Form.Item>
-          </Form>
-        )}
+            ))}
+          </div>
+          <Input.TextArea
+            rows={3}
+            value={remark}
+            onChange={(event) => setRemark(event.target.value)}
+            placeholder="归还备注（可选）"
+            maxLength={500}
+            showCount
+          />
+        </Space>
       </Modal>
-    </div>
+    </section>
   )
 }

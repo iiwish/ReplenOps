@@ -5,6 +5,7 @@ import { useState } from 'react'
 import AppBreadcrumb from './AppBreadcrumb'
 import AppHeader from './AppHeader'
 import AppSidebar from './AppSidebar'
+import type { UserRole } from '@/types'
 
 const { Content } = Layout
 
@@ -12,12 +13,14 @@ interface AdminLayoutClientProps {
   children: React.ReactNode
   userName?: string
   userDisplayName?: string
+  roles: UserRole[]
 }
 
 export default function AdminLayoutClient({
   children,
   userName,
   userDisplayName,
+  roles,
 }: AdminLayoutClientProps) {
   const [collapsed, setCollapsed] = useState(false)
 
@@ -28,7 +31,7 @@ export default function AdminLayoutClient({
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* 侧边栏 */}
-      <AppSidebar collapsed={collapsed} />
+      <AppSidebar collapsed={collapsed} roles={roles} />
 
       {/* 主内容区域 */}
       <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>

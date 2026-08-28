@@ -48,5 +48,5 @@ test('shows administrator names in the store list without a separate menu page',
   await expect(page.getByRole('menuitem', { name: '门店管理' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: '门店管理员' })).toHaveCount(0)
   await expect(page.getByRole('cell', { name: administratorName })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'user 管理员' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'user 管理员' })).toHaveCount(0)
 })

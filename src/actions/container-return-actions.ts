@@ -96,6 +96,7 @@ export async function submitContainerReturnRequest(
 
     revalidatePath('/admin/container-return')
     revalidatePath('/admin/container-tracking')
+    revalidatePath('/admin/containers')
     revalidatePath('/mobile/container-return')
 
     return {
@@ -159,6 +160,7 @@ export async function completeContainerReturn(
     )
     revalidatePath('/admin/container-return')
     revalidatePath('/admin/container-tracking')
+    revalidatePath('/admin/containers')
     revalidatePath('/mobile/container-return')
     return { success: true, message: '归还单验收完成', data: request }
   } catch (error) {
@@ -182,6 +184,7 @@ export async function rejectContainerReturn(
     )
     revalidatePath('/admin/container-return')
     revalidatePath('/admin/container-tracking')
+    revalidatePath('/admin/containers')
     revalidatePath('/mobile/container-return')
     return { success: true, message: '归还申请已驳回', data: request }
   } catch (error) {
@@ -232,6 +235,7 @@ export async function cancelContainerReturn(
     )
     revalidatePath('/admin/container-return')
     revalidatePath('/admin/container-tracking')
+    revalidatePath('/admin/containers')
     revalidatePath('/mobile/container-return')
     return { success: true, message: '归还申请已撤回', data: request }
   } catch (error) {

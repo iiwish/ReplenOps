@@ -36,6 +36,13 @@ test.afterAll(async () => {
 })
 
 test('prefills the next goods and container codes in create forms', async ({ page }) => {
+  const hydrationErrors: string[] = []
+  page.on('console', (entry) => {
+    if (entry.type() === 'error' && /hydration|server rendered html/i.test(entry.text())) {
+      hydrationErrors.push(entry.text())
+    }
+  })
+
   const login = await page.request.post('/api/auth/login', {
     data: { identifier: username, password },
   })
@@ -49,9 +56,17 @@ test('prefills the next goods and container codes in create forms', async ({ pag
   )
 
   await page.goto('/admin/containers')
+  await page.getByRole('tab', { name: '包装物设置' }).click()
   await page.getByRole('button', { name: /新增包装物/ }).click()
   const containerDialog = page.getByRole('dialog', { name: '新增包装物' })
   await expect(containerDialog.getByRole('textbox', { name: /包装物编码/ })).toHaveValue(
     expectedContainerCode
   )
+  await containerDialog.getByRole('textbox', { name: '名称' }).fill('未保存包装物')
+  await containerDialog.getByRole('button', { name: 'Close' }).click()
+  await page.getByRole('button', { name: /新增包装物/ }).click()
+  await expect(
+    page.getByRole('dialog', { name: '新增包装物' }).getByRole('textbox', { name: '名称' })
+  ).toHaveValue('')
+  expect(hydrationErrors).toEqual([])
 })

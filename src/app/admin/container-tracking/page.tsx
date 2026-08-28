@@ -1,18 +1,16 @@
 import { requirePageAccess } from '@/lib/rbac-server'
-import { canPerformAction } from '@/lib/action-permissions'
-import ContainerTrackingClient from './ContainerTrackingClient'
+import { redirect } from 'next/navigation'
 
 export default async function ContainerTrackingPage({
   searchParams,
 }: {
   searchParams: Promise<{ hasUnreturned?: string }>
 }) {
-  const { user } = await requirePageAccess('/admin/container-tracking')
+  await requirePageAccess('/admin/container-tracking')
   const params = await searchParams
-  return (
-    <ContainerTrackingClient
-      canWriteStock={canPerformAction(user, 'stock:write')}
-      initialHasUnreturned={params.hasUnreturned === 'true'}
-    />
+  redirect(
+    params.hasUnreturned === 'true'
+      ? '/admin/containers?view=outstanding'
+      : '/admin/containers?view=all'
   )
 }

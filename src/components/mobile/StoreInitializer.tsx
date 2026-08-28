@@ -11,9 +11,7 @@ export function StoreInitializer({ stores }: StoreInitializerProps) {
   const { initializeStore } = useStoreSelectionStore()
 
   useEffect(() => {
-    if (stores.length > 0) {
-      initializeStore(stores)
-    }
+    initializeStore(stores)
   }, [stores, initializeStore])
 
   return null

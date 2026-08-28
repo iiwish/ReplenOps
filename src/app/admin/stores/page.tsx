@@ -1,18 +1,15 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import StoreListClient from './StoreListClient'
 import { storeService } from '@/services/store.service'
+import { canPerformAction } from '@/lib/action-permissions'
 
 interface SearchParams {
   page?: string
   keyword?: string
 }
 
-export default async function StorePage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>
-}) {
-  await requirePageAccess('/admin/stores')
+export default async function StorePage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const { user } = await requirePageAccess('/admin/stores')
 
   // 获取搜索参数
   const params = await searchParams
@@ -26,5 +23,5 @@ export default async function StorePage({
     keyword,
   })
 
-  return <StoreListClient initialData={result} />
+  return <StoreListClient initialData={result} canManage={canPerformAction(user, 'store:manage')} />
 }
