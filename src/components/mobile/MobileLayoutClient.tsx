@@ -23,6 +23,8 @@ export default function MobileLayoutClient({ children }: MobileLayoutClientProps
     '/mobile/orders': '订单',
     '/mobile/profile': '我的',
     '/mobile/profile/info': '个人信息',
+    '/mobile/container-return': '包装物归还',
+    '/mobile/container-tracking': '包装物台账',
   }
 
   // 获取当前页面标题

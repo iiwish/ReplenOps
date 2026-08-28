@@ -4,6 +4,8 @@ import { expect, test } from '@playwright/test'
 import type { APIResponse } from '@playwright/test'
 
 const prisma = new PrismaClient()
+const adminUsername = `e2e-admin-${process.pid}`
+const adminPassword = 'e2e-only-admin-password'
 const limitedUsername = `e2e-warehouse-${process.pid}`
 const limitedPassword = 'e2e-only-password'
 
@@ -17,19 +19,41 @@ function sessionCookie(response: APIResponse): string {
 }
 
 test.beforeAll(async () => {
-  await prisma.user.deleteMany({ where: { username: limitedUsername } })
-  await prisma.user.create({
-    data: {
-      username: limitedUsername,
-      password: await hash(limitedPassword, 10),
-      roles: { create: { role: 'WAREHOUSE_MANAGER' } },
-    },
+  await prisma.authSession.deleteMany({
+    where: { user: { username: { in: [adminUsername, limitedUsername] } } },
   })
+  await prisma.userRole.deleteMany({
+    where: { user: { username: { in: [adminUsername, limitedUsername] } } },
+  })
+  await prisma.user.deleteMany({ where: { username: { in: [adminUsername, limitedUsername] } } })
+  await prisma.$transaction([
+    prisma.user.create({
+      data: {
+        username: adminUsername,
+        password: await hash(adminPassword, 10),
+        roles: { create: { role: 'SUPER_ADMIN' } },
+      },
+    }),
+    prisma.user.create({
+      data: {
+        username: limitedUsername,
+        password: await hash(limitedPassword, 10),
+        roles: { create: { role: 'WAREHOUSE_MANAGER' } },
+      },
+    }),
+  ])
 })
 
 test.afterAll(async () => {
-  await prisma.userRole.deleteMany({ where: { user: { username: limitedUsername } } })
-  await prisma.user.deleteMany({ where: { username: limitedUsername } })
+  await prisma.authSession.deleteMany({
+    where: { user: { username: { in: [adminUsername, limitedUsername] } } },
+  })
+  await prisma.userRole.deleteMany({
+    where: { user: { username: { in: [adminUsername, limitedUsername] } } },
+  })
+  await prisma.user.deleteMany({
+    where: { username: { in: [adminUsername, limitedUsername] } },
+  })
   await prisma.$disconnect()
 })
 
@@ -47,13 +71,11 @@ test('rejects protected APIs and forged session headers without a cookie', async
   expect(forgedSession.status()).toBe(401)
 })
 
-test('allows the bootstrapped administrator to authenticate and read users', async ({
-  request,
-}) => {
+test('allows a super administrator to authenticate and read users', async ({ request }) => {
   const response = await request.post('/api/auth/login', {
     data: {
-      identifier: process.env.ADMIN_USERNAME ?? 'ci-admin',
-      password: process.env.ADMIN_INITIAL_PASSWORD ?? 'ci-only-admin-password',
+      identifier: adminUsername,
+      password: adminPassword,
     },
   })
 

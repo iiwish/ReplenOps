@@ -42,8 +42,8 @@ describe('mobile dashboard components', () => {
             todo: {
               id: 'containers-return',
               type: 'container',
-              title: '包装物待归还',
-              description: '有包装物需归还',
+              title: '可归还包装物',
+              description: '当前门店可申请归还的包装物数量',
               count: 2,
               link: '/mobile/container-return',
             },
@@ -53,7 +53,7 @@ describe('mobile dashboard components', () => {
     )
 
     expect(markup).toContain('href="/mobile/container-return"')
-    expect(markup).toContain('包装物待归还')
+    expect(markup).toContain('可归还包装物')
     expect(markup).toContain('>2<')
     expect(markup).toContain('min-h-[72px]')
   })

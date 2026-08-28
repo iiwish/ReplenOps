@@ -5,6 +5,7 @@ import { containerService } from '@/services/container.service'
 import { containerTrackingService } from '@/services/container-tracking.service'
 import { stockOutService } from '@/services/stock-out.service'
 import { orderApprovalService } from '@/services/order-approval.service'
+import { dashboardService } from '@/services/dashboard.service'
 
 async function cleanDatabase() {
   const [stores, warehouses, goods, containers, orders] = await Promise.all([
@@ -174,6 +175,58 @@ describe('container workflow', () => {
       pendingReturnQuantity: 0,
     })
     expect(await prisma.containerLog.count({ where: { opType: 'RETURN', quantity: 4 } })).toBe(1)
+  })
+
+  it('returns the packaging unit and the quantity still available for a store request', async () => {
+    const { store } = await seedMasterData()
+    const container = await prisma.container.create({
+      data: { code: 'C-CW-UNIT', name: '冷链箱', unit: '只', deposit: 18 },
+    })
+    await prisma.containerTracking.create({
+      data: {
+        storeId: store.id,
+        containerId: container.id,
+        totalBorrowed: 9,
+        currentBorrowed: 9,
+        pendingReturnQuantity: 4,
+      },
+    })
+
+    await expect(
+      containerTrackingService.getReturnableContainers(String(store.id))
+    ).resolves.toEqual([
+      expect.objectContaining({
+        containerName: '冷链箱',
+        containerUnit: '只',
+        currentBorrowed: 9,
+        pendingReturnQuantity: 4,
+        availableReturnQuantity: 5,
+      }),
+    ])
+  })
+
+  it('uses available packaging units for the mobile dashboard todo count', async () => {
+    const { store } = await seedMasterData()
+    const container = await prisma.container.create({
+      data: { code: 'C-CW-TODO', name: '待归还箱', unit: '只', deposit: 18 },
+    })
+    await prisma.containerTracking.create({
+      data: {
+        storeId: store.id,
+        containerId: container.id,
+        totalBorrowed: 9,
+        currentBorrowed: 9,
+        pendingReturnQuantity: 4,
+      },
+    })
+
+    const todo = await dashboardService.getTodoList(String(store.id))
+
+    expect(todo.containersToReturn).toMatchObject({
+      title: '可归还包装物',
+      count: 5,
+      link: '/mobile/container-return',
+    })
   })
 
   it('releases pending quantity when a warehouse rejects the return', async () => {

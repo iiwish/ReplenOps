@@ -30,24 +30,25 @@ export default function MobileHeader({
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-background border-b">
-      <div className="flex items-center justify-between h-14 px-4 safe-area-top">
+    <header className="sticky top-0 z-40 border-b bg-background">
+      <div className="safe-area-top flex h-14 items-center justify-between px-4">
         {/* 左侧返回按钮 */}
         {showBack ? (
           <Button
             variant="ghost"
             size="icon"
             onClick={handleBack}
-            className="min-w-[44px] min-h-[44px]"
+            className="min-h-[44px] min-w-[44px]"
+            aria-label="返回上一页"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
         ) : (
           <div className="w-11" />
         )}
 
         {/* 中间标题 */}
-        <h1 className="text-lg font-semibold truncate">{title}</h1>
+        <h1 className="truncate text-lg font-semibold">{title}</h1>
 
         {/* 右侧菜单按钮 */}
         {showMenu ? (
@@ -55,9 +56,10 @@ export default function MobileHeader({
             variant="ghost"
             size="icon"
             onClick={onMenu}
-            className="min-w-[44px] min-h-[44px]"
+            className="min-h-[44px] min-w-[44px]"
+            aria-label="更多操作"
           >
-            <MoreVertical className="w-5 h-5" />
+            <MoreVertical className="h-5 w-5" />
           </Button>
         ) : (
           <div className="w-11" />

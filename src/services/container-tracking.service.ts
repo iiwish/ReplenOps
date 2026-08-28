@@ -666,6 +666,7 @@ class ContainerTrackingService {
       trackingId: string
       containerId: string
       containerName: string
+      containerUnit: string
       currentBorrowed: number
       pendingReturnQuantity: number
       availableReturnQuantity: number
@@ -678,7 +679,7 @@ class ContainerTrackingService {
         currentBorrowed: { gt: 0 },
         isDeleted: false,
       },
-      include: { container: { select: { id: true, name: true, deposit: true } } },
+      include: { container: { select: { id: true, name: true, unit: true, deposit: true } } },
       orderBy: { lastBorrowAt: 'desc' },
     })
 
@@ -686,6 +687,7 @@ class ContainerTrackingService {
       trackingId: String(tracking.id),
       containerId: String(tracking.container.id),
       containerName: tracking.container.name,
+      containerUnit: tracking.container.unit,
       currentBorrowed: tracking.currentBorrowed,
       pendingReturnQuantity: tracking.pendingReturnQuantity,
       availableReturnQuantity: tracking.currentBorrowed - tracking.pendingReturnQuantity,

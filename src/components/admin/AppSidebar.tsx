@@ -9,25 +9,29 @@ import {
   getMenuItems,
   getOpenKeysForPath,
   getPathToKeyMap,
+  getVisibleMenuItems,
   menuItems,
 } from '@/config/menuConfig'
+import type { UserRole } from '@/types'
 
 const { Sider } = Layout
 
 interface AppSidebarProps {
   collapsed: boolean
+  roles: UserRole[]
 }
 
-export default function AppSidebar({ collapsed }: AppSidebarProps) {
+export default function AppSidebar({ collapsed, roles }: AppSidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const visibleMenuItems = useMemo(() => getVisibleMenuItems(menuItems, roles), [roles])
 
   // 生成菜单项
-  const items = useMemo(() => getMenuItems(menuItems), [])
+  const items = useMemo(() => getMenuItems(visibleMenuItems), [visibleMenuItems])
 
   // 生成路径映射
-  const pathToKeyMap = useMemo(() => getPathToKeyMap(menuItems), [])
-  const keyToPathMap = useMemo(() => getKeyToPathMap(menuItems), [])
+  const pathToKeyMap = useMemo(() => getPathToKeyMap(visibleMenuItems), [visibleMenuItems])
+  const keyToPathMap = useMemo(() => getKeyToPathMap(visibleMenuItems), [visibleMenuItems])
 
   // 获取当前选中的菜单项
   const selectedKey = useMemo(() => {
@@ -39,7 +43,10 @@ export default function AppSidebar({ collapsed }: AppSidebarProps) {
   }, [pathname, pathToKeyMap])
 
   // 获取当前展开的子菜单
-  const routeOpenKeys = useMemo(() => getOpenKeysForPath(pathname, menuItems), [pathname])
+  const routeOpenKeys = useMemo(
+    () => getOpenKeysForPath(pathname, visibleMenuItems),
+    [pathname, visibleMenuItems]
+  )
   const [userOpenKeys, setUserOpenKeys] = useState<string[]>([])
   const openKeys = useMemo(
     () => [...new Set([...userOpenKeys, ...routeOpenKeys])],

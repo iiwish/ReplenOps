@@ -9,6 +9,7 @@ import {
   ShoppingCartOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import type { UserRole } from '@/types'
 
 export type MenuItem = Required<MenuProps>['items'][number]
 
@@ -17,8 +18,15 @@ export interface MenuItemConfig {
   label: string
   icon?: React.ReactNode
   path?: string
+  roles?: readonly UserRole[]
   children?: MenuItemConfig[]
 }
+
+const ADMIN_ROLES: readonly UserRole[] = ['super_admin', 'warehouse_manager', 'finance', 'approver']
+
+const MASTER_DATA_ROLES: readonly UserRole[] = ['super_admin', 'warehouse_manager', 'finance']
+const WAREHOUSE_ROLES: readonly UserRole[] = ['super_admin', 'warehouse_manager']
+const REPORT_ROLES: readonly UserRole[] = ['super_admin', 'warehouse_manager', 'finance']
 
 // 菜单配置
 export const menuItems: MenuItemConfig[] = [
@@ -27,40 +35,20 @@ export const menuItems: MenuItemConfig[] = [
     label: '工作台',
     icon: <DashboardOutlined />,
     path: '/admin/dashboard',
-  },
-  {
-    key: 'goods-center',
-    label: '商品管理',
-    icon: <AppstoreOutlined />,
-    children: [
-      {
-        key: 'goods',
-        label: '商品档案',
-        path: '/admin/goods',
-      },
-      {
-        key: 'goods-category',
-        label: '商品分类',
-        path: '/admin/goods-category',
-      },
-    ],
+    roles: ADMIN_ROLES,
   },
   {
     key: 'orders',
     label: '订单管理',
     icon: <ShoppingCartOutlined />,
     path: '/admin/orders',
+    roles: ADMIN_ROLES,
   },
   {
     key: 'inventory',
     label: '库存管理',
     icon: <InboxOutlined />,
     children: [
-      {
-        key: 'warehouse',
-        label: '仓库管理',
-        path: '/admin/warehouse',
-      },
       {
         key: 'inventory-query',
         label: '库存查询',
@@ -85,41 +73,54 @@ export const menuItems: MenuItemConfig[] = [
         key: 'cost-history',
         label: '成本变动',
         path: '/admin/inventory/cost-history',
+        roles: REPORT_ROLES,
       },
     ],
+    roles: ADMIN_ROLES,
   },
   {
-    key: 'stores',
-    label: '门店管理',
-    icon: <ShopOutlined />,
-    path: '/admin/stores',
+    key: 'master-data',
+    label: '基础资料',
+    icon: <AppstoreOutlined />,
+    roles: MASTER_DATA_ROLES,
+    children: [
+      {
+        key: 'goods',
+        label: '商品档案',
+        path: '/admin/goods',
+      },
+      {
+        key: 'goods-category',
+        label: '商品分类',
+        path: '/admin/goods-category',
+      },
+      {
+        key: 'warehouse',
+        label: '仓库档案',
+        path: '/admin/warehouse',
+        roles: WAREHOUSE_ROLES,
+      },
+      {
+        key: 'stores',
+        label: '门店管理',
+        icon: <ShopOutlined />,
+        path: '/admin/stores',
+        roles: WAREHOUSE_ROLES,
+      },
+    ],
   },
   {
     key: 'containers',
-    label: '包装物管理',
+    label: '包装物',
     icon: <ContainerOutlined />,
-    children: [
-      {
-        key: 'container-list',
-        label: '包装物档案',
-        path: '/admin/containers',
-      },
-      {
-        key: 'container-tracking',
-        label: '包装物台账',
-        path: '/admin/container-tracking',
-      },
-      {
-        key: 'container-return',
-        label: '归还验收',
-        path: '/admin/container-return',
-      },
-    ],
+    path: '/admin/containers',
+    roles: ADMIN_ROLES,
   },
   {
     key: 'reports',
     label: '报表分析',
     icon: <BarChartOutlined />,
+    roles: REPORT_ROLES,
     children: [
       {
         key: 'inventory-report',
@@ -137,6 +138,7 @@ export const menuItems: MenuItemConfig[] = [
     key: 'system',
     label: '系统设置',
     icon: <SettingOutlined />,
+    roles: ['super_admin'],
     children: [
       {
         key: 'system-config',
@@ -156,6 +158,24 @@ export const menuItems: MenuItemConfig[] = [
     ],
   },
 ]
+
+export function getVisibleMenuItems(
+  items: MenuItemConfig[],
+  roles: readonly UserRole[]
+): MenuItemConfig[] {
+  return items.flatMap((item) => {
+    if (item.roles && !item.roles.some((role) => roles.includes(role))) {
+      return []
+    }
+
+    const children = item.children ? getVisibleMenuItems(item.children, roles) : undefined
+    if (item.children && children?.length === 0) {
+      return []
+    }
+
+    return [{ ...item, children }]
+  })
+}
 
 // 将配置转换为 Ant Design Menu 所需的格式
 export function getMenuItems(items: MenuItemConfig[]): MenuItem[] {

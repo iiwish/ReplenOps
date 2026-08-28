@@ -1,15 +1,15 @@
 'use client'
 
 import type { Route } from 'next'
+import Link from 'next/link'
 import { HomeOutlined } from '@ant-design/icons'
 import { Breadcrumb } from 'antd'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 import { getBreadcrumbItems, menuItems } from '@/config/menuConfig'
 
 export default function AppBreadcrumb() {
   const pathname = usePathname()
-  const router = useRouter()
 
   // 获取面包屑项
   const breadcrumbItems = useMemo(() => {
@@ -19,16 +19,10 @@ export default function AppBreadcrumb() {
     const result = [
       {
         title: (
-          <a
-            onClick={(e) => {
-              e.preventDefault()
-              router.push('/admin/dashboard')
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-          >
+          <Link href="/admin/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <HomeOutlined />
             <span>首页</span>
-          </a>
+          </Link>
         ),
       },
     ]
@@ -37,25 +31,17 @@ export default function AppBreadcrumb() {
     items.forEach((item, index) => {
       const isLast = index === items.length - 1
       result.push({
-        title: isLast ? (
-          <span>{item.label}</span>
-        ) : (
-          <a
-            onClick={(e) => {
-              e.preventDefault()
-              if (item.path) {
-                router.push(item.path as Route)
-              }
-            }}
-          >
-            {item.label}
-          </a>
-        ),
+        title:
+          isLast || !item.path ? (
+            <span>{item.label}</span>
+          ) : (
+            <Link href={item.path as Route}>{item.label}</Link>
+          ),
       })
     })
 
     return result
-  }, [pathname, router])
+  }, [pathname])
 
   // 如果在首页，不显示面包屑
   if (pathname === '/admin' || pathname === '/admin/dashboard') {

@@ -81,7 +81,7 @@ async function getDevBypassUser(): Promise<{
       phone: null,
       avatar: null,
       isActive: true,
-      roles: ['ADMIN'],
+      roles: ['SUPER_ADMIN'],
       displayName: '开发测试管理员',
     }
   }

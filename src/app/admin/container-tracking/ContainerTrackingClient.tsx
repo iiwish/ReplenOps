@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Table, Button, Modal, message, Segmented, Space } from 'antd'
+import { Table, Button, Modal, message, Segmented, Space, Empty } from 'antd'
 import { AuditOutlined, ContainerOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Route } from 'next'
@@ -43,9 +43,11 @@ interface LogItem {
 export default function ContainerTrackingPage({
   canWriteStock,
   initialHasUnreturned,
+  embedded = false,
 }: {
   canWriteStock: boolean
   initialHasUnreturned: boolean
+  embedded?: boolean
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -76,16 +78,6 @@ export default function ContainerTrackingPage({
       key: 'containerUnit',
     },
     {
-      title: '累计借出',
-      dataIndex: 'totalBorrowed',
-      key: 'totalBorrowed',
-    },
-    {
-      title: '累计归还',
-      dataIndex: 'totalReturned',
-      key: 'totalReturned',
-    },
-    {
       title: '当前在外',
       dataIndex: 'currentBorrowed',
       key: 'currentBorrowed',
@@ -108,12 +100,6 @@ export default function ContainerTrackingPage({
       title: '最后借出',
       dataIndex: 'lastBorrowAt',
       key: 'lastBorrowAt',
-      render: (value: Date | null) => (value ? new Date(value).toLocaleString() : '-'),
-    },
-    {
-      title: '最后归还',
-      dataIndex: 'lastReturnAt',
-      key: 'lastReturnAt',
       render: (value: Date | null) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
@@ -218,11 +204,11 @@ export default function ContainerTrackingPage({
   }, [fetchData])
 
   return (
-    <div className="p-6">
-      <h1 className="mb-4 text-2xl font-bold">包装物台账查询</h1>
+    <div className={embedded ? '' : 'p-6'}>
+      {!embedded && <h1 className="mb-4 text-2xl font-bold">包装物台账查询</h1>}
 
       <div className="mb-4 flex justify-end gap-2">
-        {canWriteStock && (
+        {canWriteStock && !embedded && (
           <Button
             icon={<AuditOutlined />}
             onClick={() => router.push('/admin/container-return' as Route)}
@@ -230,22 +216,24 @@ export default function ContainerTrackingPage({
             归还验收
           </Button>
         )}
-        <Segmented
-          value={hasUnreturned ? 'unreturned' : 'all'}
-          options={[
-            { label: '全部台账', value: 'all' },
-            { label: '待归还', value: 'unreturned' },
-          ]}
-          onChange={(value) => {
-            const nextHasUnreturned = value === 'unreturned'
-            setHasUnreturned(nextHasUnreturned)
-            router.push(
-              (nextHasUnreturned
-                ? '/admin/container-tracking?hasUnreturned=true'
-                : '/admin/container-tracking') as Route
-            )
-          }}
-        />
+        {!embedded && (
+          <Segmented
+            value={hasUnreturned ? 'unreturned' : 'all'}
+            options={[
+              { label: '全部台账', value: 'all' },
+              { label: '在外包装物', value: 'unreturned' },
+            ]}
+            onChange={(value) => {
+              const nextHasUnreturned = value === 'unreturned'
+              setHasUnreturned(nextHasUnreturned)
+              router.push(
+                (nextHasUnreturned
+                  ? '/admin/containers?view=outstanding'
+                  : '/admin/containers?view=all') as Route
+              )
+            }}
+          />
+        )}
       </div>
 
       <Table
@@ -254,7 +242,15 @@ export default function ContainerTrackingPage({
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20 }}
-        scroll={{ x: 1200 }}
+        locale={{
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={hasUnreturned ? '暂无在外包装物' : '暂无包装物台账'}
+            />
+          ),
+        }}
+        scroll={{ x: 900 }}
       />
 
       <Modal

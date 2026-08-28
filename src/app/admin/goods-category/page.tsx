@@ -1,6 +1,7 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import GoodsCategoryListClient from './GoodsCategoryListClient'
 import { goodsCategoryService } from '@/services/goods-category.service'
+import { canPerformAction } from '@/lib/action-permissions'
 
 interface SearchParams {
   page?: string
@@ -12,7 +13,7 @@ export default async function GoodsCategoryPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  await requirePageAccess('/admin/goods-category')
+  const { user } = await requirePageAccess('/admin/goods-category')
 
   // 获取搜索参数
   const params = await searchParams
@@ -26,5 +27,10 @@ export default async function GoodsCategoryPage({
     keyword,
   })
 
-  return <GoodsCategoryListClient initialData={result} />
+  return (
+    <GoodsCategoryListClient
+      initialData={result}
+      canWrite={canPerformAction(user, 'goods:write')}
+    />
+  )
 }
