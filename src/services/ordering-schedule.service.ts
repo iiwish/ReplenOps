@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getShanghaiClock } from '@/lib/shanghai-time'
+import type { OrderingScheduleInput } from '@/types/ordering-schedule.types'
 
 // ============================================
 // 报货时间服务 (Ordering Schedule Service)
@@ -67,6 +68,18 @@ export async function updateSchedule(
     },
   })
   return schedule
+}
+
+export async function updateSchedules(schedules: OrderingScheduleInput[]) {
+  return prisma.$transaction(
+    schedules.map((schedule) =>
+      prisma.orderingSchedule.upsert({
+        where: { dayOfWeek: schedule.dayOfWeek },
+        update: schedule,
+        create: schedule,
+      })
+    )
+  )
 }
 
 /**
@@ -187,6 +200,10 @@ export const orderingScheduleService = {
     data: { startTime?: string; endTime?: string; isActive?: boolean }
   ) {
     return updateSchedule(dayOfWeek, data)
+  },
+
+  async updateSchedules(schedules: OrderingScheduleInput[]) {
+    return updateSchedules(schedules)
   },
 
   async isWithinOrderingTime(now = new Date()) {

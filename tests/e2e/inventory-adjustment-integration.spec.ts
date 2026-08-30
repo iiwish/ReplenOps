@@ -94,4 +94,21 @@ test('integrates inventory adjustment into the inventory change page', async ({ 
   await expect(dialog).toContainText('10件')
   await expect(dialog).toContainText('8件')
   await expect(dialog).toContainText('2件')
+
+  const quantityInput = dialog.getByRole('spinbutton', { name: '调整后库存数量' })
+  await quantityInput.fill('10')
+  await expect(dialog.getByText('库存数量未发生变化')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '提交调整' })).toBeDisabled()
+
+  await quantityInput.fill('7')
+  await dialog.getByRole('textbox', { name: '调整原因' }).fill('月末盘点复核')
+  await dialog.getByRole('button', { name: '提交调整' }).click()
+
+  const confirmation = page.getByRole('dialog', { name: '确认提交库存调整？' })
+  await expect(confirmation).toContainText('库存调整测试仓 · 库存调整测试商品')
+  await expect(confirmation).toContainText('库存将从 10 调整为 7 件')
+  await expect(confirmation).toContainText('-3 件')
+  await expect(confirmation).toContainText('原因：月末盘点复核')
+  await confirmation.getByRole('button', { name: /返\s*回\s*核\s*对/ }).click()
+  await expect(confirmation).toBeHidden()
 })

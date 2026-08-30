@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Route } from 'next'
-import { Table, Button, message, Card, Space, DatePicker, Input, Tag, Modal, Tabs } from 'antd'
+import { Table, Button, message, Space, DatePicker, Input, Tag, Modal, Tabs, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { getOrders, deleteOrder } from '@/actions/order-actions'
 import Link from 'next/link'
@@ -11,7 +11,6 @@ import {
   CheckCircleOutlined,
   FileExcelOutlined,
   ReloadOutlined,
-  SearchOutlined,
 } from '@ant-design/icons'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -48,6 +47,23 @@ export interface OrderListFilters {
   keyword?: string
 }
 
+function normalizeFilters(filters: OrderListFilters): OrderListFilters {
+  return {
+    ...filters,
+    keyword: filters.keyword?.trim() || undefined,
+  }
+}
+
+function filtersMatch(left: OrderListFilters, right: OrderListFilters): boolean {
+  return (
+    left.status === right.status &&
+    left.storeId === right.storeId &&
+    left.startDate === right.startDate &&
+    left.endDate === right.endDate &&
+    left.keyword === right.keyword
+  )
+}
+
 // 订单状态配置
 const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING: { label: '待审批', color: 'orange' },
@@ -79,9 +95,11 @@ export function OrderListClient({
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
   const [approvalOrder, setApprovalOrder] = useState<{ id: string; code?: string } | null>(null)
+  const requestId = useRef(0)
 
   // 筛选条件
   const [filters, setFilters] = useState<OrderListFilters>(initialFilters)
+  const [draftFilters, setDraftFilters] = useState<OrderListFilters>(initialFilters)
 
   useEffect(() => {
     if (canReviewOrders && initialApprovalOrderId) {
@@ -90,15 +108,18 @@ export function OrderListClient({
   }, [canReviewOrders, initialApprovalOrderId])
 
   // 加载数据
-  const loadData = async () => {
+  const loadData = useCallback(async (nextPage = page, nextFilters = filters) => {
+    const currentRequestId = ++requestId.current
     setLoading(true)
     try {
       const res = await getOrders({
-        page,
+        page: nextPage,
         pageSize,
-        ...filters,
-        status: filters.status?.split(','),
+        ...nextFilters,
+        status: nextFilters.status?.split(','),
       })
+      if (currentRequestId !== requestId.current) return
+
       if (res.success && res.data) {
         const resultData = res.data as OrdersListData
         setData(resultData.data)
@@ -107,25 +128,50 @@ export function OrderListClient({
       } else {
         message.error(res.message || '加载失败')
       }
+    } catch {
+      if (currentRequestId === requestId.current) message.error('加载订单失败')
     } finally {
-      setLoading(false)
+      if (currentRequestId === requestId.current) setLoading(false)
     }
-  }
+  }, [filters, page, pageSize])
 
   useEffect(() => {
-    loadData()
-  }, [page, filters])
+    void loadData()
+  }, [loadData])
+
+  const syncFiltersToUrl = useCallback(
+    (nextFilters: OrderListFilters) => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('approval')
+      for (const key of ['status', 'startDate', 'endDate', 'keyword'] as const) {
+        const value = nextFilters[key]
+        if (value) params.set(key, value)
+        else params.delete(key)
+      }
+      router.replace(`${pathname}${params.size > 0 ? `?${params.toString()}` : ''}` as Route, {
+        scroll: false,
+      })
+    },
+    [pathname, router, searchParams]
+  )
 
   // 处理筛选
   const handleFilter = () => {
+    const nextFilters = normalizeFilters(draftFilters)
+    const shouldReloadDirectly = page === 1 && filtersMatch(filters, nextFilters)
     setPage(1)
-    loadData()
+    setFilters(nextFilters)
+    setDraftFilters(nextFilters)
+    syncFiltersToUrl(nextFilters)
+    if (shouldReloadDirectly) void loadData(1, nextFilters)
   }
 
   // 重置筛选
   const handleReset = () => {
+    setDraftFilters({})
     setFilters({})
     setPage(1)
+    syncFiltersToUrl({})
   }
 
   // 删除订单
@@ -137,7 +183,7 @@ export function OrderListClient({
         const res = await deleteOrder(record.id)
         if (res.success) {
           message.success('删除成功')
-          loadData()
+          await loadData()
         } else {
           message.error(res.message || '删除失败')
         }
@@ -166,19 +212,11 @@ export function OrderListClient({
 
   const handleStatusChange = (status: string) => {
     const nextStatus = status === 'ALL' ? undefined : status
+    const nextFilters = { ...filters, status: nextStatus }
     setPage(1)
-    setFilters((current) => ({ ...current, status: nextStatus }))
-
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete('approval')
-    if (nextStatus) {
-      params.set('status', nextStatus)
-    } else {
-      params.delete('status')
-    }
-    router.replace(`${pathname}${params.size > 0 ? `?${params.toString()}` : ''}` as Route, {
-      scroll: false,
-    })
+    setFilters(nextFilters)
+    setDraftFilters((current) => ({ ...current, status: nextStatus }))
+    syncFiltersToUrl(nextFilters)
   }
 
   const statusTabs = [
@@ -280,28 +318,27 @@ export function OrderListClient({
     <div>
       <Tabs activeKey={filters.status || 'ALL'} items={statusTabs} onChange={handleStatusChange} />
 
-      {/* 筛选条件 */}
-      <Card size="small" className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-gray-200 bg-gray-50 px-3 py-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-2">
             <span className="whitespace-nowrap text-sm text-gray-600">日期</span>
             <RangePicker
               style={{ width: 220 }}
               value={
-                filters.startDate && filters.endDate
-                  ? [dayjs(filters.startDate), dayjs(filters.endDate)]
+                draftFilters.startDate && draftFilters.endDate
+                  ? [dayjs(draftFilters.startDate), dayjs(draftFilters.endDate)]
                   : null
               }
               onChange={(dates) => {
                 if (dates) {
-                  setFilters({
-                    ...filters,
+                  setDraftFilters({
+                    ...draftFilters,
                     startDate: dates[0]?.format('YYYY-MM-DD'),
                     endDate: dates[1]?.format('YYYY-MM-DD'),
                   })
                 } else {
-                  setFilters({
-                    ...filters,
+                  setDraftFilters({
+                    ...draftFilters,
                     startDate: undefined,
                     endDate: undefined,
                   })
@@ -312,26 +349,23 @@ export function OrderListClient({
           <Search
             placeholder="搜索订单号或备注"
             allowClear
+            enterButton="查询"
             style={{ width: 230 }}
-            value={filters.keyword}
-            onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
+            value={draftFilters.keyword}
+            onChange={(e) => setDraftFilters({ ...draftFilters, keyword: e.target.value })}
             onSearch={handleFilter}
           />
-          <Space size="small">
-            <Button type="primary" icon={<SearchOutlined />} onClick={handleFilter}>
-              查询
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={handleReset}>
-              重置
-            </Button>
-          </Space>
+          <Button onClick={handleReset}>重置</Button>
         </div>
-      </Card>
-
-      {/* 操作按钮 */}
-      <div className="mb-4">
-        <Space>
-          <Button onClick={loadData}>刷新</Button>
+        <Space size="small">
+          <Tooltip title="刷新订单">
+            <Button
+              icon={<ReloadOutlined />}
+              aria-label="刷新订单"
+              loading={loading}
+              onClick={() => void loadData()}
+            />
+          </Tooltip>
           <Link href={'/admin/reports/stock-out' as Route}>
             <Button icon={<FileExcelOutlined />}>月度出库报表</Button>
           </Link>

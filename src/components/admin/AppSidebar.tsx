@@ -14,6 +14,7 @@ import {
   menuItems,
 } from '@/config/menuConfig'
 import type { UserRole } from '@/types'
+import { requestAppNavigation } from '@/lib/unsaved-changes'
 
 const { Sider } = Layout
 
@@ -57,7 +58,7 @@ export default function AppSidebar({ collapsed, roles }: AppSidebarProps) {
   // 处理菜单点击
   const handleMenuClick = ({ key }: { key: string }) => {
     const path = keyToPathMap.get(key)
-    if (path) {
+    if (path && requestAppNavigation()) {
       router.push(path as Route)
     }
   }

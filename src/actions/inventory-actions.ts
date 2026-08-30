@@ -12,7 +12,7 @@ const adjustStockSchema = z.object({
   warehouseId: z.string().min(1, '请选择仓库'),
   goodsId: z.string().min(1, '请选择商品'),
   newQuantity: z.number().min(0, '数量不能为负数'),
-  reason: z.string().min(1, '请填写调整原因'),
+  reason: z.string().trim().min(2, '调整原因至少2个字符').max(500, '调整原因不能超过500个字符'),
 })
 
 // 通用响应接口

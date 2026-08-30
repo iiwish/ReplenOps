@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, Clock } from 'lucide-react'
 
-interface OrderingStatus {
+export interface OrderingStatus {
   isOpen: boolean
   todaySchedule: { startTime: string; endTime: string; isActive: boolean } | null
   nextOrderingTime: { dayOfWeek: number; dayName: string; startTime: string } | null
@@ -18,11 +18,12 @@ interface OrderingStatus {
 
 interface OrderingReminderProps {
   variant?: 'home' | 'compact'
+  onStatusChange?: (status: OrderingStatus | null) => void
 }
 
 const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
-export function OrderingReminder({ variant = 'compact' }: OrderingReminderProps) {
+export function OrderingReminder({ variant = 'compact', onStatusChange }: OrderingReminderProps) {
   const [status, setStatus] = useState<OrderingStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [showWeeklySchedule, setShowWeeklySchedule] = useState(false)
@@ -34,15 +35,19 @@ export function OrderingReminder({ variant = 'compact' }: OrderingReminderProps)
         const data = await res.json()
         if (data.success) {
           setStatus(data.data)
+          onStatusChange?.(data.data)
+        } else {
+          onStatusChange?.(null)
         }
       } catch (error) {
         console.error('获取报货状态失败:', error)
+        onStatusChange?.(null)
       } finally {
         setLoading(false)
       }
     }
     fetchStatus()
-  }, [])
+  }, [onStatusChange])
 
   if (loading) {
     return null
@@ -179,8 +184,8 @@ export function OrderingReminder({ variant = 'compact' }: OrderingReminderProps)
         <p className="text-sm font-medium text-amber-900">
           {status.todaySchedule?.isActive ? '当前不在报货时间内' : `${todayName} 暂停报货`}
         </p>
-        <p className="mt-0.5 truncate text-xs text-amber-700">
-          {nextOrderingLabel ? `下次可报货：${nextOrderingLabel}` : todayScheduleLabel}
+        <p className="mt-0.5 text-xs text-amber-700">
+          {nextOrderingLabel ? `可先备货，下次结算：${nextOrderingLabel}` : todayScheduleLabel}
         </p>
       </div>
     </div>

@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { Form, Input, InputNumber, Button, message, Space, Select, Radio } from 'antd'
+import { Form, Input, InputNumber, message, Space, Select, Radio } from 'antd'
 import { createGoods, updateGoods } from '@/actions/goods-actions'
 import { GOODS_CODE_PATTERN, shouldValidateGoodsCode } from '@/lib/goods-code-policy'
 import { isAllowedProductImageSource } from '@/lib/product-image'
@@ -26,25 +25,26 @@ interface GoodsFormClientProps {
   mode: 'create' | 'edit'
   initialValues?: GoodsFormData & { id: string }
   initialCode?: string
+  formId: string
   categories: Array<{ id: string; code: string; name: string }>
-  onCancel: () => void
   onSuccess: () => void
+  onSubmittingChange: (submitting: boolean) => void
 }
 
 export default function GoodsFormClient({
   mode,
   initialValues,
   initialCode,
+  formId,
   categories,
-  onCancel,
   onSuccess,
+  onSubmittingChange,
 }: GoodsFormClientProps) {
   const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsFormData) => {
-    setLoading(true)
+    onSubmittingChange(true)
 
     try {
       // 将表单数据转换为 FormData
@@ -79,13 +79,14 @@ export default function GoodsFormClient({
     } catch {
       message.error('操作失败，请重试')
     } finally {
-      setLoading(false)
+      onSubmittingChange(false)
     }
   }
 
   return (
     <Form
       form={form}
+      id={formId}
       layout="vertical"
       initialValues={initialValues || { code: initialCode, measureType: 'INT' }}
       onFinish={handleSubmit}
@@ -252,17 +253,6 @@ export default function GoodsFormClient({
 
       <Form.Item label="商品描述" name="description" tooltip="商品详细描述（可选）">
         <TextArea placeholder="请输入商品描述" rows={4} maxLength={500} showCount />
-      </Form.Item>
-
-      <Form.Item>
-        <Space>
-          <Button type="primary" htmlType="submit" loading={loading}>
-            {mode === 'create' ? '创建' : '保存'}
-          </Button>
-          <Button onClick={onCancel} disabled={loading}>
-            取消
-          </Button>
-        </Space>
       </Form.Item>
     </Form>
   )

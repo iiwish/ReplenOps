@@ -7,6 +7,7 @@ interface OrdersSearchParams {
   status?: string | string[]
   startDate?: string
   endDate?: string
+  keyword?: string
   approval?: string | string[]
 }
 
@@ -37,6 +38,7 @@ export default async function OrdersPage({
       requestedStatus && ORDER_STATUS_FILTERS.has(requestedStatus) ? requestedStatus : undefined,
     startDate: firstParam(params.startDate),
     endDate: firstParam(params.endDate),
+    keyword: firstParam(params.keyword),
   }
   const requestedApproval = firstParam(params.approval)
   const initialApprovalOrderId =

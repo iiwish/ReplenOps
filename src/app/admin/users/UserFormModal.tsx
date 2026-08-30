@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Modal, Form, Input, Select, App } from 'antd'
+import { Alert, Modal, Form, Input, Select, App } from 'antd'
 import { createUser, updateUser } from '@/actions/user-actions'
 import { ROLE_OPTIONS } from '@/types/user.types'
 import type { UserWithRoles } from '@/services/user.service'
@@ -9,6 +9,7 @@ import type { UserWithRoles } from '@/services/user.service'
 interface UserFormModalProps {
   open: boolean
   user: UserWithRoles | null
+  stores: Array<{ id: string; code: string; name: string }>
   onClose: () => void
   onSuccess: () => void
 }
@@ -20,13 +21,16 @@ interface FormValues {
   email: string
   phone: string
   roles: string[]
+  storeIds: string[]
 }
 
-export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalProps) {
+export function UserFormModal({ open, user, stores, onClose, onSuccess }: UserFormModalProps) {
   const [form] = Form.useForm<FormValues>()
   const [loading, setLoading] = useState(false)
   const { message } = App.useApp()
   const isEdit = !!user
+  const selectedRoles = Form.useWatch('roles', form) ?? []
+  const isStoreAdmin = selectedRoles.includes('STORE_ADMIN')
 
   useEffect(() => {
     if (open) {
@@ -38,10 +42,11 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
           email: user.email || '',
           phone: user.phone || '',
           roles: user.roles || [],
+          storeIds: user.storeIds,
         })
       } else {
         form.resetFields()
-        form.setFieldsValue({ roles: ['STORE_ADMIN'] })
+        form.setFieldsValue({ roles: [], storeIds: [] })
       }
     }
   }, [open, user, form])
@@ -57,6 +62,7 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
           email: values.email || undefined,
           phone: values.phone || undefined,
           roles: values.roles,
+          storeIds: values.storeIds,
         })
         if (result.success) {
           message.success(result.message)
@@ -72,6 +78,7 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
           email: values.email || undefined,
           phone: values.phone || undefined,
           roles: values.roles,
+          storeIds: values.storeIds,
         })
         if (result.success) {
           message.success(result.message)
@@ -100,9 +107,16 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
       onOk={() => form.submit()}
       confirmLoading={loading}
       destroyOnHidden
-      width={500}
+      width={560}
+      styles={{ body: { maxHeight: 'calc(100dvh - 200px)', overflowY: 'auto' } }}
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">
+      <Form
+        form={form}
+        name="replenops-user-admin-form"
+        layout="vertical"
+        onFinish={handleSubmit}
+        autoComplete="off"
+      >
         <Form.Item
           name="username"
           label="登录名"
@@ -112,7 +126,15 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
             { max: 50, message: '登录名最多50个字符' },
           ]}
         >
-          <Input placeholder="请输入登录名" disabled={isEdit} />
+          <Input
+            placeholder="请输入登录名"
+            disabled={isEdit}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
+          />
         </Form.Item>
 
         <Form.Item
@@ -127,7 +149,12 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
                 ]
           }
         >
-          <Input.Password placeholder={isEdit ? '留空则不修改密码' : '请输入密码'} />
+          <Input.Password
+            placeholder={isEdit ? '留空则不修改密码' : '请输入密码'}
+            autoComplete="new-password"
+            data-1p-ignore
+            data-lpignore="true"
+          />
         </Form.Item>
 
         <Form.Item
@@ -168,8 +195,42 @@ export function UserFormModal({ open, user, onClose, onSuccess }: UserFormModalP
             placeholder="请选择角色"
             options={ROLE_OPTIONS.map((r) => ({ value: r.value, label: r.label }))}
             allowClear
+            onChange={(roles: string[]) => {
+              if (!roles.includes('STORE_ADMIN')) {
+                form.setFieldValue('storeIds', [])
+              }
+            }}
           />
         </Form.Item>
+
+        {isStoreAdmin && (
+          <>
+            <Form.Item
+              name="storeIds"
+              label="管理门店"
+              rules={[{ required: true, message: '请选择至少一家门店' }]}
+              extra="该用户只能查看和操作这里绑定的门店。"
+            >
+              <Select
+                mode="multiple"
+                placeholder={stores.length > 0 ? '请选择门店' : '暂无可绑定门店'}
+                disabled={stores.length === 0}
+                showSearch
+                optionFilterProp="label"
+                options={stores.map((store) => ({
+                  value: store.id,
+                  label: `${store.name} (${store.code})`,
+                }))}
+              />
+            </Form.Item>
+            <Alert
+              type="info"
+              showIcon
+              title="角色与门店将同时保存，授权立即生效。"
+              className="mb-4"
+            />
+          </>
+        )}
       </Form>
     </Modal>
   )

@@ -9,7 +9,10 @@ import { CategorySidebar } from '@/components/mobile/order/CategorySidebar'
 import { GoodsGrid, type GoodsGridHandle } from '@/components/mobile/order/GoodsGrid'
 import { CartFloating } from '@/components/mobile/order/CartFloating'
 import { CartDrawer } from '@/components/mobile/order/CartDrawer'
-import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
+import {
+  OrderingReminder,
+  type OrderingStatus,
+} from '@/components/mobile/dashboard/OrderingReminder'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { hydrateCartStore, useCartStore } from '@/lib/stores/cart.store'
 import { createOrder, getActiveOrderForStore } from '@/actions/order-actions'
@@ -61,6 +64,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null)
   const [checkingActiveOrder, setCheckingActiveOrder] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [orderingStatus, setOrderingStatus] = useState<OrderingStatus | null>()
   const [searchTerm, setSearchTerm] = useState('')
   const goodsGridRef = useRef<GoodsGridHandle>(null)
   const isSubmittingRef = useRef(false)
@@ -133,11 +137,37 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
     goodsGridRef.current?.scrollToCategory(categoryId)
   }, [])
 
+  const handleOrderingStatusChange = useCallback((status: OrderingStatus | null) => {
+    setOrderingStatus(status)
+  }, [])
+
+  const checkoutDisabled = orderingStatus?.isOpen !== true
+  const checkoutLabel =
+    orderingStatus === undefined
+      ? '检查中'
+      : orderingStatus === null
+        ? '暂不可用'
+        : checkoutDisabled
+          ? '暂停报货'
+          : '结算'
+
   const requestCheckout = () => {
     if (!selectedStoreId) {
       toast({
         title: '请先选择门店',
         description: '请在首页选择要下单的门店',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!orderingStatus?.isOpen) {
+      const nextOrderingTime = orderingStatus?.nextOrderingTime
+      toast({
+        title: orderingStatus ? '当前暂停报货' : '暂时无法确认报货时间',
+        description: nextOrderingTime
+          ? `购物车已保留，请在${nextOrderingTime.dayName} ${nextOrderingTime.startTime}后结算`
+          : '购物车已保留，请稍后再试',
         variant: 'destructive',
       })
       return
@@ -170,7 +200,12 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   }
 
   const submitCheckout = async () => {
-    if (isSubmittingRef.current || !selectedStoreId || visibleItems.length === 0) {
+    if (
+      isSubmittingRef.current ||
+      !selectedStoreId ||
+      visibleItems.length === 0 ||
+      !orderingStatus?.isOpen
+    ) {
       return
     }
 
@@ -262,7 +297,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
       activeOrder.status === 'PENDING'
         ? '待审批'
         : activeOrder.status === 'APPROVED'
-          ? '待发货'
+          ? '待出库'
           : '待收货'
 
     return (
@@ -287,7 +322,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <OrderingReminder variant="compact" />
+      <OrderingReminder variant="compact" onStatusChange={handleOrderingStatusChange} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* 左侧分类 */}
         <CategorySidebar
@@ -311,6 +346,8 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
             onClick={() => setCartOpen(true)}
             onCheckout={requestCheckout}
             isSubmitting={isSubmitting}
+            checkoutDisabled={checkoutDisabled}
+            checkoutLabel={checkoutLabel}
           />
         </div>
       </div>
@@ -321,6 +358,8 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
         onOpenChange={setCartOpen}
         onCheckout={requestCheckout}
         isSubmitting={isSubmitting}
+        checkoutDisabled={checkoutDisabled}
+        checkoutLabel={checkoutDisabled ? checkoutLabel : '去结算'}
       />
 
       <Dialog.Root open={checkoutDialogOpen} onOpenChange={handleCheckoutDialogOpenChange}>
@@ -376,7 +415,10 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
                   <Button variant="outline" onClick={closeCheckoutDialog} disabled={isSubmitting}>
                     取消
                   </Button>
-                  <Button onClick={submitCheckout} disabled={isSubmitting}>
+                  <Button
+                    onClick={submitCheckout}
+                    disabled={isSubmitting || !orderingStatus?.isOpen}
+                  >
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isSubmitting ? '提交中...' : '确认结算'}
                   </Button>

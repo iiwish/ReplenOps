@@ -85,7 +85,23 @@ export interface StoreAdminInfo {
   }
 }
 
+export interface StoreOption {
+  id: string
+  code: string
+  name: string
+}
+
 export class StoreService {
+  async listActiveOptions(): Promise<StoreOption[]> {
+    const stores = await prisma.store.findMany({
+      where: { isActive: true, isDeleted: false },
+      orderBy: [{ name: 'asc' }, { code: 'asc' }],
+      select: { id: true, code: true, name: true },
+    })
+
+    return stores.map((store) => ({ ...store, id: String(store.id) }))
+  }
+
   /**
    * 获取门店列表（分页）
    */

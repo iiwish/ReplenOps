@@ -26,6 +26,7 @@ interface GoodsListClientProps {
 
 type GoodsRecord = PaginatedGoodsResult['data'][number]
 type GoodsFormMode = 'create' | 'edit'
+const GOODS_FORM_ID = 'goods-record-form'
 
 export default function GoodsListClient({
   initialData,
@@ -41,6 +42,7 @@ export default function GoodsListClient({
   const [editingGoods, setEditingGoods] = useState<GoodsRecord | null>(null)
   const [nextGoodsCode, setNextGoodsCode] = useState<string>()
   const [codeLoading, setCodeLoading] = useState(false)
+  const [formSubmitting, setFormSubmitting] = useState(false)
 
   const handleOpenCreateModal = async () => {
     setCodeLoading(true)
@@ -54,6 +56,7 @@ export default function GoodsListClient({
       setFormMode('create')
       setEditingGoods(null)
       setNextGoodsCode(result.data)
+      setFormSubmitting(false)
       setFormModalOpen(true)
     } catch {
       message.error('生成商品编码失败')
@@ -65,16 +68,20 @@ export default function GoodsListClient({
   const handleOpenEditModal = (record: GoodsRecord) => {
     setFormMode('edit')
     setEditingGoods(record)
+    setFormSubmitting(false)
     setFormModalOpen(true)
   }
 
   const handleCloseFormModal = () => {
+    if (formSubmitting) return
     setFormModalOpen(false)
     setEditingGoods(null)
   }
 
   const handleFormSuccess = () => {
-    handleCloseFormModal()
+    setFormSubmitting(false)
+    setFormModalOpen(false)
+    setEditingGoods(null)
     router.refresh()
   }
 
@@ -349,13 +356,31 @@ export default function GoodsListClient({
           title={formMode === 'create' ? '新增商品' : '编辑商品'}
           open={formModalOpen}
           onCancel={handleCloseFormModal}
-          footer={null}
+          footer={
+            <Space>
+              <Button onClick={handleCloseFormModal} disabled={formSubmitting}>
+                取消
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                form={GOODS_FORM_ID}
+                loading={formSubmitting}
+              >
+                {formMode === 'create' ? '创建' : '保存'}
+              </Button>
+            </Space>
+          }
           width={900}
           destroyOnHidden
+          maskClosable={!formSubmitting}
+          keyboard={!formSubmitting}
+          styles={{ body: { maxHeight: 'calc(100dvh - 220px)', overflowY: 'auto' } }}
         >
           {formModalOpen && (
             <GoodsFormClient
               mode={formMode}
+              formId={GOODS_FORM_ID}
               initialCode={formMode === 'create' ? nextGoodsCode : undefined}
               initialValues={
                 editingGoods
@@ -376,8 +401,8 @@ export default function GoodsListClient({
                   : undefined
               }
               categories={categories}
-              onCancel={handleCloseFormModal}
               onSuccess={handleFormSuccess}
+              onSubmittingChange={setFormSubmitting}
             />
           )}
         </Modal>

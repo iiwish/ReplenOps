@@ -10,9 +10,17 @@ interface CartFloatingProps {
   onClick: () => void
   onCheckout: () => void
   isSubmitting: boolean
+  checkoutDisabled?: boolean
+  checkoutLabel?: string
 }
 
-export function CartFloating({ onClick, onCheckout, isSubmitting }: CartFloatingProps) {
+export function CartFloating({
+  onClick,
+  onCheckout,
+  isSubmitting,
+  checkoutDisabled = false,
+  checkoutLabel = '结算',
+}: CartFloatingProps) {
   const { items, hasHydrated, getTotalAmount, getTotalQuantity } = useCartStore()
 
   const visibleItems = hasHydrated ? items : []
@@ -76,10 +84,10 @@ export function CartFloating({ onClick, onCheckout, isSubmitting }: CartFloating
           <Button
             size="lg"
             onClick={onCheckout}
-            disabled={!hasItems || isSubmitting}
+            disabled={!hasItems || isSubmitting || checkoutDisabled}
             className="min-h-[40px] px-4"
           >
-            结算
+            {checkoutLabel}
           </Button>
         </div>
       </div>

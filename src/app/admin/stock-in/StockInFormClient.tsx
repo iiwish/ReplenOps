@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Form, Input, InputNumber, Button, Card, message, Space, Select, Table, Modal } from 'antd'
+import { Form, Input, InputNumber, Button, message, Space, Select, Table, Modal, Tooltip } from 'antd'
 import { PlusOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { createStockIn, updateStockIn, searchGoods } from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
+import type { TableRowSelection } from 'antd/es/table/interface'
+import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning'
 
 const { TextArea } = Input
 
@@ -48,6 +50,22 @@ interface GoodsOption {
   defaultInPrice: number
 }
 
+function createFormSnapshot(
+  warehouseId: string | undefined,
+  remark: string | undefined,
+  items: StockInItem[]
+): string {
+  return JSON.stringify({
+    warehouseId: warehouseId ?? '',
+    remark: remark ?? '',
+    items: items.map((item) => ({
+      goodsId: item.goodsId,
+      quantity: item.quantity,
+      price: item.price,
+    })),
+  })
+}
+
 export default function StockInFormClient({
   mode,
   initialValues,
@@ -56,7 +74,7 @@ export default function StockInFormClient({
   const router = useRouter()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [shouldNavigateTo, setShouldNavigateTo] = useState<string | null>(null)
+  const [hasSubmitted, setHasSubmitted] = useState(false)
   const [items, setItems] = useState<StockInItem[]>(initialValues?.items || [])
   const [goodsModalVisible, setGoodsModalVisible] = useState(false)
   const [goodsSearchKeyword, setGoodsSearchKeyword] = useState('')
@@ -64,7 +82,19 @@ export default function StockInFormClient({
   const [goodsLoading, setGoodsLoading] = useState(false)
   const [goodsPage, setGoodsPage] = useState(1)
   const [goodsHasMore, setGoodsHasMore] = useState(true)
+  const [selectedGoods, setSelectedGoods] = useState<Record<string, GoodsOption>>({})
   const goodsRequestId = useRef(0)
+  const defaultWarehouseId = initialValues?.warehouseId ?? warehouses[0]?.id
+  const initialSnapshot = useMemo(
+    () => createFormSnapshot(defaultWarehouseId, initialValues?.remark, initialValues?.items ?? []),
+    [defaultWarehouseId, initialValues]
+  )
+  const warehouseId = Form.useWatch('warehouseId', form) ?? defaultWarehouseId
+  const remark = Form.useWatch('remark', form)
+  const isDirty =
+    !hasSubmitted && createFormSnapshot(warehouseId, remark, items) !== initialSnapshot
+
+  useUnsavedChangesWarning(isDirty, '当前入库单尚未保存，确定离开吗？')
 
   const loadGoods = useCallback(async (keyword: string, page: number, append: boolean) => {
     const requestId = ++goodsRequestId.current
@@ -112,31 +142,39 @@ export default function StockInFormClient({
     }
   }
 
-  // 添加商品
-  const handleAddGoods = (goods: GoodsOption) => {
-    // 检查是否已添加
-    if (items.some((item) => item.goodsId === goods.id)) {
-      message.warning('该商品已添加')
-      return
-    }
-
-    const newItem: StockInItem = {
-      key: `${Date.now()}_${Math.random()}`,
-      goodsId: goods.id,
-      goodsCode: goods.code,
-      goodsName: goods.name,
-      goodsUnit: goods.unit,
-      measureType: goods.measureType,
-      quantity: 1,
-      price: goods.defaultInPrice,
-      amount: goods.defaultInPrice,
-    }
-
-    setItems([...items, newItem])
+  const closeGoodsModal = () => {
     setGoodsModalVisible(false)
     setGoodsSearchKeyword('')
     setGoodsOptions([])
-    message.success('商品已添加')
+    setGoodsPage(1)
+    setGoodsHasMore(true)
+    setSelectedGoods({})
+  }
+
+  const handleAddSelectedGoods = () => {
+    const existingGoodsIds = new Set(items.map((item) => item.goodsId))
+    const goodsToAdd = Object.values(selectedGoods).filter(
+      (goods) => !existingGoodsIds.has(goods.id)
+    )
+    if (goodsToAdd.length === 0) return
+
+    const timestamp = Date.now()
+    setItems((currentItems) => [
+      ...currentItems,
+      ...goodsToAdd.map((goods, index) => ({
+        key: `${timestamp}_${index}_${goods.id}`,
+        goodsId: goods.id,
+        goodsCode: goods.code,
+        goodsName: goods.name,
+        goodsUnit: goods.unit,
+        measureType: goods.measureType,
+        quantity: 1,
+        price: goods.defaultInPrice,
+        amount: goods.defaultInPrice,
+      })),
+    ])
+    closeGoodsModal()
+    message.success(`已添加 ${goodsToAdd.length} 个商品`)
   }
 
   // 删除商品
@@ -147,26 +185,25 @@ export default function StockInFormClient({
 
   // 更新商品数量
   const handleQuantityChange = (index: number, quantity: number) => {
-    const newItems = [...items]
-    if (newItems[index]) {
-      newItems[index].quantity = quantity
-      newItems[index].amount = quantity * newItems[index].price
-      setItems(newItems)
-    }
+    setItems((currentItems) =>
+      currentItems.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, quantity, amount: quantity * item.price } : item
+      )
+    )
   }
 
   // 更新商品价格
   const handlePriceChange = (index: number, price: number) => {
-    const newItems = [...items]
-    if (newItems[index]) {
-      newItems[index].price = price
-      newItems[index].amount = newItems[index].quantity * price
-      setItems(newItems)
-    }
+    setItems((currentItems) =>
+      currentItems.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, price, amount: item.quantity * price } : item
+      )
+    )
   }
 
   // 计算总金额
-  const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0)
+  const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.price, 0)
+  const hasInvalidItems = items.some((item) => item.quantity <= 0 || item.price < 0)
 
   // 商品明细表格列定义
   const itemColumns: ColumnsType<StockInItem> = [
@@ -199,6 +236,7 @@ export default function StockInFormClient({
           precision={record.measureType === 'INT' ? 0 : 3}
           value={record.quantity}
           onChange={(value) => handleQuantityChange(index, value || 0)}
+          aria-label={`${record.goodsName ?? '商品'}入库数量`}
           style={{ width: '100%' }}
         />
       ),
@@ -214,32 +252,33 @@ export default function StockInFormClient({
           precision={2}
           value={record.price}
           onChange={(value) => handlePriceChange(index, value || 0)}
+          aria-label={`${record.goodsName ?? '商品'}入库单价`}
           style={{ width: '100%' }}
         />
       ),
     },
     {
       title: '金额（元）',
-      dataIndex: 'amount',
       key: 'amount',
       width: 120,
       align: 'right',
-      render: (amount: number) => `¥${amount.toFixed(2)}`,
+      render: (_, record) => `¥${(record.quantity * record.price).toFixed(2)}`,
     },
     {
       title: '操作',
       key: 'action',
       width: 80,
-      render: (_, __, index) => (
-        <Button
-          type="link"
-          danger
-          size="small"
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteItem(index)}
-        >
-          删除
-        </Button>
+      render: (_, record, index) => (
+        <Tooltip title="移除商品">
+          <Button
+            type="text"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            aria-label={`移除${record.goodsName ?? '商品'}`}
+            onClick={() => handleDeleteItem(index)}
+          />
+        </Tooltip>
       ),
     },
   ]
@@ -273,7 +312,9 @@ export default function StockInFormClient({
 
       if (result.success) {
         message.success(result.message)
-        setShouldNavigateTo('/admin/stock-in')
+        setHasSubmitted(true)
+        router.push('/admin/stock-in')
+        router.refresh()
       } else {
         message.error(result.message || '操作失败')
       }
@@ -284,26 +325,60 @@ export default function StockInFormClient({
     }
   }
 
-  useEffect(() => {
-    if (shouldNavigateTo) {
-      window.location.href = shouldNavigateTo
+  const handleCancel = () => {
+    if (!isDirty) {
+      router.back()
+      return
     }
-  }, [shouldNavigateTo])
+
+    Modal.confirm({
+      title: '放弃未保存的入库单？',
+      content: '已填写的仓库、商品明细和备注将不会保留。',
+      okText: '放弃并返回',
+      cancelText: '继续编辑',
+      okButtonProps: { danger: true },
+      onOk: () => router.back(),
+    })
+  }
+
+  const selectedGoodsCount = Object.keys(selectedGoods).length
+  const goodsRowSelection: TableRowSelection<GoodsOption> = {
+    preserveSelectedRowKeys: true,
+    selectedRowKeys: Object.keys(selectedGoods),
+    getCheckboxProps: (record) => ({
+      disabled: items.some((item) => item.goodsId === record.id),
+      name: record.name,
+    }),
+    onSelect: (record, selected) => {
+      setSelectedGoods((current) => {
+        const next = { ...current }
+        if (selected) next[record.id] = record
+        else delete next[record.id]
+        return next
+      })
+    },
+    onSelectAll: (selected, _selectedRows, changedRows) => {
+      setSelectedGoods((current) => {
+        const next = { ...current }
+        for (const record of changedRows) {
+          if (selected) next[record.id] = record
+          else delete next[record.id]
+        }
+        return next
+      })
+    },
+  }
 
   return (
     <>
-      <Card variant="borderless">
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={
-            initialValues ?? {
-              warehouseId: warehouses[0]?.id,
-            }
-          }
-          onFinish={handleSubmit}
-          style={{ maxWidth: 1200 }}
-        >
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{ warehouseId: defaultWarehouseId, remark: initialValues?.remark }}
+        onFinish={handleSubmit}
+        style={{ maxWidth: 1200 }}
+      >
+        <div className="max-w-xl">
           <Form.Item
             label="选择仓库"
             name="warehouseId"
@@ -322,77 +397,97 @@ export default function StockInFormClient({
               }
             />
           </Form.Item>
+        </div>
 
-          <Card
-            title="商品明细"
-            size="small"
-            style={{ marginBottom: 24 }}
-            extra={
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setGoodsModalVisible(true)}
-              >
-                添加商品
-              </Button>
-            }
-          >
-            <Table
-              columns={itemColumns}
-              dataSource={items}
-              rowKey={(record) => record.key || record.goodsId}
-              pagination={false}
-              locale={{ emptyText: '暂无商品，请点击"添加商品"按钮' }}
-              scroll={{ x: 900 }}
-              summary={() => (
-                <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} colSpan={5} align="right">
-                    <strong>总金额：</strong>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={1} align="right">
-                    <strong style={{ fontSize: 16, color: '#ff4d4f' }}>
-                      ¥{totalAmount.toFixed(2)}
-                    </strong>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={2} />
-                </Table.Summary.Row>
-              )}
-            />
-          </Card>
+        <section className="mb-6" aria-labelledby="stock-in-items-heading">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3">
+            <div>
+              <h3 id="stock-in-items-heading" className="m-0 text-base font-semibold text-gray-900">
+                商品明细
+              </h3>
+              <span className="text-sm text-gray-500">{items.length} 个商品</span>
+            </div>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setSelectedGoods({})
+                setGoodsModalVisible(true)
+              }}
+            >
+              添加商品
+            </Button>
+          </div>
+          <Table
+            columns={itemColumns}
+            dataSource={items}
+            rowKey={(record) => record.key || record.goodsId}
+            pagination={false}
+            locale={{ emptyText: '暂无商品' }}
+            scroll={{ x: 900 }}
+            summary={() => (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0} colSpan={5} align="right">
+                  <strong>总金额</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <strong className="text-base text-red-600">¥{totalAmount.toFixed(2)}</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
+              </Table.Summary.Row>
+            )}
+          />
+        </section>
 
+        <div className="max-w-2xl">
           <Form.Item label="备注" name="remark">
             <TextArea placeholder="请输入备注信息" rows={4} maxLength={500} showCount />
           </Form.Item>
+        </div>
 
-          <Form.Item>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                disabled={items.length === 0}
-              >
-                {mode === 'create' ? '创建入库单' : '更新入库单'}
-              </Button>
-              <Button onClick={() => router.back()}>取消</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-white py-4">
+          <span className="text-sm text-gray-600">
+            共 {items.length} 个商品，合计{' '}
+            <strong className="text-base text-red-600">¥{totalAmount.toFixed(2)}</strong>
+          </span>
+          <Space>
+            <Button onClick={handleCancel} disabled={loading}>
+              取消
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              disabled={items.length === 0 || hasInvalidItems}
+            >
+              {mode === 'create' ? '创建入库单' : '更新入库单'}
+            </Button>
+          </Space>
+        </div>
+      </Form>
 
       {/* 商品选择弹窗 */}
       <Modal
         title="选择商品"
         open={goodsModalVisible}
-        onCancel={() => {
-          setGoodsModalVisible(false)
-          setGoodsSearchKeyword('')
-          setGoodsOptions([])
-          setGoodsPage(1)
-          setGoodsHasMore(true)
-        }}
-        footer={null}
+        onCancel={closeGoodsModal}
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-gray-500">已选 {selectedGoodsCount} 项</span>
+            <Space>
+              <Button onClick={closeGoodsModal}>取消</Button>
+              <Button
+                type="primary"
+                disabled={selectedGoodsCount === 0}
+                onClick={handleAddSelectedGoods}
+              >
+                添加 {selectedGoodsCount} 项
+              </Button>
+            </Space>
+          </div>
+        }
         width={800}
+        maskClosable={false}
       >
         <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Input
@@ -401,6 +496,7 @@ export default function StockInFormClient({
             value={goodsSearchKeyword}
             onChange={(e) => setGoodsSearchKeyword(e.target.value)}
             allowClear
+            autoFocus
           />
 
           <div style={{ maxHeight: 400, overflowY: 'auto' }} onScroll={handleGoodsListScroll}>
@@ -433,19 +529,10 @@ export default function StockInFormClient({
                     align: 'right',
                     render: (price: number) => `¥${price.toFixed(2)}`,
                   },
-                  {
-                    title: '操作',
-                    key: 'action',
-                    width: 100,
-                    render: (_, record) => (
-                      <Button type="link" onClick={() => handleAddGoods(record)}>
-                        添加
-                      </Button>
-                    ),
-                  },
                 ]}
                 dataSource={goodsOptions}
                 rowKey="id"
+                rowSelection={goodsRowSelection}
                 pagination={false}
                 loading={goodsLoading && goodsOptions.length === 0}
                 size="small"
@@ -460,7 +547,7 @@ export default function StockInFormClient({
                 {goodsLoading
                   ? '正在加载更多...'
                   : goodsHasMore
-                    ? '继续向下滚动加载更多'
+                    ? `已显示 ${goodsOptions.length} 个商品`
                     : '已显示全部商品'}
               </div>
             )}

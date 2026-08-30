@@ -6,6 +6,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ChevronRight, Loader2, Search, X } from 'lucide-react'
@@ -38,7 +45,7 @@ const STATUS_MAP: Record<
   { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
 > = {
   PENDING: { text: '待审批', variant: 'default' },
-  APPROVED: { text: '待发货', variant: 'secondary' },
+  APPROVED: { text: '待出库', variant: 'secondary' },
   PROCESSING: { text: '待收货', variant: 'secondary' },
   COMPLETED: { text: '已完成', variant: 'outline' },
   REJECTED: { text: '已拒绝', variant: 'destructive' },
@@ -182,6 +189,8 @@ export default function OrdersClientPage() {
   const completedCount = statusCounts.COMPLETED || 0
   const rejectedCount = statusCounts.REJECTED || 0
   const cancelledCount = statusCounts.CANCELLED || 0
+  const terminalTabs = ['completed', 'rejected', 'cancelled']
+  const terminalTabActive = terminalTabs.includes(activeTab)
   const totalOrderCount = Object.values(statusCounts).reduce((total, count) => total + count, 0)
   const hasMore = pagination.page < pagination.totalPages
   const activeStatuses = STATUS_FILTERS[activeTab]
@@ -312,50 +321,34 @@ export default function OrdersClientPage() {
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="sticky top-0 z-20 -mx-3 border-b border-border/70 bg-background/95 px-3 pb-2 pt-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className="flex min-w-0 items-center gap-2">
-            <TabsList className="min-w-0 flex-1 justify-start gap-1 overflow-x-auto rounded-none bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <TabsList className="grid h-9 min-w-0 flex-1 grid-cols-4 rounded-md bg-muted/70 p-0.5">
               <TabsTrigger
                 value="all"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                className="h-8 min-w-0 rounded px-1 text-sm text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
-                全部 <span className="ml-1 text-xs tabular-nums opacity-75">{totalOrderCount}</span>
+                全部{' '}
+                <span className="ml-0.5 text-xs tabular-nums opacity-70">{totalOrderCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="pending"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                className="h-8 min-w-0 rounded px-1 text-sm text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
-                待审批 <span className="ml-1 text-xs tabular-nums opacity-75">{pendingCount}</span>
+                待审批{' '}
+                <span className="ml-0.5 text-xs tabular-nums opacity-70">{pendingCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="shipping"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                className="h-8 min-w-0 rounded px-1 text-sm text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
-                待发货 <span className="ml-1 text-xs tabular-nums opacity-75">{shippingCount}</span>
+                待出库{' '}
+                <span className="ml-0.5 text-xs tabular-nums opacity-70">{shippingCount}</span>
               </TabsTrigger>
               <TabsTrigger
                 value="receipt"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                className="h-8 min-w-0 rounded px-1 text-sm text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
-                待收货 <span className="ml-1 text-xs tabular-nums opacity-75">{receiptCount}</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="completed"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
-              >
-                已完成{' '}
-                <span className="ml-1 text-xs tabular-nums opacity-75">{completedCount}</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="rejected"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
-              >
-                已拒绝 <span className="ml-1 text-xs tabular-nums opacity-75">{rejectedCount}</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="cancelled"
-                className="h-9 shrink-0 rounded-full border border-transparent px-3 text-sm text-muted-foreground data-[state=active]:border-primary/20 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
-              >
-                已取消{' '}
-                <span className="ml-1 text-xs tabular-nums opacity-75">{cancelledCount}</span>
+                待收货{' '}
+                <span className="ml-0.5 text-xs tabular-nums opacity-70">{receiptCount}</span>
               </TabsTrigger>
             </TabsList>
             <Button
@@ -369,6 +362,22 @@ export default function OrdersClientPage() {
             >
               <Search className="h-4 w-4" />
             </Button>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <Select value={terminalTabActive ? activeTab : ''} onValueChange={handleTabChange}>
+              <SelectTrigger
+                className={`h-9 w-[150px] ${terminalTabActive ? 'border-primary/30 bg-primary/5 text-primary' : ''}`}
+                aria-label="筛选其他订单状态"
+              >
+                <SelectValue placeholder="更多状态" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="completed">已完成 {completedCount}</SelectItem>
+                <SelectItem value="rejected">已拒绝 {rejectedCount}</SelectItem>
+                <SelectItem value="cancelled">已取消 {cancelledCount}</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">按订单状态筛选</span>
           </div>
           {searchOpen && (
             <div className="mt-1.5 flex h-10 items-center gap-2 rounded-lg border border-border/80 bg-muted/30 px-3">
@@ -422,7 +431,7 @@ export default function OrdersClientPage() {
         <TabsContent value="shipping" className="mt-3 space-y-2.5">
           {shippingOrders.length > 0
             ? shippingOrders.map(renderOrderCard)
-            : renderEmptyState('暂无待发货订单')}
+            : renderEmptyState('暂无待出库订单')}
         </TabsContent>
         <TabsContent value="receipt" className="mt-3 space-y-2.5">
           {receiptOrders.length > 0

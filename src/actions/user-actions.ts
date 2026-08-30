@@ -149,7 +149,7 @@ export async function createUser(input: UserCreateInput): Promise<ActionResponse
     if (validated.email) cleanData.email = validated.email
     if (validated.phone) cleanData.phone = validated.phone
 
-    const newUser = await userService.create(cleanData, validated.roles ?? [])
+    const newUser = await userService.create(cleanData, validated.roles, validated.storeIds)
 
     revalidatePath('/admin/users')
 
@@ -187,6 +187,10 @@ export async function updateUser(
 
     const validated = userUpdateSchema.parse(input)
 
+    if (userId === currentUser.id && validated.isActive === false) {
+      return { success: false, error: '不能禁用自己的账号' }
+    }
+
     const cleanData: {
       username?: string
       password?: string
@@ -205,7 +209,12 @@ export async function updateUser(
     if (validated.phone) cleanData.phone = validated.phone
     if (validated.isActive !== undefined) cleanData.isActive = validated.isActive
 
-    const updatedUser = await userService.update(userId, cleanData, validated.roles)
+    const updatedUser = await userService.update(
+      userId,
+      cleanData,
+      validated.roles,
+      validated.storeIds
+    )
 
     revalidatePath('/admin/users')
 
@@ -275,6 +284,10 @@ export async function toggleUserStatus(userId: string): Promise<ActionResponse<U
 
     if (!existingUser) {
       return { success: false, error: '用户不存在' }
+    }
+
+    if (userId === currentUser.id && existingUser.isActive) {
+      return { success: false, error: '不能禁用自己的账号' }
     }
 
     const updatedUser = await userService.update(userId, {
