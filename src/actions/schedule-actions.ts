@@ -1,15 +1,23 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { requireActionPermission } from '@/lib/action-permissions'
+import { orderingScheduleService } from '@/services/ordering-schedule.service'
+import {
+  DEFAULT_ORDERING_SCHEDULES,
+  orderingScheduleBatchSchema,
+  type ScheduleItem,
+} from '@/types/ordering-schedule.types'
 
-export interface ScheduleItem {
-  id: number
-  dayOfWeek: number
-  startTime: string
-  endTime: string
-  isActive: boolean
+export type { ScheduleItem } from '@/types/ordering-schedule.types'
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof z.ZodError) {
+    return error.issues[0]?.message ?? fallback
+  }
+
+  return error instanceof Error ? error.message : fallback
 }
 
 export async function getOrderingSchedule(): Promise<{
@@ -19,9 +27,7 @@ export async function getOrderingSchedule(): Promise<{
 }> {
   try {
     await requireActionPermission('stock:read')
-    const schedules = await prisma.orderingSchedule.findMany({
-      orderBy: { dayOfWeek: 'asc' },
-    })
+    const schedules = await orderingScheduleService.getSchedule()
     return {
       success: true,
       data: schedules.map((s) => ({
@@ -33,61 +39,35 @@ export async function getOrderingSchedule(): Promise<{
       })),
     }
   } catch (error) {
-    return { success: false, error: String(error) }
+    return { success: false, error: getErrorMessage(error, '获取报货时间失败') }
   }
 }
 
-export async function updateOrderingSchedule(
-  dayOfWeek: number,
-  data: { startTime: string; endTime: string; isActive: boolean }
-): Promise<{ success: boolean; error?: string }> {
+export async function saveOrderingSchedule(
+  input: unknown
+): Promise<{ success: boolean; data?: ScheduleItem[]; error?: string }> {
   try {
     await requireActionPermission('system:manage')
-    await prisma.orderingSchedule.upsert({
-      where: { dayOfWeek },
-      update: {
-        startTime: data.startTime,
-        endTime: data.endTime,
-        isActive: data.isActive,
-      },
-      create: {
-        dayOfWeek,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        isActive: data.isActive,
-      },
-    })
+    const schedules = orderingScheduleBatchSchema.parse(input)
+    const saved = await orderingScheduleService.updateSchedules(schedules)
     revalidatePath('/admin/system-config')
-    return { success: true }
+    return { success: true, data: saved }
   } catch (error) {
-    return { success: false, error: String(error) }
+    return { success: false, error: getErrorMessage(error, '保存报货时间失败') }
   }
 }
 
-export async function resetScheduleToDefault(): Promise<{ success: boolean; error?: string }> {
+export async function resetScheduleToDefault(): Promise<{
+  success: boolean
+  data?: ScheduleItem[]
+  error?: string
+}> {
   try {
     await requireActionPermission('system:manage')
-    const defaults = [
-      { dayOfWeek: 1, startTime: '07:30', endTime: '18:30', isActive: true }, // 周一
-      { dayOfWeek: 2, startTime: '07:30', endTime: '18:30', isActive: true }, // 周二
-      { dayOfWeek: 3, startTime: '07:30', endTime: '18:30', isActive: true }, // 周三
-      { dayOfWeek: 4, startTime: '07:30', endTime: '18:30', isActive: true }, // 周四
-      { dayOfWeek: 5, startTime: '07:30', endTime: '18:30', isActive: true }, // 周五
-      { dayOfWeek: 6, startTime: '07:30', endTime: '18:30', isActive: true }, // 周六
-      { dayOfWeek: 7, startTime: '00:00', endTime: '00:00', isActive: false }, // 周日休息
-    ]
-
-    for (const d of defaults) {
-      await prisma.orderingSchedule.upsert({
-        where: { dayOfWeek: d.dayOfWeek },
-        update: d,
-        create: d,
-      })
-    }
-
+    const saved = await orderingScheduleService.updateSchedules(DEFAULT_ORDERING_SCHEDULES)
     revalidatePath('/admin/system-config')
-    return { success: true }
+    return { success: true, data: saved }
   } catch (error) {
-    return { success: false, error: String(error) }
+    return { success: false, error: getErrorMessage(error, '恢复默认设置失败') }
   }
 }

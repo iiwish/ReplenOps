@@ -75,6 +75,10 @@ export async function PATCH(request: NextRequest) {
 
     const userData: UserUpdateInput = result.data
 
+    if (userId === user.id && userData.isActive === false) {
+      return NextResponse.json({ success: false, error: '不能禁用自己的账号' }, { status: 400 })
+    }
+
     const updatedUser = await userService.update(userId, userData)
 
     return NextResponse.json({
@@ -102,6 +106,10 @@ export async function DELETE(request: NextRequest) {
 
     if (!roles.includes('super_admin')) {
       return NextResponse.json({ success: false, error: '权限不足' }, { status: 403 })
+    }
+
+    if (userId === user.id) {
+      return NextResponse.json({ success: false, error: '不能删除自己的账号' }, { status: 400 })
     }
 
     await userService.deleteById(userId, user.id)

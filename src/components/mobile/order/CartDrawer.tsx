@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -20,9 +14,18 @@ interface CartDrawerProps {
   onOpenChange: (open: boolean) => void
   onCheckout: () => void
   isSubmitting: boolean
+  checkoutDisabled?: boolean
+  checkoutLabel?: string
 }
 
-export function CartDrawer({ open, onOpenChange, onCheckout, isSubmitting }: CartDrawerProps) {
+export function CartDrawer({
+  open,
+  onOpenChange,
+  onCheckout,
+  isSubmitting,
+  checkoutDisabled = false,
+  checkoutLabel = '去结算',
+}: CartDrawerProps) {
   const {
     items,
     hasHydrated,
@@ -44,7 +47,7 @@ export function CartDrawer({ open, onOpenChange, onCheckout, isSubmitting }: Car
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="flex h-[80vh] flex-col p-0">
         <SheetHeader className="border-b px-4 py-3 pr-14">
           <div className="flex min-w-0 items-center justify-between gap-3">
             <SheetTitle className="min-w-0">购物车 ({visibleItems.length})</SheetTitle>
@@ -62,7 +65,7 @@ export function CartDrawer({ open, onOpenChange, onCheckout, isSubmitting }: Car
         </SheetHeader>
 
         {visibleItems.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
             购物车是空的
           </div>
         ) : (
@@ -80,22 +83,14 @@ export function CartDrawer({ open, onOpenChange, onCheckout, isSubmitting }: Car
                     />
 
                     {/* 商品信息 */}
-                    <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex flex-1 flex-col justify-between">
                       <div>
-                        <h4 className="font-medium text-sm line-clamp-1">
-                          {item.name}
-                        </h4>
-                        {item.spec && (
-                          <p className="text-xs text-muted-foreground">
-                            {item.spec}
-                          </p>
-                        )}
+                        <h4 className="line-clamp-1 text-sm font-medium">{item.name}</h4>
+                        {item.spec && <p className="text-xs text-muted-foreground">{item.spec}</p>}
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-primary font-bold">
-                          ¥{item.price.toFixed(2)}
-                        </span>
+                        <span className="font-bold text-primary">¥{item.price.toFixed(2)}</span>
                         <div className="flex items-center gap-2">
                           <QuantityInput
                             value={item.quantity}
@@ -126,23 +121,19 @@ export function CartDrawer({ open, onOpenChange, onCheckout, isSubmitting }: Car
                 {/* 金额统计 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      共 {totalQuantity} 件商品
-                    </span>
-                    <span className="font-medium">
-                      小计: ¥{totalAmount.toFixed(2)}
-                    </span>
+                    <span className="text-muted-foreground">共 {totalQuantity} 件商品</span>
+                    <span className="font-medium">小计: ¥{totalAmount.toFixed(2)}</span>
                   </div>
                 </div>
 
                 {/* 结算按钮 */}
                 <Button
-                  className="w-full min-h-[48px]"
+                  className="min-h-[48px] w-full"
                   size="lg"
                   onClick={handleCheckout}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || checkoutDisabled}
                 >
-                  去结算 ¥{totalAmount.toFixed(2)}
+                  {checkoutLabel} {checkoutDisabled ? '' : `¥${totalAmount.toFixed(2)}`}
                 </Button>
               </div>
             </SheetFooter>

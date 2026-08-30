@@ -1,6 +1,7 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import UserListClient from './UserListClient'
 import { listUsers } from '@/actions/user-actions'
+import { storeService } from '@/services/store.service'
 
 interface SearchParams {
   page?: string
@@ -8,17 +9,20 @@ interface SearchParams {
 }
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  await requirePageAccess('/admin/users')
+  const { user } = await requirePageAccess('/admin/users')
 
   const params = await searchParams
   const page = parseInt(params.page || '1', 10)
   const keyword = params.keyword
 
-  const result = await listUsers({
-    page,
-    pageSize: 20,
-    search: keyword,
-  })
+  const [result, stores] = await Promise.all([
+    listUsers({
+      page,
+      pageSize: 20,
+      search: keyword,
+    }),
+    storeService.listActiveOptions(),
+  ])
 
   if (!result.success || !result.data) {
     return (
@@ -29,5 +33,5 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     )
   }
 
-  return <UserListClient initialData={result.data} />
+  return <UserListClient initialData={result.data} stores={stores} currentUserId={user.id} />
 }

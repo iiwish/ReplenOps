@@ -35,9 +35,12 @@ export interface UserWithRoles {
   createdAt: Date
   updatedAt: Date
   roles: string[]
+  storeIds: string[]
 }
 
-type UserRecordWithRoles = Prisma.UserGetPayload<{ include: { roles: true } }>
+type UserRecordWithRoles = Prisma.UserGetPayload<{
+  include: { roles: true; storeAdmins: true }
+}>
 
 const ROLE_MAPPING: Readonly<Record<string, UserRoleEnum>> = {
   super_admin: 'SUPER_ADMIN',
@@ -59,6 +62,14 @@ function normalizeRoles(roles: string[]): UserRoleEnum[] {
   return [...new Set(normalized)]
 }
 
+function normalizeStoreIds(storeIds: string[]): number[] {
+  const normalized = storeIds.map((storeId) => Number.parseInt(storeId, 10))
+  if (normalized.some((storeId) => !Number.isSafeInteger(storeId) || storeId <= 0)) {
+    throw new Error('包含无效的门店')
+  }
+  return [...new Set(normalized)]
+}
+
 function toUserWithRoles(user: UserRecordWithRoles): UserWithRoles {
   return {
     id: user.id,
@@ -73,11 +84,88 @@ function toUserWithRoles(user: UserRecordWithRoles): UserWithRoles {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     roles: user.roles.map((role) => role.role),
+    storeIds: user.storeAdmins.map((storeAdmin) => String(storeAdmin.storeId)),
   }
+}
+
+interface SuperAdminContinuityInput {
+  currentIsActive: boolean
+  currentIsDeleted: boolean
+  currentRoles: UserRoleEnum[]
+  nextIsActive?: boolean
+  nextRoles?: UserRoleEnum[]
+  alternativeActiveSuperAdmins: number
+}
+
+export function violatesActiveSuperAdminContinuity({
+  currentIsActive,
+  currentIsDeleted,
+  currentRoles,
+  nextIsActive,
+  nextRoles,
+  alternativeActiveSuperAdmins,
+}: SuperAdminContinuityInput): boolean {
+  const isCurrentlyActiveSuperAdmin =
+    currentIsActive && !currentIsDeleted && currentRoles.includes(UserRoleEnum.SUPER_ADMIN)
+  if (!isCurrentlyActiveSuperAdmin) return false
+
+  const remainsActive = nextIsActive ?? currentIsActive
+  const remainsSuperAdmin = (nextRoles ?? currentRoles).includes(UserRoleEnum.SUPER_ADMIN)
+  return !remainsActive || !remainsSuperAdmin ? alternativeActiveSuperAdmins === 0 : false
 }
 
 export class UserService {
   private readonly saltRounds = 10
+
+  private async assertActiveSuperAdminContinuity(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    nextIsActive?: boolean,
+    nextRoles?: UserRoleEnum[]
+  ): Promise<void> {
+    const current = await tx.user.findUnique({
+      where: { id: userId },
+      select: {
+        isActive: true,
+        isDeleted: true,
+        roles: { select: { role: true } },
+      },
+    })
+    if (!current) return
+
+    const isCurrentlyActiveSuperAdmin =
+      current.isActive &&
+      !current.isDeleted &&
+      current.roles.some((role) => role.role === UserRoleEnum.SUPER_ADMIN)
+    if (!isCurrentlyActiveSuperAdmin) return
+
+    const remainsActive = nextIsActive ?? current.isActive
+    const remainsSuperAdmin = nextRoles
+      ? nextRoles.includes(UserRoleEnum.SUPER_ADMIN)
+      : current.roles.some((role) => role.role === UserRoleEnum.SUPER_ADMIN)
+    if (remainsActive && remainsSuperAdmin) return
+
+    const alternativeCount = await tx.user.count({
+      where: {
+        id: { not: userId },
+        isActive: true,
+        isDeleted: false,
+        roles: { some: { role: UserRoleEnum.SUPER_ADMIN } },
+      },
+    })
+    if (
+      violatesActiveSuperAdminContinuity({
+        currentIsActive: current.isActive,
+        currentIsDeleted: current.isDeleted,
+        currentRoles: current.roles.map((role) => role.role),
+        nextIsActive,
+        nextRoles,
+        alternativeActiveSuperAdmins: alternativeCount,
+      })
+    ) {
+      throw new Error('系统必须至少保留一个启用的超级管理员')
+    }
+  }
 
   private auditSnapshot(user: {
     id: string
@@ -104,7 +192,7 @@ export class UserService {
   async findById(id: string): Promise<UserWithRoles | null> {
     const user = await prisma.user.findUnique({
       where: { id },
-      include: { roles: true },
+      include: { roles: true, storeAdmins: true },
     })
 
     return user ? toUserWithRoles(user) : null
@@ -113,7 +201,7 @@ export class UserService {
   async findByUsername(username: string): Promise<UserWithRoles | null> {
     const user = await prisma.user.findUnique({
       where: { username },
-      include: { roles: true },
+      include: { roles: true, storeAdmins: true },
     })
 
     return user ? toUserWithRoles(user) : null
@@ -125,13 +213,17 @@ export class UserService {
         OR: [{ username: identifier }, { phone: identifier }],
         isDeleted: false,
       },
-      include: { roles: true },
+      include: { roles: true, storeAdmins: true },
     })
 
     return user ? toUserWithRoles(user) : null
   }
 
-  async create(input: UserCreateInput, roles: string[] = []): Promise<UserWithRoles> {
+  async create(
+    input: UserCreateInput,
+    roles: string[] = [],
+    storeIds: string[] = []
+  ): Promise<UserWithRoles> {
     const existing = await prisma.user.findFirst({
       where: {
         OR: [
@@ -149,32 +241,54 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(input.password, this.saltRounds)
     const normalizedRoles = normalizeRoles(roles)
+    const normalizedStoreIds = normalizeStoreIds(storeIds)
 
-    const user = await prisma.user.create({
-      data: {
-        username: input.username,
-        password: hashedPassword,
-        name: input.name,
-        email: input.email,
-        phone: input.phone,
-        avatar: input.avatar,
-        roles: {
-          create: normalizedRoles.map((role) => ({ role })),
+    if (normalizedStoreIds.length > 0) {
+      const assignableStoreCount = await prisma.store.count({
+        where: { id: { in: normalizedStoreIds }, isActive: true, isDeleted: false },
+      })
+      if (assignableStoreCount !== normalizedStoreIds.length) {
+        throw new Error('所选门店不存在或已停用')
+      }
+    }
+
+    const user = await prisma.$transaction(async (tx) =>
+      tx.user.create({
+        data: {
+          username: input.username,
+          password: hashedPassword,
+          name: input.name,
+          email: input.email,
+          phone: input.phone,
+          avatar: input.avatar,
+          roles: {
+            create: normalizedRoles.map((role) => ({ role })),
+          },
+          storeAdmins: {
+            create: normalizedStoreIds.map((storeId) => ({ storeId })),
+          },
         },
-      },
-      include: { roles: true },
-    })
+        include: { roles: true, storeAdmins: true },
+      })
+    )
 
     return toUserWithRoles(user)
   }
 
-  async update(id: string, input: UserUpdateInput, roles?: string[]): Promise<UserWithRoles> {
+  async update(
+    id: string,
+    input: UserUpdateInput,
+    roles?: string[],
+    storeIds?: string[]
+  ): Promise<UserWithRoles> {
     const updateData: Prisma.UserUpdateInput = {}
+    const normalizedRoles = roles !== undefined ? normalizeRoles(roles) : undefined
     const revokesSessions =
       input.username !== undefined ||
       input.password !== undefined ||
       input.isActive !== undefined ||
-      roles !== undefined
+      roles !== undefined ||
+      storeIds !== undefined
 
     if (input.username) updateData.username = input.username
     if (input.name) updateData.name = input.name
@@ -185,52 +299,80 @@ export class UserService {
     if (input.password) {
       updateData.password = await bcrypt.hash(input.password, this.saltRounds)
     }
-    if (roles !== undefined) {
-      const normalizedRoles = normalizeRoles(roles)
+    if (normalizedRoles !== undefined) {
       updateData.roles = {
         deleteMany: {},
         create: normalizedRoles.map((role) => ({ role })),
+      }
+    }
+    if (storeIds !== undefined) {
+      const normalizedStoreIds = normalizeStoreIds(storeIds)
+      if (normalizedStoreIds.length > 0) {
+        const assignableStoreCount = await prisma.store.count({
+          where: { id: { in: normalizedStoreIds }, isActive: true, isDeleted: false },
+        })
+        if (assignableStoreCount !== normalizedStoreIds.length) {
+          throw new Error('所选门店不存在或已停用')
+        }
+      }
+      updateData.storeAdmins = {
+        deleteMany: {},
+        create: normalizedStoreIds.map((storeId) => ({ storeId })),
       }
     }
     if (revokesSessions) {
       updateData.sessionVersion = { increment: 1 }
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      include: { roles: true },
-    })
+    const user = await prisma.$transaction(
+      async (tx) => {
+        await this.assertActiveSuperAdminContinuity(tx, id, input.isActive, normalizedRoles)
+        return tx.user.update({
+          where: { id },
+          data: updateData,
+          include: { roles: true, storeAdmins: true },
+        })
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
 
     return toUserWithRoles(user)
   }
 
   async deleteById(id: string, operatedBy = 'system', reason = '管理员删除'): Promise<void> {
-    const existing = await prisma.user.findUnique({ where: { id } })
-    if (!existing || existing.isDeleted) {
-      throw new Error('用户不存在')
+    if (id === operatedBy) {
+      throw new Error('不能删除自己的账号')
     }
 
-    await prisma.$transaction(async (tx) => {
-      const deleted = await tx.user.update({
-        where: { id },
-        data: {
-          ...softDeletionData(operatedBy, reason),
-          sessionVersion: { increment: 1 },
-        },
-      })
-      await tx.approvalLog.create({
-        data: {
-          entityType: 'USER',
-          entityId: id,
-          action: 'USER_DELETE',
-          reason,
-          beforeJson: this.auditSnapshot(existing),
-          afterJson: this.auditSnapshot(deleted),
-          operatedBy,
-        },
-      })
-    })
+    await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.user.findUnique({ where: { id } })
+        if (!existing || existing.isDeleted) {
+          throw new Error('用户不存在')
+        }
+
+        await this.assertActiveSuperAdminContinuity(tx, id, false)
+        const deleted = await tx.user.update({
+          where: { id },
+          data: {
+            ...softDeletionData(operatedBy, reason),
+            sessionVersion: { increment: 1 },
+          },
+        })
+        await tx.approvalLog.create({
+          data: {
+            entityType: 'USER',
+            entityId: id,
+            action: 'USER_DELETE',
+            reason,
+            beforeJson: this.auditSnapshot(existing),
+            afterJson: this.auditSnapshot(deleted),
+            operatedBy,
+          },
+        })
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
   }
 
   async restoreById(
@@ -253,7 +395,7 @@ export class UserService {
           password,
           sessionVersion: { increment: 1 },
         },
-        include: { roles: true },
+        include: { roles: true, storeAdmins: true },
       })
       await tx.approvalLog.create({
         data: {
@@ -294,7 +436,7 @@ export class UserService {
         skip: options?.skip,
         take: options?.take,
         orderBy: { createdAt: 'desc' },
-        include: { roles: true },
+        include: { roles: true, storeAdmins: true },
       }),
       prisma.user.count({ where }),
     ])
@@ -370,33 +512,55 @@ export class UserService {
     const mappedRole = normalizeRoles([role])[0]
     if (!mappedRole) throw new Error(`Invalid role: ${role}`)
 
-    await prisma.$transaction(async (tx) => {
-      const deleted = await tx.userRole.deleteMany({
-        where: { userId, role: mappedRole },
-      })
+    await prisma.$transaction(
+      async (tx) => {
+        if (mappedRole === UserRoleEnum.SUPER_ADMIN) {
+          const currentRoles = await tx.userRole.findMany({
+            where: { userId },
+            select: { role: true },
+          })
+          await this.assertActiveSuperAdminContinuity(
+            tx,
+            userId,
+            undefined,
+            currentRoles.map((item) => item.role).filter((item) => item !== mappedRole)
+          )
+        }
 
-      if (deleted.count > 0) {
-        await tx.user.update({
-          where: { id: userId },
-          data: { sessionVersion: { increment: 1 } },
+        const deleted = await tx.userRole.deleteMany({
+          where: { userId, role: mappedRole },
         })
-      }
-    })
+
+        if (deleted.count > 0) {
+          await tx.user.update({
+            where: { id: userId },
+            data: { sessionVersion: { increment: 1 } },
+          })
+        }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
   }
 
   async setRoles(userId: string, roles: string[]): Promise<void> {
     const normalizedRoles = normalizeRoles(roles)
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        sessionVersion: { increment: 1 },
-        roles: {
-          deleteMany: {},
-          create: normalizedRoles.map((role) => ({ role })),
-        },
+    await prisma.$transaction(
+      async (tx) => {
+        await this.assertActiveSuperAdminContinuity(tx, userId, undefined, normalizedRoles)
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            sessionVersion: { increment: 1 },
+            roles: {
+              deleteMany: {},
+              create: normalizedRoles.map((role) => ({ role })),
+            },
+          },
+        })
       },
-    })
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
   }
 
   async addStoreAdmin(userId: string, storeId: string): Promise<void> {

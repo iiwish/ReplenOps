@@ -434,6 +434,9 @@ export class InventoryService {
 
       // 2. 计算变动数量
       const changeQty = newQuantity - currentQty
+      if (changeQty === 0) {
+        throw new Error('调整后数量与当前库存相同')
+      }
 
       // 3. 验证调整后可用库存不能为负数
       const newAvailableQty = currentAvailableQty + changeQty

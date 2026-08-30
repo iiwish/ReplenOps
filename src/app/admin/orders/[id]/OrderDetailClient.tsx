@@ -63,7 +63,7 @@ export function OrderDetailClient({
   canReviewOrders: boolean
 }) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showRevokeModal, setShowRevokeModal] = useState(false)
@@ -82,6 +82,10 @@ export function OrderDetailClient({
         setLoadError(errorMessage)
         message.error(errorMessage)
       }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '加载订单失败，请稍后重试'
+      setLoadError(errorMessage)
+      message.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -112,7 +116,11 @@ export function OrderDetailClient({
   }
 
   if (loading) {
-    return <div>加载中...</div>
+    return (
+      <div className="flex min-h-64 items-center justify-center text-gray-500" role="status">
+        正在加载订单...
+      </div>
+    )
   }
 
   if (!order) {

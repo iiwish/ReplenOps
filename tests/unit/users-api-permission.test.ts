@@ -80,6 +80,60 @@ describe('users API permission hardening', () => {
     expect(usersApiMocks.update).not.toHaveBeenCalled()
   })
 
+  it('updates a user after validating a super-admin request', async () => {
+    usersApiMocks.getUserRoles.mockReturnValue(['super_admin'])
+    usersApiMocks.update.mockResolvedValue({ id: 'user-2', name: '更新后的用户' })
+
+    const { PATCH } = await import('@/app/api/users/route')
+    const response = await PATCH(
+      new NextRequest('https://erp.test/api/users?userId=user-2', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '更新后的用户' }),
+      })
+    )
+
+    expect(response.status).toBe(200)
+    expect(usersApiMocks.update).toHaveBeenCalledWith('user-2', { name: '更新后的用户' })
+  })
+
+  it('rejects missing, invalid, and self-disabling update requests', async () => {
+    usersApiMocks.getUserRoles.mockReturnValue(['super_admin'])
+    const { PATCH } = await import('@/app/api/users/route')
+
+    const missingIdResponse = await PATCH(
+      new NextRequest('https://erp.test/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '测试用户' }),
+      })
+    )
+    expect(missingIdResponse.status).toBe(400)
+
+    const invalidResponse = await PATCH(
+      new NextRequest('https://erp.test/api/users?userId=user-2', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'x' }),
+      })
+    )
+    expect(invalidResponse.status).toBe(400)
+
+    const selfDisableResponse = await PATCH(
+      new NextRequest('https://erp.test/api/users?userId=user-1', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false }),
+      })
+    )
+    expect(selfDisableResponse.status).toBe(400)
+    expect(await selfDisableResponse.json()).toEqual({
+      success: false,
+      error: '不能禁用自己的账号',
+    })
+    expect(usersApiMocks.update).not.toHaveBeenCalled()
+  })
+
   it('denies non-super-admin deletes before invoking the service', async () => {
     usersApiMocks.getUserRoles.mockReturnValue(['approver'])
 
@@ -90,5 +144,31 @@ describe('users API permission hardening', () => {
 
     expect(response.status).toBe(403)
     expect(usersApiMocks.deleteById).not.toHaveBeenCalled()
+  })
+
+  it('deletes another user but rejects missing and self-targeted IDs', async () => {
+    usersApiMocks.getUserRoles.mockReturnValue(['super_admin'])
+    usersApiMocks.deleteById.mockResolvedValue(undefined)
+    const { DELETE } = await import('@/app/api/users/route')
+
+    const missingIdResponse = await DELETE(
+      new NextRequest('https://erp.test/api/users', { method: 'DELETE' })
+    )
+    expect(missingIdResponse.status).toBe(400)
+
+    const selfDeleteResponse = await DELETE(
+      new NextRequest('https://erp.test/api/users?userId=user-1', { method: 'DELETE' })
+    )
+    expect(selfDeleteResponse.status).toBe(400)
+    expect(await selfDeleteResponse.json()).toEqual({
+      success: false,
+      error: '不能删除自己的账号',
+    })
+
+    const successResponse = await DELETE(
+      new NextRequest('https://erp.test/api/users?userId=user-2', { method: 'DELETE' })
+    )
+    expect(successResponse.status).toBe(200)
+    expect(usersApiMocks.deleteById).toHaveBeenCalledWith('user-2', 'user-1')
   })
 })

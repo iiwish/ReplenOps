@@ -93,51 +93,54 @@ export default function InventoryQueryListClient({
       title: '仓库',
       dataIndex: 'warehouseName',
       key: 'warehouseName',
-      width: 120,
+      width: 105,
+      ellipsis: true,
     },
     {
       title: '商品编码',
       dataIndex: 'goodsCode',
       key: 'goodsCode',
-      width: 120,
+      width: 100,
     },
     {
       title: '商品名称',
       dataIndex: 'goodsName',
       key: 'goodsName',
-      width: 150,
+      width: 125,
+      ellipsis: true,
     },
     {
       title: '规格',
       dataIndex: 'goodsSpec',
       key: 'goodsSpec',
-      width: 100,
+      width: 75,
+      ellipsis: true,
     },
     {
       title: '单位',
       dataIndex: 'goodsUnit',
       key: 'goodsUnit',
-      width: 60,
+      width: 55,
     },
     {
       title: '总库存',
       dataIndex: 'quantity',
       key: 'quantity',
-      width: 100,
+      width: 75,
       align: 'right',
     },
     {
       title: '锁定',
       dataIndex: 'lockedQuantity',
       key: 'lockedQuantity',
-      width: 100,
+      width: 65,
       align: 'right',
     },
     {
       title: '可用',
       dataIndex: 'availableQuantity',
       key: 'availableQuantity',
-      width: 100,
+      width: 70,
       align: 'right',
       render: (qty: number, record) => {
         const color = qty === 0 ? 'red' : record.isLowStock ? 'orange' : 'green'
@@ -148,7 +151,7 @@ export default function InventoryQueryListClient({
       title: '平均成本',
       dataIndex: 'avgCost',
       key: 'avgCost',
-      width: 120,
+      width: 85,
       align: 'right',
       render: (cost: number) => `¥${cost.toFixed(2)}`,
     },
@@ -156,7 +159,7 @@ export default function InventoryQueryListClient({
       title: '库存金额',
       dataIndex: 'stockAmount',
       key: 'stockAmount',
-      width: 120,
+      width: 95,
       align: 'right',
       render: (amount: number) => `¥${amount.toFixed(2)}`,
     },
@@ -164,8 +167,16 @@ export default function InventoryQueryListClient({
       title: '最后更新',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      width: 170,
-      render: (date: Date) => new Date(date).toLocaleString('zh-CN'),
+      width: 110,
+      render: (date: Date) => {
+        const value = new Date(date)
+        return (
+          <div className="whitespace-nowrap leading-5">
+            <div>{value.toLocaleDateString('zh-CN')}</div>
+            <div className="text-xs text-gray-500">{value.toLocaleTimeString('zh-CN')}</div>
+          </div>
+        )
+      },
     },
     {
       title: '状态',
@@ -250,7 +261,8 @@ export default function InventoryQueryListClient({
               showTotal: (total) => `共 ${total} 条`,
               onChange: (page) => buildUrl({ page: page.toString() }),
             }}
-            scroll={{ x: 1400 }}
+            tableLayout="fixed"
+            scroll={{ x: 1040 }}
           />
         </Space>
       </Card>

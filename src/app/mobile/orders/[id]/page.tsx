@@ -2,14 +2,12 @@ import { requireRoles } from '@/lib/rbac-server'
 import { MOBILE_ACCESS_ROLES } from '@/lib/rbac'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getOrderById } from '@/actions/order-actions'
 import { notFound } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
 import { WithdrawOrderButton } from '@/components/mobile/order/WithdrawOrderButton'
 import { ConfirmReceiptButton } from '@/components/mobile/order/ConfirmReceiptButton'
+import { formatGoodsQuantity } from '@/lib/quantity'
 
 interface OrderDetailPageProps {
   params: Promise<{
@@ -23,7 +21,7 @@ const STATUS_MAP: Record<
   { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
 > = {
   PENDING: { text: '待审批', variant: 'default' },
-  APPROVED: { text: '待发货', variant: 'secondary' },
+  APPROVED: { text: '待出库', variant: 'secondary' },
   PROCESSING: { text: '待收货', variant: 'secondary' },
   COMPLETED: { text: '已完成', variant: 'outline' },
   REJECTED: { text: '已拒绝', variant: 'destructive' },
@@ -83,19 +81,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   }
 
   const statusInfo = STATUS_MAP[order.status] || { text: order.status, variant: 'default' as const }
+  const totalQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalMeasureType = order.items.every((item) => item.measureType === 'INT')
+    ? 'INT'
+    : 'DECIMAL'
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶部导航栏 */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background px-4 py-3">
-        <Link href="/mobile/orders">
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <h1 className="text-lg font-semibold">订单详情</h1>
-      </div>
-
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {/* 订单状态卡片 */}
         <Card>
@@ -181,7 +173,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                       编号: {item.goodsCode}
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
-                      ¥{item.unitPrice.toFixed(2)} × {item.quantity} {item.goodsUnit}
+                      ¥{item.unitPrice.toFixed(2)} ×{' '}
+                      {formatGoodsQuantity(item.quantity, item.measureType)} {item.goodsUnit}
                     </div>
                   </div>
                   <div className="font-medium">¥{item.totalPrice.toFixed(2)}</div>
@@ -200,7 +193,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">商品总数</span>
-              <span>{order.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(3)}</span>
+              <span>{formatGoodsQuantity(totalQuantity, totalMeasureType)}</span>
             </div>
             <Separator />
             <div className="flex justify-between text-lg font-bold">
@@ -232,14 +225,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         )}
 
         {order.status === 'PROCESSING' && (
-          <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4">
+          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 -mx-4 border-t bg-background/95 px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] backdrop-blur">
             <ConfirmReceiptButton orderId={order.id} orderCode={order.code} />
           </div>
         )}
 
         {/* 撤回按钮（PENDING / REJECTED 状态显示） */}
         {(order.status === 'PENDING' || order.status === 'REJECTED') && (
-          <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4">
+          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 -mx-4 border-t bg-background/95 px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] backdrop-blur">
             <WithdrawOrderButton
               orderId={order.id}
               orderCode={order.code}

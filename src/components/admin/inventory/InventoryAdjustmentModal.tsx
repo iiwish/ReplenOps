@@ -42,6 +42,13 @@ interface InventoryInfo {
   goodsUnit: string
 }
 
+interface AdjustmentValues {
+  warehouseId: string
+  goodsId: string
+  newQuantity: number
+  reason: string
+}
+
 export default function InventoryAdjustmentModal({
   open,
   warehouses,
@@ -137,16 +144,10 @@ export default function InventoryAdjustmentModal({
     }
   }
 
-  // 提交调整
-  const handleSubmit = async (values: {
-    warehouseId: string
-    goodsId: string
-    newQuantity: number
-    reason: string
-  }) => {
+  const submitAdjustment = async (values: AdjustmentValues) => {
     setLoading(true)
     try {
-      const result = await adjustStock(values)
+      const result = await adjustStock({ ...values, reason: values.reason.trim() })
 
       if (result.success) {
         message.success(result.message)
@@ -168,6 +169,55 @@ export default function InventoryAdjustmentModal({
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = (values: AdjustmentValues) => {
+    if (!currentInventory) return
+
+    if (values.newQuantity === currentInventory.quantity) {
+      form.setFields([{ name: 'newQuantity', errors: ['调整后数量与当前库存相同'] }])
+      return
+    }
+    if (values.newQuantity < currentInventory.lockedQuantity) {
+      form.setFields([
+        {
+          name: 'newQuantity',
+          errors: [`调整后数量不能低于锁定库存 ${currentInventory.lockedQuantity}`],
+        },
+      ])
+      return
+    }
+
+    const warehouseName =
+      warehouses.find((warehouse) => warehouse.id === values.warehouseId)?.name ?? '所选仓库'
+    const goodsName =
+      goodsOptions.find((goods) => goods.id === values.goodsId)?.name ?? '所选商品'
+    const adjustment = values.newQuantity - currentInventory.quantity
+    const unit = currentInventory.goodsUnit
+
+    Modal.confirm({
+      title: '确认提交库存调整？',
+      content: (
+        <div className="space-y-2 text-sm">
+          <p className="m-0 text-gray-600">
+            {warehouseName} · {goodsName}
+          </p>
+          <p className="m-0">
+            库存将从 <strong>{currentInventory.quantity}</strong> 调整为{' '}
+            <strong>{values.newQuantity}</strong> {unit}，变动{' '}
+            <strong className={adjustment < 0 ? 'text-red-600' : 'text-green-700'}>
+              {adjustment > 0 ? '+' : ''}
+              {adjustment} {unit}
+            </strong>
+          </p>
+          <p className="m-0 text-gray-600">原因：{values.reason.trim()}</p>
+        </div>
+      ),
+      okText: '确认调整',
+      cancelText: '返回核对',
+      okButtonProps: { danger: adjustment < 0 },
+      onOk: () => submitAdjustment(values),
+    })
   }
 
   return (
@@ -296,6 +346,7 @@ export default function InventoryAdjustmentModal({
                     step={0.001}
                     precision={3}
                     onChange={handleNewQuantityChange}
+                    aria-label="调整后库存数量"
                     addonAfter={currentInventory.goodsUnit}
                   />
                 </Form.Item>
@@ -314,6 +365,9 @@ export default function InventoryAdjustmentModal({
                         },
                       }}
                     />
+                    {changeQty === 0 && (
+                      <div className="mt-1 text-sm text-orange-600">库存数量未发生变化</div>
+                    )}
                   </div>
                 )}
               </Col>
@@ -344,7 +398,7 @@ export default function InventoryAdjustmentModal({
               htmlType="submit"
               icon={<SaveOutlined />}
               loading={loading}
-              disabled={!currentInventory || loadingInventory}
+              disabled={!currentInventory || loadingInventory || changeQty === 0}
             >
               提交调整
             </Button>
