@@ -5,9 +5,11 @@ import { prisma } from '@/lib/prisma'
 import { userService } from '@/services/user.service'
 
 const username = `auth-security-${process.pid}`
+const operatedBy = `auth-security-operator-${process.pid}`
 
 describe('database-backed auth session revocation', () => {
   afterEach(async () => {
+    await prisma.approvalLog.deleteMany({ where: { operatedBy } })
     await prisma.userRole.deleteMany({ where: { user: { username } } })
     await prisma.user.deleteMany({ where: { username } })
   })
@@ -34,7 +36,7 @@ describe('database-backed auth session revocation', () => {
     await expect(localAuth.verifyRefreshToken(refreshToken!)).resolves.toBeNull()
     await expect(localAuth.verifyRefreshToken(rotated?.refresh_token ?? '')).resolves.toBeNull()
 
-    await userService.update(user.id, {}, ['STORE_ADMIN'])
+    await userService.update(user.id, {}, ['STORE_ADMIN'], undefined, operatedBy)
 
     await expect(localAuth.verifyAccessToken(accessToken!)).resolves.toBeNull()
     await expect(localAuth.verifyRefreshToken(refreshToken!)).resolves.toBeNull()

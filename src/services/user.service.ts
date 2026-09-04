@@ -24,6 +24,7 @@ export interface UserUpdateInput {
 
 export interface UserWithRoles {
   id: string
+  code: number
   username: string
   name: string | null
   displayName?: string
@@ -73,6 +74,7 @@ function normalizeStoreIds(storeIds: string[]): number[] {
 function toUserWithRoles(user: UserRecordWithRoles): UserWithRoles {
   return {
     id: user.id,
+    code: user.code,
     username: user.username,
     name: user.name,
     displayName: user.name || user.username,
@@ -169,6 +171,7 @@ export class UserService {
 
   private auditSnapshot(user: {
     id: string
+    code: number
     username: string
     name: string | null
     isActive: boolean
@@ -176,9 +179,12 @@ export class UserService {
     deletedAt?: Date | null
     deletedBy?: string | null
     deleteReason?: string | null
+    roles?: Array<{ role: UserRoleEnum }>
+    storeAdmins?: Array<{ storeId: number }>
   }): Prisma.InputJsonObject {
     return {
       id: user.id,
+      code: user.code,
       username: user.username,
       name: user.name,
       isActive: user.isActive,
@@ -186,6 +192,12 @@ export class UserService {
       deletedAt: user.deletedAt?.toISOString() ?? null,
       deletedBy: user.deletedBy ?? null,
       deleteReason: user.deleteReason ?? null,
+      ...(user.roles ? { roles: user.roles.map(({ role }) => role).sort() } : {}),
+      ...(user.storeAdmins
+        ? {
+            storeIds: user.storeAdmins.map(({ storeId }) => storeId).sort((a, b) => a - b),
+          }
+        : {}),
     }
   }
 
@@ -222,7 +234,9 @@ export class UserService {
   async create(
     input: UserCreateInput,
     roles: string[] = [],
-    storeIds: string[] = []
+    storeIds: string[] = [],
+    operatedBy = 'system',
+    operatorIp?: string
   ): Promise<UserWithRoles> {
     const existing = await prisma.user.findFirst({
       where: {
@@ -252,8 +266,8 @@ export class UserService {
       }
     }
 
-    const user = await prisma.$transaction(async (tx) =>
-      tx.user.create({
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
         data: {
           username: input.username,
           password: hashedPassword,
@@ -270,7 +284,19 @@ export class UserService {
         },
         include: { roles: true, storeAdmins: true },
       })
-    )
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'USER',
+          entityId: created.id,
+          action: 'USER_CREATE',
+          reason: '创建用户',
+          afterJson: this.auditSnapshot(created),
+          operatedBy,
+          operatorIp,
+        },
+      })
+      return created
+    })
 
     return toUserWithRoles(user)
   }
@@ -279,7 +305,9 @@ export class UserService {
     id: string,
     input: UserUpdateInput,
     roles?: string[],
-    storeIds?: string[]
+    storeIds?: string[],
+    operatedBy = 'system',
+    operatorIp?: string
   ): Promise<UserWithRoles> {
     const updateData: Prisma.UserUpdateInput = {}
     const normalizedRoles = roles !== undefined ? normalizeRoles(roles) : undefined
@@ -326,12 +354,48 @@ export class UserService {
 
     const user = await prisma.$transaction(
       async (tx) => {
+        const existing = await tx.user.findUnique({
+          where: { id },
+          include: { roles: true, storeAdmins: true },
+        })
+        if (!existing || existing.isDeleted) {
+          throw new Error('用户不存在')
+        }
+
         await this.assertActiveSuperAdminContinuity(tx, id, input.isActive, normalizedRoles)
-        return tx.user.update({
+        const updated = await tx.user.update({
           where: { id },
           data: updateData,
           include: { roles: true, storeAdmins: true },
         })
+        const changedFields = Object.keys(input)
+        const action =
+          roles === undefined &&
+          storeIds === undefined &&
+          changedFields.length === 1 &&
+          input.isActive !== undefined
+            ? 'USER_STATUS_UPDATE'
+            : 'USER_UPDATE'
+
+        await tx.approvalLog.create({
+          data: {
+            entityType: 'USER',
+            entityId: id,
+            action,
+            reason:
+              action === 'USER_STATUS_UPDATE'
+                ? updated.isActive
+                  ? '启用用户'
+                  : '禁用用户'
+                : '修改用户资料或权限',
+            beforeJson: this.auditSnapshot(existing),
+            afterJson: this.auditSnapshot(updated),
+            operatedBy,
+            operatorIp,
+          },
+        })
+
+        return updated
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     )

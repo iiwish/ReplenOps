@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Input, Space, Tag, Modal, message, Dropdown } from 'antd'
+import { Table, Button, Input, Space, Tag, Dropdown, App } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -18,6 +18,7 @@ import { deleteUser, toggleUserStatus } from '@/actions/user-actions'
 import type { PaginatedUserResult } from '@/actions/user-actions'
 import { UserFormModal } from './UserFormModal'
 import type { UserWithRoles } from '@/services/user.service'
+import { formatUserCode } from '@/lib/user-code'
 
 const { Search } = Input
 
@@ -41,6 +42,7 @@ export default function UserListClient({
   currentUserId,
 }: UserListClientProps) {
   const router = useRouter()
+  const { message, modal } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [formModalOpen, setFormModalOpen] = useState(false)
@@ -56,7 +58,7 @@ export default function UserListClient({
   }
 
   const handleDelete = (record: UserRecord) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: `确定要删除用户"${record.username}"吗？此操作不可恢复。`,
       okText: '确认',
@@ -104,7 +106,7 @@ export default function UserListClient({
       return
     }
 
-    Modal.confirm({
+    modal.confirm({
       title: '确认禁用用户？',
       content: `禁用“${record.username}”后，该用户的现有登录会话将失效。`,
       okText: '确认禁用',
@@ -136,6 +138,13 @@ export default function UserListClient({
   }
 
   const columns: ColumnsType<UserRecord> = [
+    {
+      title: '用户编码',
+      dataIndex: 'code',
+      key: 'code',
+      width: 110,
+      render: (code: number) => formatUserCode(code),
+    },
     {
       title: '登录名',
       dataIndex: 'username',
@@ -274,7 +283,7 @@ export default function UserListClient({
             <Search
               placeholder="搜索登录名、姓名、手机号或邮箱"
               allowClear
-              enterButton={<SearchOutlined />}
+              enterButton={<SearchOutlined aria-label="搜索用户" />}
               style={{ width: 350 }}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -305,7 +314,7 @@ export default function UserListClient({
                 router.push(`/admin/users?${params.toString()}`)
               },
             }}
-            scroll={{ x: 1065 }}
+            scroll={{ x: 1175 }}
           />
         </Space>
       </div>

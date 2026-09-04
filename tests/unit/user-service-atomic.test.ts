@@ -4,9 +4,11 @@ import { userService } from '@/services/user.service'
 
 const username = `atomic-user-${process.pid}`
 const storeCode = `AU${String(process.pid).slice(-6).padStart(6, '0')}`
+const operatedBy = `atomic-user-operator-${process.pid}`
 
 describe('atomic user and role writes', () => {
   afterEach(async () => {
+    await prisma.approvalLog.deleteMany({ where: { operatedBy } })
     await prisma.storeAdmin.deleteMany({ where: { user: { username } } })
     await prisma.userRole.deleteMany({ where: { user: { username } } })
     await prisma.user.deleteMany({ where: { username } })
@@ -14,11 +16,14 @@ describe('atomic user and role writes', () => {
   })
 
   it('creates the user and roles in one service operation', async () => {
-    const user = await userService.create({ username, password: 'test-only-password' }, [
-      'WAREHOUSE_MANAGER',
-      'APPROVER',
-    ])
+    const user = await userService.create(
+      { username, password: 'test-only-password' },
+      ['WAREHOUSE_MANAGER', 'APPROVER'],
+      [],
+      operatedBy
+    )
 
+    expect(user.code).toBeGreaterThan(0)
     expect(user.roles.sort()).toEqual(['APPROVER', 'WAREHOUSE_MANAGER'])
   })
 
@@ -37,7 +42,8 @@ describe('atomic user and role writes', () => {
     const user = await userService.create(
       { username, password: 'test-only-password' },
       ['STORE_ADMIN'],
-      [String(store.id)]
+      [String(store.id)],
+      operatedBy
     )
 
     expect(user.roles).toEqual(['STORE_ADMIN'])

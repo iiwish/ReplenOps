@@ -79,6 +79,7 @@ export interface StoreAdminInfo {
   storeId: string
   createdAt: Date
   user?: {
+    code: number
     displayName: string
     email: string
     avatar?: string
@@ -499,6 +500,7 @@ export class StoreService {
           storeId: String(admin.storeId),
           user: user
             ? {
+                code: user.code,
                 displayName: user.displayName || user.name || '',
                 email: user.email || '',
                 avatar: user.avatar || undefined,
@@ -514,44 +516,44 @@ export class StoreService {
   /**
    * 添加门店管理员
    */
-  async addAdmin(storeId: string, userId: string): Promise<StoreAdminInfo> {
+  async addAdmin(
+    storeId: string,
+    userId: string,
+    operatedBy = 'system',
+    operatorIp?: string
+  ): Promise<StoreAdminInfo> {
     const storeIdInt = Number.parseInt(storeId, 10)
 
-    // 检查门店是否存在
-    const store = await prisma.store.findUnique({
-      where: { id: storeIdInt },
-    })
+    const admin = await prisma.$transaction(async (tx) => {
+      const store = await tx.store.findUnique({ where: { id: storeIdInt } })
+      if (!store || store.isDeleted) {
+        throw new Error('门店不存在')
+      }
 
-    if (!store || store.isDeleted) {
-      throw new Error('门店不存在')
-    }
+      const existing = await tx.storeAdmin.findUnique({
+        where: { userId_storeId: { userId, storeId: storeIdInt } },
+      })
+      if (existing) {
+        throw new Error('该用户已是门店管理员')
+      }
 
-    // 检查是否已存在该管理员
-    const existing = await prisma.storeAdmin.findUnique({
-      where: {
-        userId_storeId: {
-          userId,
-          storeId: storeIdInt,
+      const created = await tx.storeAdmin.create({
+        data: { userId, storeId: storeIdInt },
+        select: { id: true, userId: true, storeId: true, createdAt: true },
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'STORE',
+          entityId: String(storeIdInt),
+          action: 'STORE_ADMIN_ADD',
+          reason: '添加门店管理员',
+          beforeJson: { storeId: storeIdInt, userId, assigned: false },
+          afterJson: { storeId: storeIdInt, userId, assigned: true },
+          operatedBy,
+          operatorIp,
         },
-      },
-    })
-
-    if (existing) {
-      throw new Error('该用户已是门店管理员')
-    }
-
-    // 添加管理员
-    const admin = await prisma.storeAdmin.create({
-      data: {
-        userId,
-        storeId: storeIdInt,
-      },
-      select: {
-        id: true,
-        userId: true,
-        storeId: true,
-        createdAt: true,
-      },
+      })
+      return created
     })
 
     return {
@@ -564,40 +566,42 @@ export class StoreService {
   /**
    * 移除门店管理员
    */
-  async removeAdmin(storeId: string, userId: string): Promise<{ success: boolean }> {
+  async removeAdmin(
+    storeId: string,
+    userId: string,
+    operatedBy = 'system',
+    operatorIp?: string
+  ): Promise<{ success: boolean }> {
     const storeIdInt = Number.parseInt(storeId, 10)
 
-    // 检查门店是否存在
-    const store = await prisma.store.findUnique({
-      where: { id: storeIdInt },
-    })
+    await prisma.$transaction(async (tx) => {
+      const store = await tx.store.findUnique({ where: { id: storeIdInt } })
+      if (!store || store.isDeleted) {
+        throw new Error('门店不存在')
+      }
 
-    if (!store || store.isDeleted) {
-      throw new Error('门店不存在')
-    }
+      const existing = await tx.storeAdmin.findUnique({
+        where: { userId_storeId: { userId, storeId: storeIdInt } },
+      })
+      if (!existing) {
+        throw new Error('该管理员不存在')
+      }
 
-    // 检查管理员关系是否存在
-    const existing = await prisma.storeAdmin.findUnique({
-      where: {
-        userId_storeId: {
-          userId,
-          storeId: storeIdInt,
+      await tx.storeAdmin.delete({
+        where: { userId_storeId: { userId, storeId: storeIdInt } },
+      })
+      await tx.approvalLog.create({
+        data: {
+          entityType: 'STORE',
+          entityId: String(storeIdInt),
+          action: 'STORE_ADMIN_REMOVE',
+          reason: '移除门店管理员',
+          beforeJson: { storeId: storeIdInt, userId, assigned: true },
+          afterJson: { storeId: storeIdInt, userId, assigned: false },
+          operatedBy,
+          operatorIp,
         },
-      },
-    })
-
-    if (!existing) {
-      throw new Error('该管理员不存在')
-    }
-
-    // 移除管理员
-    await prisma.storeAdmin.delete({
-      where: {
-        userId_storeId: {
-          userId,
-          storeId: storeIdInt,
-        },
-      },
+      })
     })
 
     return { success: true }

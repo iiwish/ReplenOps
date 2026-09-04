@@ -8,7 +8,7 @@ import {
   Input,
   Button,
   Space,
-  message,
+  App,
   Spin,
   Statistic,
   Row,
@@ -56,6 +56,7 @@ export default function InventoryAdjustmentModal({
   onCompleted,
 }: Props) {
   const [form] = Form.useForm()
+  const { message, modal } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [loadingInventory, setLoadingInventory] = useState(false)
   const [searchingGoods, setSearchingGoods] = useState(false)
@@ -190,12 +191,11 @@ export default function InventoryAdjustmentModal({
 
     const warehouseName =
       warehouses.find((warehouse) => warehouse.id === values.warehouseId)?.name ?? '所选仓库'
-    const goodsName =
-      goodsOptions.find((goods) => goods.id === values.goodsId)?.name ?? '所选商品'
+    const goodsName = goodsOptions.find((goods) => goods.id === values.goodsId)?.name ?? '所选商品'
     const adjustment = values.newQuantity - currentInventory.quantity
     const unit = currentInventory.goodsUnit
 
-    Modal.confirm({
+    modal.confirm({
       title: '确认提交库存调整？',
       content: (
         <div className="space-y-2 text-sm">

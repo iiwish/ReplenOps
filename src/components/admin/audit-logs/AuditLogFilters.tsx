@@ -19,6 +19,11 @@ const actionOptions = [
   { label: '审批拒绝', value: 'reject' },
   { label: '订单撤销', value: 'revoke' },
   { label: '创建订单', value: 'create' },
+  { label: '创建用户', value: 'USER_CREATE' },
+  { label: '修改用户', value: 'USER_UPDATE' },
+  { label: '用户状态', value: 'USER_STATUS_UPDATE' },
+  { label: '添加门店管理员', value: 'STORE_ADMIN_ADD' },
+  { label: '移除门店管理员', value: 'STORE_ADMIN_REMOVE' },
 ]
 
 interface FormValues {

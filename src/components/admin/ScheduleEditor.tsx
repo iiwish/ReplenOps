@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Modal, Switch } from 'antd'
+import { App, Switch } from 'antd'
 import { AlertCircle, RotateCcw, Save } from 'lucide-react'
 import { resetScheduleToDefault, saveOrderingSchedule } from '@/actions/schedule-actions'
 import { Button } from '@/components/ui/button'
@@ -78,6 +78,7 @@ function schedulesMatch(
 }
 
 export default function ScheduleEditor({ initialSchedules }: ScheduleEditorProps) {
+  const { modal } = App.useApp()
   const initialMap = useMemo(() => createScheduleMap(initialSchedules), [initialSchedules])
   const [schedules, setSchedules] = useState<Record<number, ScheduleItem>>(initialMap)
   const [savedSchedules, setSavedSchedules] = useState<Record<number, ScheduleItem>>(initialMap)
@@ -139,7 +140,7 @@ export default function ScheduleEditor({ initialSchedules }: ScheduleEditorProps
   }
 
   const handleReset = () => {
-    Modal.confirm({
+    modal.confirm({
       title: '恢复默认报货时间？',
       content: '周一至周六将恢复为 07:30-18:30，周日设为休息日。',
       okText: '恢复默认',

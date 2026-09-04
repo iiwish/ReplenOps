@@ -8,6 +8,8 @@ export const USER_ROLE_VALUES = [
   'APPROVER',
 ] as const
 
+const ASSIGNABLE_USER_ROLE_VALUES = ['SUPER_ADMIN', 'WAREHOUSE_MANAGER', 'STORE_ADMIN'] as const
+
 export const ROLE_OPTIONS: ReadonlyArray<{
   value: (typeof USER_ROLE_VALUES)[number]
   label: string
@@ -15,15 +17,17 @@ export const ROLE_OPTIONS: ReadonlyArray<{
   { value: 'SUPER_ADMIN', label: '超级管理员' },
   { value: 'WAREHOUSE_MANAGER', label: '仓库管理员' },
   { value: 'STORE_ADMIN', label: '门店管理员' },
-  { value: 'FINANCE', label: '财务' },
-  { value: 'APPROVER', label: '审批人' },
 ]
 
 export type UserRole = (typeof USER_ROLE_VALUES)[number]
 
 const USER_ROLE_SET = new Set<string>(USER_ROLE_VALUES)
+const ASSIGNABLE_USER_ROLE_SET = new Set<string>(ASSIGNABLE_USER_ROLE_VALUES)
 const userRolesSchema = z.array(
   z.string().refine((role) => USER_ROLE_SET.has(role), '包含无效的用户角色')
+)
+const assignableUserRolesSchema = z.array(
+  z.string().refine((role) => ASSIGNABLE_USER_ROLE_SET.has(role), '包含不支持的用户角色')
 )
 const storeIdsSchema = z.array(z.string().regex(/^\d+$/, '包含无效的门店')).default([])
 
@@ -67,7 +71,7 @@ export const userCreateSchema = z
       .regex(/^1[3-9]\d{9}$/, '手机号格式不正确')
       .optional()
       .or(z.literal('')),
-    roles: userRolesSchema.min(1, '请至少选择一个角色'),
+    roles: assignableUserRolesSchema.min(1, '请至少选择一个角色'),
     storeIds: storeIdsSchema,
   })
   .superRefine(validateStoreBindings)

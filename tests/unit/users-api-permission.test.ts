@@ -88,13 +88,23 @@ describe('users API permission hardening', () => {
     const response = await PATCH(
       new NextRequest('https://erp.test/api/users?userId=user-2', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-forwarded-for': '203.0.113.20',
+        },
         body: JSON.stringify({ name: '更新后的用户' }),
       })
     )
 
     expect(response.status).toBe(200)
-    expect(usersApiMocks.update).toHaveBeenCalledWith('user-2', { name: '更新后的用户' })
+    expect(usersApiMocks.update).toHaveBeenCalledWith(
+      'user-2',
+      { name: '更新后的用户' },
+      undefined,
+      undefined,
+      'user-1',
+      '203.0.113.20'
+    )
   })
 
   it('rejects missing, invalid, and self-disabling update requests', async () => {

@@ -1,10 +1,12 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { z } from 'zod'
 import { requireActionPermission } from '@/lib/action-permissions'
 import { storeService } from '@/services/store.service'
 import { userService } from '@/services/user.service'
+import { getLoginClientAddress } from '@/services/auth-rate-limit.service'
 
 // Zod 验证 Schema
 const storeSchema = z.object({
@@ -236,7 +238,7 @@ export async function toggleStoreStatus(id: string): Promise<ActionResponse> {
  */
 export async function addStoreAdmin(storeId: string, formData: FormData): Promise<ActionResponse> {
   try {
-    await requireActionPermission('store:manage')
+    const currentUser = await requireActionPermission('store:manage')
     // 从 FormData 提取数据
     const rawData = {
       userId: formData.get('userId') as string,
@@ -246,7 +248,12 @@ export async function addStoreAdmin(storeId: string, formData: FormData): Promis
     const validatedData = addAdminSchema.parse(rawData)
 
     // 调用 Service 添加管理员
-    const admin = await storeService.addAdmin(storeId, validatedData.userId)
+    const admin = await storeService.addAdmin(
+      storeId,
+      validatedData.userId,
+      currentUser.id,
+      getLoginClientAddress(await headers())
+    )
 
     const user = await userService.findById(validatedData.userId)
 
@@ -254,6 +261,7 @@ export async function addStoreAdmin(storeId: string, formData: FormData): Promis
       ...admin,
       user: user
         ? {
+            code: user.code,
             displayName: user.displayName || user.name || '',
             email: user.email || '',
             avatar: user.avatar || undefined,
@@ -300,8 +308,13 @@ export async function addStoreAdmin(storeId: string, formData: FormData): Promis
  */
 export async function removeStoreAdmin(storeId: string, userId: string): Promise<ActionResponse> {
   try {
-    await requireActionPermission('store:manage')
-    await storeService.removeAdmin(storeId, userId)
+    const currentUser = await requireActionPermission('store:manage')
+    await storeService.removeAdmin(
+      storeId,
+      userId,
+      currentUser.id,
+      getLoginClientAddress(await headers())
+    )
 
     // 重新验证缓存
     revalidatePath('/admin/stores')
