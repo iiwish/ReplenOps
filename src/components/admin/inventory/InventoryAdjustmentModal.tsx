@@ -295,9 +295,10 @@ export default function InventoryAdjustmentModal({
         </Row>
 
         {loadingInventory && (
-          <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <Spin tip="加载库存信息中..." />
-          </div>
+          <Space style={{ width: '100%', justifyContent: 'center', padding: '24px 0' }}>
+            <Spin size="small" />
+            <span>加载库存信息中...</span>
+          </Space>
         )}
 
         {currentInventory && !loadingInventory && (
@@ -347,7 +348,7 @@ export default function InventoryAdjustmentModal({
                     precision={3}
                     onChange={handleNewQuantityChange}
                     aria-label="调整后库存数量"
-                    addonAfter={currentInventory.goodsUnit}
+                    suffix={currentInventory.goodsUnit}
                   />
                 </Form.Item>
               </Col>
