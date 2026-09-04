@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { addStoreAdmin, removeStoreAdmin } from '@/actions/store-actions'
 import type { StoreAdminInfo } from '@/services/store.service'
 import type { SimpleUserInfo } from '@/types/user'
+import { formatUserCode } from '@/lib/user-code'
 
 interface StoreAdminsClientProps {
   storeId: string
@@ -32,23 +33,28 @@ export default function StoreAdminsClient({
   // 加载用户列表
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true)
+    setUsers([])
     try {
-      const response = await fetch('/api/users?take=100')
+      const response = await fetch('/api/users?take=100', { cache: 'no-store' })
       const result = await response.json()
       if (result.success && Array.isArray(result.users)) {
-        const availableUsers = result.users.map((user: {
-          id: string
-          username: string
-          name: string | null
-          email: string | null
-          avatar: string | null
-        }): SimpleUserInfo => ({
-          id: user.id,
-          name: user.name || user.username,
-          displayName: user.name || user.username,
-          email: user.email || '',
-          avatar: user.avatar || undefined,
-        }))
+        const availableUsers = result.users.map(
+          (user: {
+            id: string
+            code: number
+            username: string
+            name: string | null
+            email: string | null
+            avatar: string | null
+          }): SimpleUserInfo => ({
+            id: user.id,
+            code: user.code,
+            name: user.name || user.username,
+            displayName: user.name || user.username,
+            email: user.email || '',
+            avatar: user.avatar || undefined,
+          })
+        )
         setUsers(availableUsers)
       } else {
         message.error('加载用户列表失败')
@@ -62,10 +68,10 @@ export default function StoreAdminsClient({
   }, [message])
 
   useEffect(() => {
-    if (addModalVisible && users.length === 0) {
+    if (addModalVisible) {
       void loadUsers()
     }
-  }, [addModalVisible, loadUsers, users.length])
+  }, [addModalVisible, loadUsers])
 
   // 返回列表页
   const handleBack = () => {
@@ -74,7 +80,7 @@ export default function StoreAdminsClient({
 
   // 删除管理员
   const handleRemoveAdmin = (admin: StoreAdminInfo) => {
-    const displayName = admin.user?.displayName || admin.userId
+    const displayName = admin.user?.displayName || '未知用户'
     modal.confirm({
       title: '确认移除',
       content: `确定要移除管理员 "${displayName}" 吗？`,
@@ -138,21 +144,21 @@ export default function StoreAdminsClient({
       title: '管理员',
       dataIndex: 'user',
       key: 'user',
-      render: (user, record) => (
+      render: (user) => (
         <Space>
           <Avatar src={user?.avatar} icon={<UserOutlined />} />
           <div>
-            <div style={{ fontWeight: 500 }}>{user?.displayName || record.userId}</div>
+            <div style={{ fontWeight: 500 }}>{user?.displayName || '未知用户'}</div>
             {user?.email && <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{user.email}</div>}
           </div>
         </Space>
       ),
     },
     {
-      title: '用户ID',
-      dataIndex: 'userId',
-      key: 'userId',
-      width: 200,
+      title: '用户编码',
+      key: 'userCode',
+      width: 120,
+      render: (_, record) => (record.user ? formatUserCode(record.user.code) : '-'),
     },
     {
       title: '添加时间',
@@ -255,11 +261,17 @@ export default function StoreAdminsClient({
               {users
                 .filter((user) => !admins.some((admin) => admin.userId === user.id))
                 .map((user) => (
-                  <Select.Option key={user.id} value={user.id}>
+                  <Select.Option
+                    key={user.id}
+                    value={user.id}
+                    aria-label={`${formatUserCode(user.code)} · ${user.displayName}`}
+                  >
                     <Space>
                       <Avatar src={user.avatar} size="small" icon={<UserOutlined />} />
                       <div>
-                        <div>{user.displayName}</div>
+                        <div>
+                          {formatUserCode(user.code)} · {user.displayName}
+                        </div>
                         {user.email && (
                           <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{user.email}</div>
                         )}

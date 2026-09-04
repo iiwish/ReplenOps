@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { userService, type UserUpdateInput } from '@/services/user.service'
 import { getUserRoles, requireAuth } from '@/lib/session'
 import { z } from 'zod'
+import { getLoginClientAddress } from '@/services/auth-rate-limit.service'
 
 const userUpdateSchema = z.object({
   username: z.string().min(3, '登录名至少3个字符').max(50, '登录名最多50个字符').optional(),
@@ -79,7 +80,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: '不能禁用自己的账号' }, { status: 400 })
     }
 
-    const updatedUser = await userService.update(userId, userData)
+    const updatedUser = await userService.update(
+      userId,
+      userData,
+      undefined,
+      undefined,
+      user.id,
+      getLoginClientAddress(request.headers)
+    )
 
     return NextResponse.json({
       success: true,

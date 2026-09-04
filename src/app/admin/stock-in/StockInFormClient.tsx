@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Form, Input, InputNumber, Button, message, Space, Select, Table, Modal, Tooltip } from 'antd'
+import { Form, Input, InputNumber, Button, Space, Select, Table, Modal, Tooltip, App } from 'antd'
 import { PlusOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { createStockIn, updateStockIn, searchGoods } from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
@@ -72,6 +72,7 @@ export default function StockInFormClient({
   warehouses,
 }: StockInFormClientProps) {
   const router = useRouter()
+  const { message, modal } = App.useApp()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [hasSubmitted, setHasSubmitted] = useState(false)
@@ -96,30 +97,33 @@ export default function StockInFormClient({
 
   useUnsavedChangesWarning(isDirty, '当前入库单尚未保存，确定离开吗？')
 
-  const loadGoods = useCallback(async (keyword: string, page: number, append: boolean) => {
-    const requestId = ++goodsRequestId.current
-    setGoodsLoading(true)
-    try {
-      const result = await searchGoods(keyword, page, 20)
-      if (requestId !== goodsRequestId.current) return
+  const loadGoods = useCallback(
+    async (keyword: string, page: number, append: boolean) => {
+      const requestId = ++goodsRequestId.current
+      setGoodsLoading(true)
+      try {
+        const result = await searchGoods(keyword, page, 20)
+        if (requestId !== goodsRequestId.current) return
 
-      if (result.success && result.data) {
-        const nextGoods = result.data as GoodsOption[]
-        setGoodsOptions((current) => (append ? [...current, ...nextGoods] : nextGoods))
-        setGoodsPage(page)
-        setGoodsHasMore(nextGoods.length === 20)
-      } else {
-        message.error(result.message || '搜索商品失败')
+        if (result.success && result.data) {
+          const nextGoods = result.data as GoodsOption[]
+          setGoodsOptions((current) => (append ? [...current, ...nextGoods] : nextGoods))
+          setGoodsPage(page)
+          setGoodsHasMore(nextGoods.length === 20)
+        } else {
+          message.error(result.message || '搜索商品失败')
+          if (!append) setGoodsOptions([])
+        }
+      } catch {
+        if (requestId !== goodsRequestId.current) return
+        message.error('搜索商品失败')
         if (!append) setGoodsOptions([])
+      } finally {
+        if (requestId === goodsRequestId.current) setGoodsLoading(false)
       }
-    } catch {
-      if (requestId !== goodsRequestId.current) return
-      message.error('搜索商品失败')
-      if (!append) setGoodsOptions([])
-    } finally {
-      if (requestId === goodsRequestId.current) setGoodsLoading(false)
-    }
-  }, [])
+    },
+    [message]
+  )
 
   useEffect(() => {
     if (!goodsModalVisible) return
@@ -331,7 +335,7 @@ export default function StockInFormClient({
       return
     }
 
-    Modal.confirm({
+    modal.confirm({
       title: '放弃未保存的入库单？',
       content: '已填写的仓库、商品明细和备注将不会保留。',
       okText: '放弃并返回',

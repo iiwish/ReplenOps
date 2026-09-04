@@ -2,18 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Card,
-  Descriptions,
-  Table,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  message,
-  Input,
-  Timeline,
-} from 'antd'
+import { Card, Descriptions, Table, Button, Space, Tag, App, Input, Timeline } from 'antd'
 import {
   ArrowLeftOutlined,
   EditOutlined,
@@ -23,12 +12,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import {
-  approveStockIn,
-  rejectStockIn,
-  completeStockIn,
-  cancelStockIn,
-} from '@/actions/stock-in-actions'
+import { approveStockIn, completeStockIn, cancelStockIn } from '@/actions/stock-in-actions'
 import type { StockInDetail } from '@/services/stock-in.service'
 
 interface StockInDetailClientProps {
@@ -58,11 +42,12 @@ const statusMap = {
 
 export default function StockInDetailClient({ data }: StockInDetailClientProps) {
   const router = useRouter()
+  const { message, modal } = App.useApp()
   const [loading, setLoading] = useState(false)
 
   // 审批通过
   const handleApprove = () => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认审批',
       content: `确定要审批通过入库单"${data.code}"吗？`,
       okText: '确认',
@@ -86,50 +71,9 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
     })
   }
 
-  // 审批拒绝
-  const handleReject = () => {
-    let rejectReason = ''
-    Modal.confirm({
-      title: '拒绝审批',
-      content: (
-        <div>
-          <p>确定要拒绝入库单 &quot;{data.code}&quot; 吗？</p>
-          <Input.TextArea
-            placeholder="请填写拒绝原因"
-            rows={4}
-            onChange={(e) => (rejectReason = e.target.value)}
-          />
-        </div>
-      ),
-      okText: '确认拒绝',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        if (!rejectReason.trim()) {
-          message.error('请填写拒绝原因')
-          return Promise.reject()
-        }
-        setLoading(true)
-        try {
-          const result = await rejectStockIn(data.id, rejectReason)
-          if (result.success) {
-            message.success(result.message)
-            router.refresh()
-          } else {
-            message.error(result.message || '操作失败')
-          }
-        } catch {
-          message.error('操作失败，请重试')
-        } finally {
-          setLoading(false)
-        }
-      },
-    })
-  }
-
   // 确认入库
   const handleComplete = () => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认入库',
       content: `确定要将入库单 "${data.code}" 确认入库吗？入库后将更新库存数量。`,
       okText: '确认入库',
@@ -156,7 +100,7 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
   // 取消入库单
   const handleCancel = () => {
     let cancelReason = ''
-    Modal.confirm({
+    modal.confirm({
       title: '取消入库单',
       content: (
         <div>
@@ -171,16 +115,17 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
       okText: '确认取消',
       okType: 'danger',
       cancelText: '返回',
-      onOk: async () => {
+      onOk: async (close) => {
         if (!cancelReason.trim()) {
           message.error('请填写取消原因')
-          return Promise.reject()
+          return
         }
         setLoading(true)
         try {
           const result = await cancelStockIn(data.id, cancelReason)
           if (result.success) {
             message.success(result.message)
+            close()
             router.refresh()
           } else {
             message.error(result.message || '操作失败')
@@ -246,7 +191,7 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
 
   timelineItems.push({
     color: 'blue',
-    children: (
+    content: (
       <>
         <p>
           <strong>创建入库单</strong>
@@ -262,7 +207,7 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
   if (data.approvedAt) {
     timelineItems.push({
       color: 'green',
-      children: (
+      content: (
         <>
           <p>
             <strong>审批通过</strong>
@@ -279,7 +224,7 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
   if (data.completedAt) {
     timelineItems.push({
       color: 'green',
-      children: (
+      content: (
         <>
           <p>
             <strong>确认入库</strong>
@@ -328,9 +273,6 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
                   </Button>
                   <Button type="primary" onClick={handleApprove} loading={loading}>
                     审批通过
-                  </Button>
-                  <Button danger onClick={handleReject} loading={loading}>
-                    拒绝
                   </Button>
                 </>
               )}

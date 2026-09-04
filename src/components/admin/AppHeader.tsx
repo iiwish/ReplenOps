@@ -74,6 +74,8 @@ export default function AppHeader({
       <Button
         type="text"
         icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
+        title={collapsed ? '展开侧栏' : '收起侧栏'}
         onClick={onToggle}
         style={{
           fontSize: '16px',

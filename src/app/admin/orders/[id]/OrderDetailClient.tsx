@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Card, Descriptions, Table, Button, message, Tag, Space, Timeline, Result } from 'antd'
+import { Card, Descriptions, Table, Button, Tag, Space, Timeline, Result, App } from 'antd'
 import { useRouter } from 'next/navigation'
 import { getOrderById } from '@/actions/order-actions'
 import { revokeOrder } from '@/actions/order-revocation-actions'
@@ -63,6 +63,7 @@ export function OrderDetailClient({
   canReviewOrders: boolean
 }) {
   const router = useRouter()
+  const { message } = App.useApp()
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -89,7 +90,7 @@ export function OrderDetailClient({
     } finally {
       setLoading(false)
     }
-  }, [orderId])
+  }, [message, orderId])
 
   useEffect(() => {
     void loadData()
@@ -246,7 +247,7 @@ export function OrderDetailClient({
           items={[
             {
               color: 'green',
-              children: (
+              content: (
                 <div>
                   <div className="font-semibold">订单创建</div>
                   <div className="text-sm text-gray-500">
@@ -260,7 +261,7 @@ export function OrderDetailClient({
               ? [
                   {
                     color: order.status === 'REJECTED' ? 'red' : 'green',
-                    children: (
+                    content: (
                       <div>
                         <div className="font-semibold">
                           {order.status === 'REJECTED' ? '订单拒绝' : '订单审批'}
@@ -284,7 +285,7 @@ export function OrderDetailClient({
               ? [
                   {
                     color: 'green',
-                    children: (
+                    content: (
                       <div>
                         <div className="font-semibold">待出库单已生成</div>
                         <div className="text-sm text-gray-500">出库单: {order.stockOut.code}</div>
@@ -297,7 +298,7 @@ export function OrderDetailClient({
               ? [
                   {
                     color: 'green',
-                    children: (
+                    content: (
                       <div>
                         <div className="font-semibold">仓库已发货</div>
                         {order.stockOut.completedAt && (
@@ -314,7 +315,7 @@ export function OrderDetailClient({
               ? [
                   {
                     color: 'green',
-                    children: (
+                    content: (
                       <div>
                         <div className="font-semibold">门店已确认收货</div>
                         {order.completedAt && (

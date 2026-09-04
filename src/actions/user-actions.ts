@@ -1,11 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { z } from 'zod'
 import { userService, type UserWithRoles } from '@/services/user.service'
 import { getCurrentUser, getUserRoles } from '@/lib/session.server'
 import { userListSchema, userCreateSchema, userUpdateSchema } from '@/types/user.types'
 import type { UserListInput, UserCreateInput, UserUpdateInput } from '@/types/user.types'
+import { getLoginClientAddress } from '@/services/auth-rate-limit.service'
 
 interface ActionResponse<T = unknown> {
   success: boolean
@@ -149,7 +151,13 @@ export async function createUser(input: UserCreateInput): Promise<ActionResponse
     if (validated.email) cleanData.email = validated.email
     if (validated.phone) cleanData.phone = validated.phone
 
-    const newUser = await userService.create(cleanData, validated.roles, validated.storeIds)
+    const newUser = await userService.create(
+      cleanData,
+      validated.roles,
+      validated.storeIds,
+      currentUser.id,
+      getLoginClientAddress(await headers())
+    )
 
     revalidatePath('/admin/users')
 
@@ -213,7 +221,9 @@ export async function updateUser(
       userId,
       cleanData,
       validated.roles,
-      validated.storeIds
+      validated.storeIds,
+      currentUser.id,
+      getLoginClientAddress(await headers())
     )
 
     revalidatePath('/admin/users')
@@ -290,9 +300,14 @@ export async function toggleUserStatus(userId: string): Promise<ActionResponse<U
       return { success: false, error: '不能禁用自己的账号' }
     }
 
-    const updatedUser = await userService.update(userId, {
-      isActive: !existingUser.isActive,
-    })
+    const updatedUser = await userService.update(
+      userId,
+      { isActive: !existingUser.isActive },
+      undefined,
+      undefined,
+      currentUser.id,
+      getLoginClientAddress(await headers())
+    )
 
     revalidatePath('/admin/users')
 

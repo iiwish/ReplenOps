@@ -34,6 +34,11 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       STOCK_IN_REJECT: { color: 'red', label: '拒绝入库' },
       STOCK_IN_COMPLETE: { color: 'green', label: '确认入库' },
       STOCK_IN_CANCEL: { color: 'red', label: '取消入库' },
+      USER_CREATE: { color: 'green', label: '创建用户' },
+      USER_UPDATE: { color: 'blue', label: '修改用户' },
+      USER_STATUS_UPDATE: { color: 'orange', label: '用户状态' },
+      STORE_ADMIN_ADD: { color: 'green', label: '添加门店管理员' },
+      STORE_ADMIN_REMOVE: { color: 'red', label: '移除门店管理员' },
     }
     const config = actionConfig[action] || { color: 'default', label: action }
     return <Tag color={config.color}>{config.label}</Tag>
