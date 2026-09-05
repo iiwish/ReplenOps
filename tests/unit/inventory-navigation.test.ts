@@ -10,7 +10,7 @@ describe('inventory adjustment navigation', () => {
 
     expect(inventory?.children).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: '库存变动', path: '/admin/inventory/logs' }),
+        expect.objectContaining({ label: '库存流水', path: '/admin/inventory/logs' }),
       ])
     )
     expect(JSON.stringify(inventory)).not.toContain('/admin/inventory/adjustment')

@@ -247,7 +247,7 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
             <Typography.Title level={4} style={{ margin: 0 }}>
-              成本历史
+              成本变动记录
             </Typography.Title>
           </Col>
           <Col>

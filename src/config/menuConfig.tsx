@@ -5,7 +5,6 @@ import {
   DashboardOutlined,
   InboxOutlined,
   SettingOutlined,
-  ShopOutlined,
   ShoppingCartOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
@@ -66,17 +65,42 @@ export const menuItems: MenuItemConfig[] = [
       },
       {
         key: 'inventory-logs',
-        label: '库存变动',
+        label: '库存流水',
         path: '/admin/inventory/logs',
       },
       {
         key: 'cost-history',
-        label: '成本变动',
+        label: '成本变动记录',
         path: '/admin/inventory/cost-history',
         roles: REPORT_ROLES,
       },
     ],
     roles: ADMIN_ROLES,
+  },
+  {
+    key: 'containers',
+    label: '包装物',
+    icon: <ContainerOutlined />,
+    path: '/admin/containers',
+    roles: ADMIN_ROLES,
+  },
+  {
+    key: 'reports',
+    label: '报表分析',
+    icon: <BarChartOutlined />,
+    roles: REPORT_ROLES,
+    children: [
+      {
+        key: 'inventory-report',
+        label: '库存分析',
+        path: '/admin/reports/inventory',
+      },
+      {
+        key: 'stock-out-report',
+        label: '月度出库报表',
+        path: '/admin/reports/stock-out',
+      },
+    ],
   },
   {
     key: 'master-data',
@@ -102,35 +126,9 @@ export const menuItems: MenuItemConfig[] = [
       },
       {
         key: 'stores',
-        label: '门店管理',
-        icon: <ShopOutlined />,
+        label: '门店档案',
         path: '/admin/stores',
         roles: WAREHOUSE_ROLES,
-      },
-    ],
-  },
-  {
-    key: 'containers',
-    label: '包装物',
-    icon: <ContainerOutlined />,
-    path: '/admin/containers',
-    roles: ADMIN_ROLES,
-  },
-  {
-    key: 'reports',
-    label: '报表分析',
-    icon: <BarChartOutlined />,
-    roles: REPORT_ROLES,
-    children: [
-      {
-        key: 'inventory-report',
-        label: '库存报表',
-        path: '/admin/reports/inventory',
-      },
-      {
-        key: 'stock-out-report',
-        label: '月度出库报表',
-        path: '/admin/reports/stock-out',
       },
     ],
   },
@@ -142,7 +140,7 @@ export const menuItems: MenuItemConfig[] = [
     children: [
       {
         key: 'system-config',
-        label: '报货时间',
+        label: '报货时间设置',
         path: '/admin/system-config',
       },
       {

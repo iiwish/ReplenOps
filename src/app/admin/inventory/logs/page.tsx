@@ -6,7 +6,7 @@ import { getShanghaiDateRange } from '@/lib/shanghai-time'
 import { canPerformAction } from '@/lib/action-permissions'
 
 export const metadata = {
-  title: '库存变动日志',
+  title: '库存流水',
 }
 
 export default async function InventoryLogsPage({

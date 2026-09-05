@@ -151,6 +151,109 @@ test('offers retry on server errors and keeps the sidebar usable', async ({ page
   await expect(page.getByRole('columnheader', { name: '入库单号' })).toBeVisible()
 })
 
+test('respects manual group collapse through filtering, navigation, history and reload', async ({
+  page,
+}) => {
+  await page.goto('/admin/inventory/query')
+  const navigation = page.getByRole('navigation', { name: '主导航' })
+  const inventory = navigation.getByRole('menuitem', { name: /库存管理/ })
+  const masterData = navigation.getByRole('menuitem', { name: /基础资料/ })
+  await expect(inventory).toHaveAttribute('aria-expanded', 'true')
+  await inventory.click()
+  await expect(inventory).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.locator('.ant-breadcrumb')).toContainText('库存查询')
+  await expect(inventory.locator('..')).toHaveClass(/ant-menu-submenu-selected/)
+  await page.getByText('全部状态', { exact: true }).click()
+  await page.getByText('有库存', { exact: true }).click()
+  await expect(page).toHaveURL(/stockStatus=has_stock/)
+  await expect(inventory).toHaveAttribute('aria-expanded', 'false')
+  await masterData.click()
+  await navigation.getByRole('menuitem', { name: /报表分析/ }).click()
+  await expect(inventory).toHaveAttribute('aria-expanded', 'false')
+  await navigation.getByRole('menuitem', { name: '商品档案', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/goods$/)
+  await expect(masterData).toHaveAttribute('aria-expanded', 'true')
+  await page.goBack()
+  await expect(page).toHaveURL(/\/admin\/inventory\/query/)
+  await expect(inventory).toHaveAttribute('aria-expanded', 'true')
+  await inventory.click()
+  await page.reload()
+  await expect(inventory).toHaveAttribute('aria-expanded', 'true')
+})
+
+test('supports keyboard collapse and keeps icon popups independent of inline groups', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/admin/inventory/query')
+  const navigation = page.getByRole('navigation', { name: '主导航' })
+  const inventory = navigation.getByRole('menuitem', { name: /库存管理/ })
+  const reports = navigation.getByRole('menuitem', { name: /报表分析/ })
+  await inventory.focus()
+  await inventory.press('Enter')
+  await expect(inventory).toHaveAttribute('aria-expanded', 'false')
+  await expect(inventory).toBeFocused()
+  await inventory.press('Enter')
+  await expect(inventory).toHaveAttribute('aria-expanded', 'true')
+  await inventory.press('Enter')
+  await reports.click()
+  await page.getByRole('button', { name: '收起侧栏' }).click()
+  await page.mouse.move(1100, 50)
+  await expect(page.locator('.ant-menu-submenu-popup:visible')).toHaveCount(0)
+  await inventory.hover()
+  await expect(page.getByRole('menuitem', { name: '入库管理', exact: true })).toBeVisible()
+  await page.getByRole('menuitem', { name: '入库管理', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/stock-in$/)
+  await page.mouse.move(1100, 50)
+  await expect(page.locator('.ant-menu-submenu-popup:visible')).toHaveCount(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({
+    path: testInfo.outputPath('sidebar-icons-mobile.png'),
+    animations: 'disabled',
+  })
+  await page.setViewportSize({ width: 1132, height: 1028 })
+  await page.getByRole('button', { name: '展开侧栏' }).click()
+  await expect(inventory).toHaveAttribute('aria-expanded', 'true')
+  await expect(reports).toHaveAttribute('aria-expanded', 'true')
+  await inventory.click()
+  await page.getByRole('button', { name: '收起侧栏' }).click()
+  await page.getByRole('button', { name: '展开侧栏' }).click()
+  await expect(inventory).toHaveAttribute('aria-expanded', 'false')
+  await expect(reports).toHaveAttribute('aria-expanded', 'true')
+  await expect(navigation.getByRole('menuitem', { name: '库存分析', exact: true })).toBeVisible()
+  await expect
+    .poll(() =>
+      navigation
+        .getByRole('menuitem', { name: '库存分析', exact: true })
+        .evaluate((element) => element.parentElement?.getBoundingClientRect().height ?? 0)
+    )
+    .toBeGreaterThan(80)
+  await page.screenshot({
+    path: testInfo.outputPath('sidebar-current-group-closed.png'),
+    animations: 'disabled',
+  })
+})
+
+test('scrolls navigation independently while keeping the brand fixed in a short viewport', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1132, height: 600 })
+  await page.goto('/admin/inventory/query')
+  const navigation = page.getByRole('navigation', { name: '主导航' })
+  for (const name of ['报表分析', '基础资料', '系统设置']) {
+    await navigation.getByRole('menuitem', { name: new RegExp(name) }).click()
+  }
+  const brand = page.locator('aside').getByText('ReplenOps', { exact: true })
+  const before = await brand.boundingBox()
+  await navigation.getByRole('menuitem', { name: '审计日志', exact: true }).scrollIntoViewIfNeeded()
+  await expect(brand).toBeInViewport()
+  expect((await brand.boundingBox())?.y).toBe(before?.y)
+  expect(await navigation.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await page.screenshot({
+    path: testInfo.outputPath('sidebar-independent-scroll.png'),
+    animations: 'disabled',
+  })
+})
+
 test('records menu request timings without artificial delays', async ({ page }, testInfo) => {
   await page.goto('/admin/stock-in')
   const measurements: Array<{ path: string; totalMs: number; waitMs: number }> = []

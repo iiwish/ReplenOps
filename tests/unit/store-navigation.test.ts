@@ -7,7 +7,7 @@ describe('store navigation', () => {
     const storeItem = masterData?.children?.find((item) => item.key === 'stores')
 
     expect(storeItem).toMatchObject({
-      label: '门店管理',
+      label: '门店档案',
       path: '/admin/stores',
     })
     expect(storeItem?.children).toBeUndefined()
@@ -17,6 +17,6 @@ describe('store navigation', () => {
   it('keeps store administrator management under the store list breadcrumb', () => {
     expect(
       getBreadcrumbItems('/admin/stores/12/admins', menuItems).map((item) => item.label)
-    ).toEqual(['基础资料', '门店管理'])
+    ).toEqual(['基础资料', '门店档案'])
   })
 })

@@ -14,7 +14,7 @@ export default async function SystemConfigPage() {
 
       <section>
         <div className="border-b pb-4">
-          <h2 className="text-lg font-semibold">报货时间配置</h2>
+          <h2 className="text-lg font-semibold">报货时间设置</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             设置允许门店报货的时间窗口。默认：周一至周六 07:30-18:30，周日休息。
           </p>

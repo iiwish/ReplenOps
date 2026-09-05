@@ -4,7 +4,7 @@ import { stockInService } from '@/services/stock-in.service'
 import CostHistoryListClient from './CostHistoryListClient'
 
 export const metadata = {
-  title: '成本历史',
+  title: '成本变动记录',
 }
 
 export default async function CostHistoryPage({

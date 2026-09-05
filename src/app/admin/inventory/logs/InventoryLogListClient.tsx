@@ -331,7 +331,7 @@ export default function InventoryLogListClient({
   return (
     <div className="p-6">
       <Card
-        title="库存变动日志"
+        title="库存流水"
         extra={
           <Space>
             <Button
