@@ -2,8 +2,8 @@
 
 import type { Route } from 'next'
 import { Layout, Menu } from 'antd'
-import { usePathname, useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrandLogo } from '@/components/BrandLogo'
 import {
   getKeyToPathMap,
@@ -12,28 +12,63 @@ import {
   getPathToKeyMap,
   getVisibleMenuItems,
   menuItems,
+  type MenuItem,
 } from '@/config/menuConfig'
 import type { UserRole } from '@/types'
-import { requestAppNavigation } from '@/lib/unsaved-changes'
 
 const { Sider } = Layout
 
 interface AppSidebarProps {
   collapsed: boolean
   roles: UserRole[]
+  pathname: string
+  onNavigate: (path: string) => void
 }
 
-export default function AppSidebar({ collapsed, roles }: AppSidebarProps) {
+export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: AppSidebarProps) {
   const router = useRouter()
-  const pathname = usePathname()
   const visibleMenuItems = useMemo(() => getVisibleMenuItems(menuItems, roles), [roles])
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  // 生成菜单项
-  const items = useMemo(() => getMenuItems(visibleMenuItems), [visibleMenuItems])
+  const cancelPrefetch = useCallback(() => {
+    clearTimeout(hoverTimer.current)
+  }, [])
+
+  useEffect(() => cancelPrefetch, [cancelPrefetch])
+
+  const prefetch = useCallback(
+    (path: string) => {
+      if (path !== pathname) router.prefetch(path as Route)
+    },
+    [pathname, router]
+  )
 
   // 生成路径映射
   const pathToKeyMap = useMemo(() => getPathToKeyMap(visibleMenuItems), [visibleMenuItems])
   const keyToPathMap = useMemo(() => getKeyToPathMap(visibleMenuItems), [visibleMenuItems])
+
+  const items = useMemo(() => {
+    const withPrefetch = (entries: MenuItem[]): MenuItem[] =>
+      entries.map((item) => {
+        if (!item) return item
+        if ('children' in item && item.children) {
+          return { ...item, children: withPrefetch(item.children) }
+        }
+        const path = keyToPathMap.get(String(item.key))
+        if (!path) return item
+        return {
+          ...item,
+          onMouseEnter: () => {
+            cancelPrefetch()
+            hoverTimer.current = setTimeout(() => prefetch(path), 150)
+          },
+          onMouseLeave: cancelPrefetch,
+          onFocus: () => prefetch(path),
+        }
+      })
+
+    return withPrefetch(getMenuItems(visibleMenuItems))
+  }, [cancelPrefetch, keyToPathMap, prefetch, visibleMenuItems])
 
   // 获取当前选中的菜单项
   const selectedKey = useMemo(() => {
@@ -51,16 +86,15 @@ export default function AppSidebar({ collapsed, roles }: AppSidebarProps) {
   )
   const [userOpenKeys, setUserOpenKeys] = useState<string[]>([])
   const openKeys = useMemo(
-    () => [...new Set([...userOpenKeys, ...routeOpenKeys])],
-    [routeOpenKeys, userOpenKeys]
+    () => (collapsed ? userOpenKeys : [...new Set([...userOpenKeys, ...routeOpenKeys])]),
+    [collapsed, routeOpenKeys, userOpenKeys]
   )
 
   // 处理菜单点击
   const handleMenuClick = ({ key }: { key: string }) => {
     const path = keyToPathMap.get(key)
-    if (path && requestAppNavigation()) {
-      router.push(path as Route)
-    }
+    cancelPrefetch()
+    if (path) onNavigate(path)
   }
 
   return (
