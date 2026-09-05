@@ -27,19 +27,18 @@ export default async function StockInPage({
   const startDate = params.startDate
   const endDate = params.endDate
 
-  // 获取入库单列表数据
-  const result = await stockInService.list({
-    page,
-    pageSize: 20,
-    keyword,
-    status,
-    warehouseId,
-    startDate,
-    endDate,
-  })
-
-  // 获取仓库列表（用于筛选）
-  const warehouses = await stockInService.getActiveWarehouses()
+  const [result, warehouses] = await Promise.all([
+    stockInService.list({
+      page,
+      pageSize: 20,
+      keyword,
+      status,
+      warehouseId,
+      startDate,
+      endDate,
+    }),
+    stockInService.getActiveWarehouses(),
+  ])
 
   return (
     <StockInListClient

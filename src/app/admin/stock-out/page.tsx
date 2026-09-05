@@ -30,17 +30,18 @@ export default async function StockOutPage({
   const startDate = params.startDate
   const endDate = params.endDate
 
-  const result = await stockOutService.list({
-    page,
-    keyword,
-    status,
-    warehouseId,
-    startDate,
-    endDate,
-    pageSize,
-  })
-
-  const warehouses = await stockInService.getActiveWarehouses()
+  const [result, warehouses] = await Promise.all([
+    stockOutService.list({
+      page,
+      keyword,
+      status,
+      warehouseId,
+      startDate,
+      endDate,
+      pageSize,
+    }),
+    stockInService.getActiveWarehouses(),
+  ])
 
   return (
     <StockOutListClient

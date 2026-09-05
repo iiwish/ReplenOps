@@ -141,35 +141,34 @@ export class StockInService {
       ]
     }
 
-    // 查询总数
-    const total = await prisma.stockIn.count({ where })
-
-    // 查询数据
-    const data = await prisma.stockIn.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      select: {
-        id: true,
-        code: true,
-        warehouseId: true,
-        status: true,
-        totalAmount: true,
-        remark: true,
-        createdBy: true,
-        approvedBy: true,
-        approvedAt: true,
-        completedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        warehouse: {
-          select: {
-            name: true,
+    const [total, data] = await Promise.all([
+      prisma.stockIn.count({ where }),
+      prisma.stockIn.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          code: true,
+          warehouseId: true,
+          status: true,
+          totalAmount: true,
+          remark: true,
+          createdBy: true,
+          approvedBy: true,
+          approvedAt: true,
+          completedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          warehouse: {
+            select: {
+              name: true,
+            },
           },
         },
-      },
-    })
+      }),
+    ])
 
     // 转换数据格式
     const userNames = await getUserDisplayNameMap(

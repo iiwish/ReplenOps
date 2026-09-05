@@ -1,11 +1,15 @@
 'use client'
 
 import { Layout, theme } from 'antd'
-import { useState } from 'react'
+import type { Route } from 'next'
+import { usePathname, useRouter } from 'next/navigation'
+import { useOptimistic, useState, useTransition } from 'react'
 import AppBreadcrumb from './AppBreadcrumb'
 import AppHeader from './AppHeader'
 import AppSidebar from './AppSidebar'
+import AdminPageLoading from './AdminPageLoading'
 import type { UserRole } from '@/types'
+import { requestAppNavigation } from '@/lib/unsaved-changes'
 
 const { Content } = Layout
 
@@ -23,6 +27,21 @@ export default function AdminLayoutClient({
   roles,
 }: AdminLayoutClientProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const [targetPathname, setTargetPathname] = useOptimistic(pathname)
+  const [isPending, startTransition] = useTransition()
+  const isNavigating = isPending && targetPathname !== pathname
+
+  const navigate = (path: string) => {
+    if (isNavigating && path === targetPathname) return
+    if (!isNavigating && !requestAppNavigation()) return
+
+    startTransition(() => {
+      setTargetPathname(path)
+      router.push(path as Route)
+    })
+  }
 
   const {
     token: { colorBgContainer, borderRadiusLG },
@@ -31,10 +50,15 @@ export default function AdminLayoutClient({
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {/* 侧边栏 */}
-      <AppSidebar collapsed={collapsed} roles={roles} />
+      <AppSidebar
+        collapsed={collapsed}
+        roles={roles}
+        pathname={targetPathname}
+        onNavigate={navigate}
+      />
 
       {/* 主内容区域 */}
-      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>
+      <Layout style={{ minWidth: 0, marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>
         {/* 顶部导航栏 */}
         <AppHeader
           collapsed={collapsed}
@@ -46,7 +70,7 @@ export default function AdminLayoutClient({
         {/* 内容区域 */}
         <Content style={{ margin: '0 16px' }}>
           {/* 面包屑 */}
-          <AppBreadcrumb />
+          <AppBreadcrumb pathname={targetPathname} />
 
           {/* 页面内容 */}
           <div
@@ -57,7 +81,9 @@ export default function AdminLayoutClient({
               borderRadius: borderRadiusLG,
             }}
           >
-            {children}
+            {isNavigating && <AdminPageLoading />}
+            {/* Keep the previous form mounted until navigation commits, including on failure. */}
+            <div hidden={isNavigating}>{children}</div>
           </div>
         </Content>
 

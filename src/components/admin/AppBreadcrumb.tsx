@@ -8,8 +8,9 @@ import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 import { getBreadcrumbItems, menuItems } from '@/config/menuConfig'
 
-export default function AppBreadcrumb() {
-  const pathname = usePathname()
+export default function AppBreadcrumb({ pathname: targetPathname }: { pathname?: string }) {
+  const currentPathname = usePathname()
+  const pathname = targetPathname ?? currentPathname
 
   // 获取面包屑项
   const breadcrumbItems = useMemo(() => {

@@ -268,43 +268,43 @@ export class StockOutService {
       }
     }
 
-    const total = await prisma.stockOut.count({ where })
-
-    const data = await prisma.stockOut.findMany({
-      where,
-      include: {
-        warehouse: {
-          select: {
-            name: true,
+    const [total, data] = await Promise.all([
+      prisma.stockOut.count({ where }),
+      prisma.stockOut.findMany({
+        where,
+        include: {
+          warehouse: {
+            select: {
+              name: true,
+            },
           },
-        },
-        order: {
-          select: {
-            code: true,
-            isDeleted: true,
-            storeNameSnapshot: true,
-            store: {
-              select: {
-                name: true,
+          order: {
+            select: {
+              code: true,
+              isDeleted: true,
+              storeNameSnapshot: true,
+              store: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
-        },
-        items: {
-          where: { isDeleted: false },
-          select: {
-            quantity: true,
-            salePrice: true,
+          items: {
+            where: { isDeleted: false },
+            select: {
+              quantity: true,
+              salePrice: true,
+            },
           },
         },
-        containerItems: { orderBy: { id: 'asc' } },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    })
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
 
     const userNames = await getUserDisplayNameMap(data.map((item) => item.createdBy))
 
