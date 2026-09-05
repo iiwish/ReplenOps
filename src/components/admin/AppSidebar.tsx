@@ -15,6 +15,7 @@ import {
   type MenuItem,
 } from '@/config/menuConfig'
 import type { UserRole } from '@/types'
+import styles from './AppSidebar.module.css'
 
 const { Sider } = Layout
 
@@ -84,11 +85,43 @@ export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: A
     () => getOpenKeysForPath(pathname, visibleMenuItems),
     [pathname, visibleMenuItems]
   )
-  const [userOpenKeys, setUserOpenKeys] = useState<string[]>([])
-  const openKeys = useMemo(
-    () => (collapsed ? userOpenKeys : [...new Set([...userOpenKeys, ...routeOpenKeys])]),
-    [collapsed, routeOpenKeys, userOpenKeys]
-  )
+  const groupKeys = visibleMenuItems.filter((item) => item.children).map((item) => item.key)
+  const groupSignature = JSON.stringify(groupKeys)
+  const [expansion, setExpansion] = useState(() => ({
+    pathname,
+    groupSignature,
+    collapsed,
+    inlineKeys: routeOpenKeys,
+    popupKeys: [] as string[],
+  }))
+
+  // Reveal destinations once, not on every render; icon popups never overwrite inline choices.
+  if (
+    expansion.pathname !== pathname ||
+    expansion.groupSignature !== groupSignature ||
+    expansion.collapsed !== collapsed
+  ) {
+    setExpansion({
+      pathname,
+      groupSignature,
+      collapsed,
+      inlineKeys: [
+        ...new Set([
+          ...expansion.inlineKeys,
+          ...(expansion.pathname !== pathname ? routeOpenKeys : []),
+        ]),
+      ].filter((key) => groupKeys.includes(key)),
+      popupKeys: [],
+    })
+  }
+
+  const handleOpenChange = (keys: string[]) => {
+    setExpansion((current) => ({
+      ...current,
+      [collapsed ? 'popupKeys' : 'inlineKeys']: keys.filter((key) => groupKeys.includes(key)),
+    }))
+  }
+  const openKeys = collapsed ? expansion.popupKeys : expansion.inlineKeys
 
   // 处理菜单点击
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -99,12 +132,13 @@ export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: A
 
   return (
     <Sider
+      className={styles.sidebar}
       collapsible
       collapsed={collapsed}
       trigger={null}
       width={240}
       style={{
-        overflow: 'auto',
+        overflow: 'hidden',
         height: '100vh',
         position: 'fixed',
         left: 0,
@@ -114,6 +148,7 @@ export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: A
     >
       {/* Logo 区域 */}
       <div
+        className={styles.brand}
         style={{
           height: 64,
           display: 'flex',
@@ -130,16 +165,18 @@ export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: A
       </div>
 
       {/* 菜单 */}
-      <Menu
-        theme="dark"
-        mode="inline"
-        selectedKeys={[selectedKey]}
-        openKeys={openKeys}
-        onOpenChange={setUserOpenKeys}
-        items={items}
-        onClick={handleMenuClick}
-        style={{ borderRight: 0 }}
-      />
+      <nav className={styles.navigation} aria-label="主导航">
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          openKeys={openKeys}
+          onOpenChange={handleOpenChange}
+          items={items}
+          onClick={handleMenuClick}
+          style={{ borderRight: 0 }}
+        />
+      </nav>
     </Sider>
   )
 }
