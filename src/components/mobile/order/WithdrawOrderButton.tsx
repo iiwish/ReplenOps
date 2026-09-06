@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { revokeOrder } from '@/actions/order-actions'
-import { useCartStore, type CartItem } from '@/lib/stores/cart.store'
+import { hydrateCartStore, useCartStore, type CartItem } from '@/lib/stores/cart.store'
+import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { toast } from '@/hooks/use-toast'
 import { useRouter } from 'next/navigation'
 
 interface WithdrawOrderButtonProps {
   orderId: string
   orderCode: string
+  storeId: string
   /** 传递给 useCartStore.addItem 的商品列表（来自订单详情接口） */
   orderItems: Array<{
     goodsId: string
@@ -25,6 +27,7 @@ interface WithdrawOrderButtonProps {
 export function WithdrawOrderButton({
   orderId,
   orderCode,
+  storeId,
   orderItems,
 }: WithdrawOrderButtonProps) {
   const [loading, setLoading] = useState(false)
@@ -38,6 +41,7 @@ export function WithdrawOrderButton({
 
     setLoading(true)
     try {
+      await hydrateCartStore()
       const result = await revokeOrder(orderId)
 
       if (!result.success) {
@@ -91,19 +95,17 @@ export function WithdrawOrderButton({
         description: `${restoredCount} 件商品已恢复至购物车`,
       })
 
-      router.push('/mobile/order/cart')
+      useStoreSelectionStore.getState().setSelectedStoreId(storeId)
+      router.replace('/mobile/order')
+    } catch {
+      toast({ title: '撤回失败', description: '请检查网络后重试', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Button
-      variant="destructive"
-      className="w-full"
-      onClick={handleRevoke}
-      disabled={loading}
-    >
+    <Button variant="destructive" className="w-full" onClick={handleRevoke} disabled={loading}>
       {loading ? '撤回中...' : '撤回订单'}
     </Button>
   )

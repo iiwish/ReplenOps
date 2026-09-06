@@ -41,6 +41,7 @@ export const GoodsGrid = forwardRef<GoodsGridHandle, GoodsGridProps>(function Go
 ) {
   const categoryRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useImperativeHandle(ref, () => ({
     scrollToCategory(categoryId: string) {
@@ -125,6 +126,7 @@ export const GoodsGrid = forwardRef<GoodsGridHandle, GoodsGridProps>(function Go
         <div className="flex h-10 items-center gap-2 rounded-md border bg-muted/30 px-3 focus-within:ring-2 focus-within:ring-ring">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <input
+            ref={searchInputRef}
             type="search"
             value={searchTerm}
             onChange={(event) => onSearchTermChange(event.target.value)}
@@ -137,7 +139,11 @@ export const GoodsGrid = forwardRef<GoodsGridHandle, GoodsGridProps>(function Go
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => onSearchTermChange('')}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onSearchTermChange('')
+                searchInputRef.current?.focus({ preventScroll: true })
+              }}
               className="h-8 w-8 shrink-0"
               aria-label="清除搜索"
               title="清除搜索"

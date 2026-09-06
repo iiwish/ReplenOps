@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import {
   endClientSession,
+  getSessionEndReason,
   isProtectedPath,
   isSessionEndedStorageEvent,
   redirectToLogin,
@@ -78,7 +79,7 @@ export function AuthSessionGuard() {
     const handleStorage = (event: StorageEvent) => {
       if (!isSessionEndedStorageEvent(event)) return
       redirecting = true
-      redirectToLogin()
+      redirectToLogin(getSessionEndReason(event.newValue))
     }
 
     void checkSession()

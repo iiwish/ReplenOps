@@ -245,10 +245,10 @@ export default function OrdersClientPage() {
     return (
       <Link key={order.id} href={`/mobile/orders/${order.id}`} className="block">
         <Card className="overflow-hidden border-border/80 shadow-none transition-colors hover:border-primary/40 active:bg-muted/30">
-          <CardHeader className="px-4 py-3 pb-2">
+          <CardHeader className="px-3 pb-1.5 pt-2.5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <CardTitle className="truncate text-[15px] font-semibold tracking-normal">
+                <CardTitle className="truncate text-sm font-semibold tracking-normal">
                   {order.code}
                 </CardTitle>
                 <CardDescription className="mt-1 text-xs">
@@ -261,17 +261,17 @@ export default function OrdersClientPage() {
                   })}
                 </CardDescription>
               </div>
-              <Badge variant={statusInfo.variant} className="shrink-0">
+              <Badge variant={statusInfo.variant} className="shrink-0 whitespace-nowrap">
                 {statusInfo.text}
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="flex items-center justify-between border-t bg-muted/30 px-4 py-2.5">
-            <span className="text-xs text-muted-foreground">订单金额</span>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-primary">
-                ¥{order.totalAmount.toFixed(2)}
-              </span>
+          <CardContent className="flex items-center justify-between px-3 pb-2.5 pt-0">
+            <span className="text-base font-semibold text-primary">
+              ¥{order.totalAmount.toFixed(2)}
+            </span>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span>订单详情</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </div>
           </CardContent>

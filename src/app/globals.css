@@ -62,6 +62,10 @@
 }
 
 @layer utilities {
+  .mobile-shell {
+    --mobile-tab-bar-height: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
   /* 安全区域支持 (刘海屏、底部 Home Indicator) */
   .safe-area-top {
     padding-top: env(safe-area-inset-top);
