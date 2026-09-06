@@ -148,14 +148,16 @@ export default function AdminLayoutClient({
               style={
                 isListPage
                   ? {
-                      display: 'flex',
+                      display: isNavigating ? 'none' : 'flex',
                       flex: 1,
                       minHeight: 0,
                       minWidth: 0,
                       flexDirection: 'column',
                       overflow: 'hidden',
                     }
-                  : undefined
+                  : isNavigating
+                    ? { display: 'none' }
+                    : undefined
               }
             >
               {children}
