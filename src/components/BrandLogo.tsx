@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { brand } from '@/config/brand'
+import { brand, type BrandIdentity } from '@/config/brand'
 import { cn } from '@/lib/utils'
 
 interface BrandLogoProps {
@@ -8,6 +8,7 @@ interface BrandLogoProps {
   logoClassName?: string
   textClassName?: string
   priority?: boolean
+  brandConfig?: BrandIdentity
 }
 
 export function BrandLogo({
@@ -16,15 +17,18 @@ export function BrandLogo({
   logoClassName,
   textClassName,
   priority = false,
+  brandConfig,
 }: BrandLogoProps) {
+  const currentBrand = brandConfig ?? brand
+
   return (
     <span
       className={cn('flex min-w-0 items-center gap-2.5', className)}
       role={compact ? 'img' : undefined}
-      aria-label={compact ? brand.name : undefined}
+      aria-label={compact ? currentBrand.name : undefined}
     >
       <Image
-        src={brand.logoPath}
+        src={currentBrand.logoPath}
         alt=""
         width={512}
         height={512}
@@ -32,7 +36,9 @@ export function BrandLogo({
         className={cn('h-9 w-9 shrink-0', logoClassName)}
       />
       {!compact && (
-        <span className={cn('truncate text-lg font-semibold', textClassName)}>{brand.name}</span>
+        <span className={cn('truncate text-lg font-semibold', textClassName)}>
+          {currentBrand.name}
+        </span>
       )}
     </span>
   )

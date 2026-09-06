@@ -125,13 +125,13 @@ export function RevokeOrderModal({
             label="撤销原因"
             rules={[
               { required: true, message: '请输入撤销原因' },
-              { min: 3, message: '撤销原因至少 3 个字符' },
+              { min: 2, message: '撤销原因至少2个字符' },
               { max: 500, message: '撤销原因不能超过 500 字' },
             ]}
           >
             <Input.TextArea
               rows={4}
-              placeholder="请详细说明撤销原因..."
+              placeholder="请详细说明撤销原因（至少2个字符）..."
               maxLength={500}
               showCount
             />

@@ -23,6 +23,7 @@ describe('action permissions', () => {
     'stock:read',
     'stock:write',
     'inventory:adjust',
+    'order:write',
     'order:review',
     'store:manage',
     'system:manage',
@@ -37,6 +38,7 @@ describe('action permissions', () => {
     expect(canPerformAction(user, 'master-data:write')).toBe(true)
     expect(canPerformAction(user, 'stock:write')).toBe(true)
     expect(canPerformAction(user, 'inventory:adjust')).toBe(true)
+    expect(canPerformAction(user, 'order:write')).toBe(true)
     expect(canPerformAction(user, 'order:review')).toBe(true)
     expect(canPerformAction(user, 'store:manage')).toBe(false)
     expect(canPerformAction(user, 'system:manage')).toBe(false)
@@ -46,6 +48,7 @@ describe('action permissions', () => {
     const user = userWithRole('APPROVER')
 
     expect(canPerformAction(user, 'order:review')).toBe(true)
+    expect(canPerformAction(user, 'order:write')).toBe(true)
     expect(canPerformAction(user, 'stock:read')).toBe(true)
     expect(canPerformAction(user, 'stock:write')).toBe(false)
     expect(canPerformAction(user, 'goods:write')).toBe(false)
@@ -58,8 +61,10 @@ describe('action permissions', () => {
     expect(canPerformAction(finance, 'stock:read')).toBe(true)
     expect(canPerformAction(finance, 'stock:write')).toBe(false)
     expect(canPerformAction(finance, 'order:review')).toBe(false)
+    expect(canPerformAction(finance, 'order:write')).toBe(false)
     expect(canPerformAction(store, 'stock:read')).toBe(false)
     expect(canPerformAction(store, 'order:review')).toBe(false)
+    expect(canPerformAction(store, 'order:write')).toBe(false)
   })
 
   it('denies unauthenticated users', () => {

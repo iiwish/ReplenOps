@@ -662,6 +662,11 @@ export class StockOutService {
         where: { id: stockOutId, isDeleted: false },
         include: {
           items: true,
+          order: {
+            select: {
+              status: true,
+            },
+          },
         },
       })
 
@@ -672,6 +677,16 @@ export class StockOutService {
       if (stockOut.status !== 'PENDING') {
         throw new Error('只有待出库状态才能取消')
       }
+
+      const otherActiveStockOut = await tx.stockOut.findFirst({
+        where: {
+          orderId: stockOut.orderId,
+          id: { not: stockOutId },
+          isDeleted: false,
+          status: { in: ['PENDING', 'PROCESSING'] },
+        },
+        select: { id: true },
+      })
 
       const cancelled = await tx.stockOut.updateMany({
         where: {
@@ -700,17 +715,20 @@ export class StockOutService {
         }))
       )
 
-      // 更新订单状态
-      await tx.order.update({
-        where: { id: stockOut.orderId },
-        data: {
-          status: 'CANCELLED',
-          lockedWarehouseId: null,
-          revokedBy: userId,
-          revokedAt: new Date(),
-          revokeReason: reason,
-        },
-      })
+      // 当前模型是一单一出库单；保留这层判断，避免未来扩展为一对多时把仍有活动出库单的订单错误回退。
+      if (stockOut.order.status === 'APPROVED' && !otherActiveStockOut) {
+        await tx.order.updateMany({
+          where: {
+            id: stockOut.orderId,
+            status: 'APPROVED',
+            isDeleted: false,
+          },
+          data: {
+            status: 'APPROVED',
+            lockedWarehouseId: null,
+          },
+        })
+      }
 
       await tx.approvalLog.create({
         data: {

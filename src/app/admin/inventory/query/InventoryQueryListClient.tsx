@@ -3,9 +3,10 @@
 import type { Route } from 'next'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Select, Space, Card, Input, Tag } from 'antd'
+import { Select, Space, Card, Input, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { InventoryQueryResult } from '@/services/inventory-query.service'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 interface InventoryQueryListClientProps {
   initialData: InventoryQueryResult
@@ -195,10 +196,10 @@ export default function InventoryQueryListClient({
   ]
 
   return (
-    <div>
-      <Card variant="borderless">
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="admin-list-page">
+      <Card variant="borderless" className="admin-list-card">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <Space wrap>
               <Select
                 mode="multiple"
@@ -245,26 +246,28 @@ export default function InventoryQueryListClient({
             </Space>
           </div>
 
-          <div style={{ fontSize: '14px', color: '#666' }}>
+          <div className="shrink-0 text-sm text-gray-600">
             合计库存数量：<strong>{initialData.summary.totalQuantity}</strong> 件， 合计库存金额：
             <strong>¥{initialData.summary.totalStockAmount.toFixed(2)}</strong>
           </div>
 
-          <Table
-            columns={columns}
-            dataSource={initialData.data}
-            rowKey="id"
-            pagination={{
-              current: initialData.page,
-              pageSize: initialData.pageSize,
-              total: initialData.total,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: (page) => buildUrl({ page: page.toString() }),
-            }}
-            tableLayout="fixed"
-            scroll={{ x: 1040 }}
-          />
-        </Space>
+          <div className="admin-list-table-frame">
+            <AdminListTable
+              columns={columns}
+              dataSource={initialData.data}
+              rowKey="id"
+              pagination={{
+                current: initialData.page,
+                pageSize: initialData.pageSize,
+                total: initialData.total,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page) => buildUrl({ page: page.toString() }),
+              }}
+              tableLayout="fixed"
+              scroll={{ x: 1040 }}
+            />
+          </div>
+        </div>
       </Card>
     </div>
   )

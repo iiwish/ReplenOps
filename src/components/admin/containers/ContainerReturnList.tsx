@@ -18,6 +18,8 @@ import {
 import { CheckOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 import {
   completeContainerReturn,
   getContainerReturnRequests,
@@ -72,6 +74,13 @@ const statusMeta: Record<ReturnStatus, { text: string; color: string }> = {
   REJECTED: { text: '已驳回', color: 'error' },
   CANCELLED: { text: '已取消', color: 'default' },
 }
+
+const formatReturnItemsSummary = (items: ReturnRequestItem[]) =>
+  items.length > 0
+    ? items
+        .map((item) => `${item.containerName} ${item.requestedQuantity} ${item.containerUnit}`)
+        .join('；')
+    : '-'
 
 export function ContainerReturnList({
   storeId,
@@ -174,8 +183,8 @@ export function ContainerReturnList({
   }
 
   const submitReject = async () => {
-    if (!rejecting || !rejectReason.trim()) {
-      message.warning('请填写驳回原因')
+    if (!rejecting || rejectReason.trim().length < 2) {
+      message.warning('驳回原因至少2个字符')
       return
     }
     setLoading(true)
@@ -209,6 +218,13 @@ export function ContainerReturnList({
       render: (_, request) => `${request.items.length} 种`,
     },
     {
+      title: '包装物摘要',
+      key: 'itemsSummary',
+      hidden: !reviewAction,
+      width: 240,
+      render: (_, request) => formatReturnItemsSummary(request.items),
+    },
+    {
       title: '状态',
       hidden: Boolean(reviewAction),
       dataIndex: 'status',
@@ -239,33 +255,32 @@ export function ContainerReturnList({
     },
     {
       title: '操作',
-      width: 170,
+      width: 100,
       fixed: 'right',
       render: (_, request) =>
         canWriteStock && request.status === 'PENDING' ? (
           <Space>
             {reviewAction !== 'reject' && (
-              <Button
+              <ActionIconButton
                 type="primary"
                 size="small"
                 icon={<CheckOutlined />}
+                tooltip="验收"
                 onClick={() => openAccept(request)}
-              >
-                验收
-              </Button>
+              />
             )}
             {reviewAction !== 'accept' && (
-              <Button
+              <ActionIconButton
+                type="text"
                 danger
                 size="small"
                 icon={<StopOutlined />}
+                tooltip="驳回"
                 onClick={() => {
                   setRejecting(request)
                   setRejectReason('')
                 }}
-              >
-                驳回
-              </Button>
+              />
             )}
           </Space>
         ) : (
@@ -275,7 +290,7 @@ export function ContainerReturnList({
   ]
 
   return (
-    <>
+    <div className="admin-list-page">
       <Form
         form={form}
         layout="inline"
@@ -353,54 +368,59 @@ export function ContainerReturnList({
         </Form.Item>
       </Form>
 
-      <Table
-        columns={columns}
-        dataSource={requests}
-        rowKey="id"
-        loading={loading}
-        locale={{
-          emptyText: (
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前没有符合条件的归还申请" />
-          ),
-        }}
-        scroll={{ x: reviewAction ? 600 : 1270 }}
-        expandable={{
-          expandedRowRender: (request) => (
-            <Table
-              size="small"
-              pagination={false}
-              rowKey="id"
-              dataSource={request.items}
-              columns={[
-                { title: '包装物编码', dataIndex: 'containerCode' },
-                { title: '包装物', dataIndex: 'containerName' },
-                {
-                  title: '申请数量',
-                  render: (_value, item) => `${item.requestedQuantity} ${item.containerUnit}`,
-                },
-                {
-                  title: '实收数量',
-                  dataIndex: 'receivedQuantity',
-                  render: (value: number | null, item) =>
-                    value === null ? '-' : `${value} ${item.containerUnit}`,
-                },
-              ]}
-            />
-          ),
-        }}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showTotal: (count) => `共 ${count} 条`,
-          onChange: (nextPage, nextPageSize) => {
-            setPage(nextPage)
-            setPageSize(nextPageSize)
-            void loadRequests(nextPage, nextPageSize)
-          },
-        }}
-      />
+      <div className="admin-list-table-frame">
+        <AdminListTable
+          columns={columns}
+          dataSource={requests}
+          rowKey="id"
+          loading={loading}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="当前没有符合条件的归还申请"
+              />
+            ),
+          }}
+          scroll={{ x: reviewAction ? 850 : 1270 }}
+          expandable={{
+            expandedRowRender: (request) => (
+              <Table
+                size="small"
+                pagination={false}
+                rowKey="id"
+                dataSource={request.items}
+                columns={[
+                  { title: '包装物编码', dataIndex: 'containerCode' },
+                  { title: '包装物', dataIndex: 'containerName' },
+                  {
+                    title: '申请数量',
+                    render: (_value, item) => `${item.requestedQuantity} ${item.containerUnit}`,
+                  },
+                  {
+                    title: '实收数量',
+                    dataIndex: 'receivedQuantity',
+                    render: (value: number | null, item) =>
+                      value === null ? '-' : `${value} ${item.containerUnit}`,
+                  },
+                ]}
+              />
+            ),
+          }}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            showTotal: (count) => `共 ${count} 条`,
+            onChange: (nextPage, nextPageSize) => {
+              setPage(nextPage)
+              setPageSize(nextPageSize)
+              void loadRequests(nextPage, nextPageSize)
+            },
+          }}
+        />
+      </div>
 
       <Modal
         title={accepting ? `验收归还单 ${accepting.code}` : '验收归还单'}
@@ -459,9 +479,9 @@ export function ContainerReturnList({
           rows={4}
           value={rejectReason}
           onChange={(event) => setRejectReason(event.target.value)}
-          placeholder="请输入驳回原因"
+          placeholder="请输入驳回原因（至少2个字符）"
         />
       </Modal>
-    </>
+    </div>
   )
 }

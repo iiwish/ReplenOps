@@ -15,7 +15,7 @@ interface ActionResponse<T = unknown> {
 
 // 取消出库单验证Schema
 const cancelStockOutSchema = z.object({
-  reason: z.string().min(1, '请填写取消原因').max(500, '取消原因不能超过500字'),
+  reason: z.string().trim().min(2, '取消原因至少2个字符').max(500, '取消原因不能超过500字'),
 })
 
 const completeStockOutSchema = z.object({
@@ -163,6 +163,8 @@ export async function cancelStockOut(
     revalidatePath(`/admin/stock-out/${id}`)
     revalidatePath('/admin/inventory')
     revalidatePath('/admin/orders')
+    revalidatePath('/mobile/orders')
+    revalidatePath('/mobile/home')
 
     return {
       success: true,

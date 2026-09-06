@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   Card,
-  Table,
   Button,
   Select,
   DatePicker,
@@ -28,6 +27,7 @@ import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import Link from 'next/link'
 import InventoryAdjustmentModal from '@/components/admin/inventory/InventoryAdjustmentModal'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
@@ -329,8 +329,9 @@ export default function InventoryLogListClient({
   ]
 
   return (
-    <div className="p-6">
+    <div className="admin-list-page p-6">
       <Card
+        className="admin-list-card"
         title="库存流水"
         extra={
           <Space>
@@ -439,22 +440,24 @@ export default function InventoryLogListClient({
         </Card>
 
         {/* 表格 */}
-        <Table
-          dataSource={initialData.data}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            current: initialData.page,
-            pageSize: initialData.pageSize,
-            total: initialData.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-            onChange: handlePageChange,
-          }}
-          scroll={{ x: 1400 }}
-        />
+        <div className="admin-list-table-frame">
+          <AdminListTable
+            dataSource={initialData.data}
+            columns={columns}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              current: initialData.page,
+              pageSize: initialData.pageSize,
+              total: initialData.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+              onChange: handlePageChange,
+            }}
+            scroll={{ x: 1400 }}
+          />
+        </div>
       </Card>
 
       <InventoryAdjustmentModal

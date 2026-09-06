@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { OrderStatus } from '@prisma/client'
 import type { AuthUser } from '@/lib/auth'
 import { assertCanReadStore, canReadAllStores, getAccessibleStoreIds } from '@/lib/store-access'
 import {
@@ -7,6 +8,8 @@ import {
   getShanghaiMonth,
   getShanghaiMonthRange,
 } from '@/lib/shanghai-time'
+
+const PENDING_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'APPROVED', 'PROCESSING', 'REJECTED']
 
 export interface TodayStats {
   orderCount: number
@@ -63,7 +66,7 @@ export class DashboardService {
       prisma.order.count({
         where: {
           ...(storeScope !== undefined && { storeId: storeScope }),
-          status: { in: ['PENDING', 'APPROVED', 'PROCESSING'] },
+          status: { in: PENDING_ORDER_STATUSES },
           isDeleted: false,
         },
       }),
@@ -91,7 +94,7 @@ export class DashboardService {
       prisma.order.count({
         where: {
           ...monthOrderScope,
-          status: { in: ['PENDING', 'APPROVED', 'PROCESSING'] },
+          status: { in: PENDING_ORDER_STATUSES },
         },
       }),
       prisma.order.count({

@@ -2,6 +2,8 @@ import { requirePageAccess } from '@/lib/rbac-server'
 import { Suspense } from 'react'
 import { OrderListClient, type OrderListFilters } from './OrderListClient'
 import { canPerformAction } from '@/lib/action-permissions'
+import { goodsService, type OrderGoodsOption } from '@/services/goods.service'
+import { storeService, type StoreOption } from '@/services/store.service'
 
 interface OrdersSearchParams {
   status?: string | string[]
@@ -43,16 +45,32 @@ export default async function OrdersPage({
   const requestedApproval = firstParam(params.approval)
   const initialApprovalOrderId =
     requestedApproval && /^\d+$/.test(requestedApproval) ? requestedApproval : undefined
+  const canCreateOrders = canPerformAction(user, 'order:write')
   const canReviewOrders = canPerformAction(user, 'order:review')
+  const canWriteStock = canPerformAction(user, 'stock:write')
+  let stores: StoreOption[] = []
+  let goods: OrderGoodsOption[] = []
+
+  if (canCreateOrders) {
+    const options = await Promise.all([
+      storeService.listActiveOptions(),
+      goodsService.listActiveOrderOptions(),
+    ])
+    stores = options[0]
+    goods = options[1]
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-2xl font-bold">订单列表</h1>
-      <Suspense fallback={<div>加载中...</div>}>
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <Suspense fallback={<div className="flex h-full min-h-0 flex-col">加载中...</div>}>
         <OrderListClient
           initialFilters={initialFilters}
           initialApprovalOrderId={initialApprovalOrderId}
+          canCreateOrders={canCreateOrders}
           canReviewOrders={canReviewOrders}
+          canWriteStock={canWriteStock}
+          stores={stores}
+          goods={goods}
         />
       </Suspense>
     </div>

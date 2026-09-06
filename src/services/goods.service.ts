@@ -67,6 +67,18 @@ export interface PaginatedGoodsResult {
   totalPages: number
 }
 
+export interface OrderGoodsOption {
+  id: string
+  code: string
+  name: string
+  spec: string | null
+  unit: string
+  measureType: 'INT' | 'DECIMAL'
+  partnerPrice: number
+  availableQty: number
+  categoryName: string
+}
+
 interface GoodsRecord {
   id: string
   code: string
@@ -687,6 +699,45 @@ export class GoodsService {
       id: String(category.id),
       code: category.code,
       name: category.name,
+    }))
+  }
+
+  /**
+   * 获取管理员手动创建订单所需的启用商品及可用库存。
+   */
+  async listActiveOrderOptions(): Promise<OrderGoodsOption[]> {
+    const goods = await prisma.goods.findMany({
+      where: { isDeleted: false, isActive: true },
+      orderBy: [{ name: 'asc' }, { code: 'asc' }],
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        spec: true,
+        unit: true,
+        measureType: true,
+        partnerPrice: true,
+        category: { select: { name: true } },
+        inventories: {
+          where: { isDeleted: false },
+          select: { availableQuantity: true },
+        },
+      },
+    })
+
+    return goods.map((item) => ({
+      id: String(item.id),
+      code: item.code,
+      name: item.name,
+      spec: item.spec,
+      unit: item.unit,
+      measureType: item.measureType,
+      partnerPrice: Number(item.partnerPrice),
+      availableQty: item.inventories.reduce(
+        (total, inventory) => total + Number(inventory.availableQuantity),
+        0
+      ),
+      categoryName: item.category.name,
     }))
   }
 }

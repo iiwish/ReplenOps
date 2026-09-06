@@ -58,6 +58,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
   const [containers, setContainers] = useState<ReturnableContainer[]>([])
   const [pendingRequests, setPendingRequests] = useState<PendingReturnRequest[]>([])
   const [quantities, setQuantities] = useState<Record<string, number>>({})
+  const [selectedContainerIds, setSelectedContainerIds] = useState<Set<string>>(new Set())
   const [remark, setRemark] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -119,6 +120,16 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
     setQuantities((current) => ({ ...current, [container.containerId]: normalized }))
   }
 
+  const updateSelection = (container: ReturnableContainer, selected: boolean) => {
+    setSelectedContainerIds((current) => {
+      const next = new Set(current)
+      if (selected) next.add(container.containerId)
+      else next.delete(container.containerId)
+      return next
+    })
+    updateQuantity(container, selected ? container.availableReturnQuantity : 0)
+  }
+
   const handleSubmit = () => {
     if (!selectedStore?.id || selectedItems.length === 0) return
 
@@ -136,6 +147,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
         message.success('归还申请已提交，等待仓库验收')
         setShowConfirm(false)
         setQuantities({})
+        setSelectedContainerIds(new Set())
         setRemark('')
         await loadContainers()
         onSuccess?.()
@@ -170,6 +182,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
 
   useEffect(() => {
     setQuantities({})
+    setSelectedContainerIds(new Set())
     setRemark('')
     setShowConfirm(false)
     void loadContainers()
@@ -202,7 +215,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
         <Space orientation="vertical" size={10} style={{ width: '100%' }}>
           {containers.map((container) => {
             const quantity = quantities[container.containerId] ?? 0
-            const isSelected = quantity > 0
+            const isSelected = selectedContainerIds.has(container.containerId)
 
             return (
               <Card key={container.trackingId} size="small" loading={loading}>
@@ -229,12 +242,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
                   <Checkbox
                     checked={isSelected}
                     disabled={container.availableReturnQuantity <= 0}
-                    onChange={(event) =>
-                      updateQuantity(
-                        container,
-                        event.target.checked ? container.availableReturnQuantity : 0
-                      )
-                    }
+                    onChange={(event) => updateSelection(container, event.target.checked)}
                   >
                     加入本次归还
                   </Checkbox>
@@ -244,7 +252,7 @@ export function MobileContainerReturnForm({ onSuccess }: MobileContainerReturnFo
                     max={container.availableReturnQuantity}
                     precision={0}
                     disabled={!isSelected}
-                    value={isSelected ? quantity : null}
+                    value={isSelected && quantity > 0 ? quantity : undefined}
                     suffix={container.containerUnit}
                     onChange={(value) => updateQuantity(container, value ?? 0)}
                     style={{ width: 118 }}

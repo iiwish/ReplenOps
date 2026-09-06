@@ -8,6 +8,7 @@ import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
 import { listTracking, getTrackingLogs } from '@/actions/container-tracking-actions'
 import { ContainerReturnList } from '@/components/admin/containers/ContainerReturnList'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 interface TrackingItem {
   id: string
@@ -233,11 +234,11 @@ export default function ContainerTrackingPage({
   }, [fetchData])
 
   return (
-    <div className={embedded ? '' : 'p-6'}>
-      {!embedded && <h1 className="mb-4 text-2xl font-bold">包装物台账查询</h1>}
+    <div className={embedded ? 'admin-list-page' : 'admin-list-page p-6'}>
+      {!embedded && <h1 className="mb-4 shrink-0 text-2xl font-bold">包装物台账查询</h1>}
 
       {!embedded && (
-        <div className="mb-4 flex justify-end gap-2">
+        <div className="mb-4 flex shrink-0 justify-end gap-2">
           {canWriteStock && (
             <Button
               icon={<AuditOutlined />}
@@ -265,22 +266,24 @@ export default function ContainerTrackingPage({
         </div>
       )}
 
-      <Table
-        columns={columns}
-        dataSource={trackingData}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 20 }}
-        locale={{
-          emptyText: (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={hasUnreturned ? '暂无在外包装物' : '暂无包装物台账'}
-            />
-          ),
-        }}
-        scroll={{ x: 900 }}
-      />
+      <div className="admin-list-table-frame">
+        <AdminListTable
+          columns={columns}
+          dataSource={trackingData}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 20 }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={hasUnreturned ? '暂无在外包装物' : '暂无包装物台账'}
+              />
+            ),
+          }}
+          scroll={{ x: 900 }}
+        />
+      </div>
 
       <Modal
         title={

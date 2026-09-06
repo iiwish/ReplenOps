@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('warns before leaving an unsaved weekly schedule and confirms reset', async ({ page }) => {
-  await page.goto('/admin/system-config')
+  await page.goto('/admin/system-config/ordering-schedule')
 
   const mondaySwitch = page.getByRole('switch', { name: '周一报货开关' })
   await mondaySwitch.click()
@@ -49,7 +49,7 @@ test('warns before leaving an unsaved weekly schedule and confirms reset', async
       await dialog.dismiss()
     }),
   ])
-  await expect(page).toHaveURL(/\/admin\/system-config$/)
+  await expect(page).toHaveURL(/\/admin\/system-config\/ordering-schedule$/)
 
   await mondaySwitch.click()
   await expect(page.getByText('所有更改已保存')).toBeVisible()

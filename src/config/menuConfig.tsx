@@ -140,8 +140,13 @@ export const menuItems: MenuItemConfig[] = [
     children: [
       {
         key: 'system-config',
-        label: '报货时间设置',
+        label: '系统配置',
         path: '/admin/system-config',
+      },
+      {
+        key: 'ordering-schedule',
+        label: '报货时间',
+        path: '/admin/system-config/ordering-schedule',
       },
       {
         key: 'users',
@@ -192,6 +197,22 @@ export function getMenuItems(items: MenuItemConfig[]): MenuItem[] {
       label: item.label,
     }
   })
+}
+
+// 收集所有可展开菜单的 key，支持多级菜单保持展开状态。
+export function getMenuGroupKeys(items: MenuItemConfig[]): string[] {
+  const keys: string[] = []
+
+  function traverse(entries: MenuItemConfig[]) {
+    entries.forEach((item) => {
+      if (!item.children) return
+      keys.push(item.key)
+      traverse(item.children)
+    })
+  }
+
+  traverse(items)
+  return keys
 }
 
 // 生成路径到菜单项的映射
@@ -283,11 +304,9 @@ export function getBreadcrumbItems(
 
   function findPath(items: MenuItemConfig[], currentPath: Array<MenuItemConfig>): boolean {
     for (const item of items) {
-      const newPath = [...currentPath, item]
-
-      if (item.path && (item.path === pathname || pathname.startsWith(`${item.path}/`))) {
+      if (item.path === pathname) {
         breadcrumbs.push(
-          ...newPath.map((p) => ({
+          ...[...currentPath, item].map((p) => ({
             key: p.key,
             label: p.label,
             path: p.path,
@@ -295,11 +314,29 @@ export function getBreadcrumbItems(
         )
         return true
       }
+    }
+
+    for (const item of items) {
+      const newPath = [...currentPath, item]
 
       if (item.children && findPath(item.children, newPath)) {
         return true
       }
     }
+
+    for (const item of items) {
+      if (item.path && pathname.startsWith(`${item.path}/`)) {
+        breadcrumbs.push(
+          ...[...currentPath, item].map((p) => ({
+            key: p.key,
+            label: p.label,
+            path: p.path,
+          }))
+        )
+        return true
+      }
+    }
+
     return false
   }
 

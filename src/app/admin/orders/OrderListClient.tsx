@@ -2,21 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Route } from 'next'
-import { Table, Button, message, Space, DatePicker, Input, Tag, Modal, Tabs, Tooltip } from 'antd'
+import { Button, message, Space, DatePicker, Input, Tag, Tabs, Tooltip, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { getOrders, deleteOrder } from '@/actions/order-actions'
+import { getOrders } from '@/actions/order-actions'
 import Link from 'next/link'
 import dayjs from 'dayjs'
 import {
   CheckCircleOutlined,
-  FileExcelOutlined,
+  EyeOutlined,
+  PlusOutlined,
   ReloadOutlined,
+  SendOutlined,
 } from '@ant-design/icons'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   OrderApprovalModal,
   type OrderApprovalResult,
 } from '@/components/admin/orders/OrderApprovalModal'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
+import { OrderStockOutModal } from '@/components/admin/orders/OrderStockOutModal'
+import { AdminOrderCreateModal } from '@/components/admin/orders/AdminOrderCreateModal'
+import type { OrderGoodsOption } from '@/services/goods.service'
+import type { StoreOption } from '@/services/store.service'
 
 const { RangePicker } = DatePicker
 const { Search } = Input
@@ -31,6 +39,11 @@ interface OrderItem {
   orderedAt: Date
   createdAt: Date
   createdBy: string
+  stockOut: {
+    id: string
+    code: string
+    status: string
+  } | null
 }
 
 interface OrdersListData {
@@ -77,13 +90,21 @@ const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 interface OrderListClientProps {
   initialFilters?: OrderListFilters
   initialApprovalOrderId?: string
+  canCreateOrders: boolean
   canReviewOrders: boolean
+  canWriteStock: boolean
+  stores: StoreOption[]
+  goods: OrderGoodsOption[]
 }
 
 export function OrderListClient({
   initialFilters = {},
   initialApprovalOrderId,
+  canCreateOrders,
   canReviewOrders,
+  canWriteStock,
+  stores,
+  goods,
 }: OrderListClientProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -93,8 +114,13 @@ export function OrderListClient({
   const [total, setTotal] = useState(0)
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
   const [page, setPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const [approvalOrder, setApprovalOrder] = useState<{ id: string; code?: string } | null>(null)
+  const [stockOutOrder, setStockOutOrder] = useState<{
+    orderCode: string
+    stockOutId: string
+  } | null>(null)
+  const [createOrderOpen, setCreateOrderOpen] = useState(false)
   const requestId = useRef(0)
 
   // 筛选条件
@@ -108,32 +134,35 @@ export function OrderListClient({
   }, [canReviewOrders, initialApprovalOrderId])
 
   // 加载数据
-  const loadData = useCallback(async (nextPage = page, nextFilters = filters) => {
-    const currentRequestId = ++requestId.current
-    setLoading(true)
-    try {
-      const res = await getOrders({
-        page: nextPage,
-        pageSize,
-        ...nextFilters,
-        status: nextFilters.status?.split(','),
-      })
-      if (currentRequestId !== requestId.current) return
+  const loadData = useCallback(
+    async (nextPage = page, nextFilters = filters) => {
+      const currentRequestId = ++requestId.current
+      setLoading(true)
+      try {
+        const res = await getOrders({
+          page: nextPage,
+          pageSize,
+          ...nextFilters,
+          status: nextFilters.status?.split(','),
+        })
+        if (currentRequestId !== requestId.current) return
 
-      if (res.success && res.data) {
-        const resultData = res.data as OrdersListData
-        setData(resultData.data)
-        setTotal(resultData.total)
-        setStatusCounts(resultData.statusCounts)
-      } else {
-        message.error(res.message || '加载失败')
+        if (res.success && res.data) {
+          const resultData = res.data as OrdersListData
+          setData(resultData.data)
+          setTotal(resultData.total)
+          setStatusCounts(resultData.statusCounts)
+        } else {
+          message.error(res.message || '加载失败')
+        }
+      } catch {
+        if (currentRequestId === requestId.current) message.error('加载订单失败')
+      } finally {
+        if (currentRequestId === requestId.current) setLoading(false)
       }
-    } catch {
-      if (currentRequestId === requestId.current) message.error('加载订单失败')
-    } finally {
-      if (currentRequestId === requestId.current) setLoading(false)
-    }
-  }, [filters, page, pageSize])
+    },
+    [filters, page, pageSize]
+  )
 
   useEffect(() => {
     void loadData()
@@ -172,23 +201,6 @@ export function OrderListClient({
     setFilters({})
     setPage(1)
     syncFiltersToUrl({})
-  }
-
-  // 删除订单
-  const handleDelete = (record: OrderItem) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除订单 ${record.code} 吗？`,
-      onOk: async () => {
-        const res = await deleteOrder(record.id)
-        if (res.success) {
-          message.success('删除成功')
-          await loadData()
-        } else {
-          message.error(res.message || '删除失败')
-        }
-      },
-    })
   }
 
   const closeApproval = () => {
@@ -285,40 +297,53 @@ export function OrderListClient({
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 120,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
           <Link href={`/admin/orders/${record.id}`}>
-            <Button type="link" size="small">
-              查看
-            </Button>
+            <ActionIconButton type="text" size="small" icon={<EyeOutlined />} tooltip="查看" />
           </Link>
           {record.status === 'PENDING' && canReviewOrders && (
-            <>
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => setApprovalOrder({ id: record.id, code: record.code })}
-              >
-                审批
-              </Button>
-              <Button type="link" size="small" danger onClick={() => handleDelete(record)}>
-                删除
-              </Button>
-            </>
+            <ActionIconButton
+              type="text"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              tooltip="审批"
+              onClick={() => setApprovalOrder({ id: record.id, code: record.code })}
+            />
           )}
+          {record.status === 'APPROVED' &&
+            canWriteStock &&
+            record.stockOut?.status === 'PENDING' && (
+              <ActionIconButton
+                type="text"
+                size="small"
+                icon={<SendOutlined />}
+                tooltip="确认出库"
+                onClick={() =>
+                  setStockOutOrder({
+                    orderCode: record.code,
+                    stockOutId: record.stockOut?.id ?? '',
+                  })
+                }
+              />
+            )}
         </Space>
       ),
     },
   ]
 
   return (
-    <div>
-      <Tabs activeKey={filters.status || 'ALL'} items={statusTabs} onChange={handleStatusChange} />
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <Tabs
+        activeKey={filters.status || 'ALL'}
+        items={statusTabs}
+        onChange={handleStatusChange}
+        style={{ flexShrink: 0 }}
+      />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-gray-200 bg-gray-50 px-3 py-3">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-y border-gray-200 bg-gray-50 px-3 py-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-2">
             <span className="whitespace-nowrap text-sm text-gray-600">日期</span>
@@ -358,6 +383,11 @@ export function OrderListClient({
           <Button onClick={handleReset}>重置</Button>
         </div>
         <Space size="small">
+          {canCreateOrders && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOrderOpen(true)}>
+              新建订单
+            </Button>
+          )}
           <Tooltip title="刷新订单">
             <Button
               icon={<ReloadOutlined />}
@@ -366,28 +396,44 @@ export function OrderListClient({
               onClick={() => void loadData()}
             />
           </Tooltip>
-          <Link href={'/admin/reports/stock-out' as Route}>
-            <Button icon={<FileExcelOutlined />}>月度出库报表</Button>
-          </Link>
         </Space>
       </div>
 
       {/* 数据表格 */}
-      <Table
-        columns={columns}
-        dataSource={data}
-        rowKey="id"
-        loading={loading}
-        scroll={{ x: 1200 }}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showTotal: (total) => `共 ${total} 条`,
-          showSizeChanger: false,
-          onChange: (p) => setPage(p),
-        }}
-      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div
+          className="admin-list-table-frame min-h-0 min-w-0 flex-1 overflow-auto"
+          style={{ overflow: 'hidden' }}
+        >
+          <AdminListTable
+            columns={columns}
+            dataSource={data}
+            rowKey="id"
+            loading={loading}
+            scroll={{ x: 1200 }}
+            pagination={false}
+          />
+        </div>
+        <div className="flex shrink-0 justify-end border-t border-gray-200 pt-2">
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={total}
+            size="small"
+            showTotal={(total) => `共 ${total} 条`}
+            showSizeChanger
+            pageSizeOptions={['10', '20', '50', '100']}
+            onChange={(nextPage, nextPageSize) => {
+              if (nextPageSize !== pageSize) {
+                setPageSize(nextPageSize)
+                setPage(1)
+                return
+              }
+              setPage(nextPage)
+            }}
+          />
+        </div>
+      </div>
 
       <OrderApprovalModal
         open={Boolean(approvalOrder)}
@@ -396,6 +442,34 @@ export function OrderListClient({
         onCancel={closeApproval}
         onCompleted={handleApprovalCompleted}
       />
+
+      <OrderStockOutModal
+        open={Boolean(stockOutOrder)}
+        orderCode={stockOutOrder?.orderCode}
+        stockOutId={stockOutOrder?.stockOutId ?? null}
+        onCancel={() => setStockOutOrder(null)}
+        onCompleted={async () => {
+          setStockOutOrder(null)
+          await loadData()
+        }}
+      />
+
+      {canCreateOrders && (
+        <AdminOrderCreateModal
+          open={createOrderOpen}
+          stores={stores}
+          goods={goods}
+          onClose={() => setCreateOrderOpen(false)}
+          onSuccess={() => {
+            setCreateOrderOpen(false)
+            if (page === 1) {
+              void loadData(1, filters)
+            } else {
+              setPage(1)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Modal, Card, Space, Tag, Select, Avatar, Spin, App } from 'antd'
+import { Button, Modal, Card, Space, Tag, Select, Avatar, Spin, App } from 'antd'
 import { DeleteOutlined, ArrowLeftOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { addStoreAdmin, removeStoreAdmin } from '@/actions/store-actions'
 import type { StoreAdminInfo } from '@/services/store.service'
 import type { SimpleUserInfo } from '@/types/user'
 import { formatUserCode } from '@/lib/user-code'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 interface StoreAdminsClientProps {
   storeId: string
@@ -170,27 +172,27 @@ export default function StoreAdminsClient({
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 80,
       render: (_, record) => (
-        <Button
-          type="link"
+        <ActionIconButton
+          type="text"
+          size="small"
           danger
           icon={<DeleteOutlined />}
+          tooltip="移除"
           onClick={() => handleRemoveAdmin(record)}
           disabled={loading}
-        >
-          移除
-        </Button>
+        />
       ),
     },
   ]
 
   return (
-    <div>
-      <Card variant="borderless">
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <div className="admin-list-page min-h-0 flex-1">
+      <Card variant="borderless" className="admin-list-card">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           {/* 顶部操作栏 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <Space>
               <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
                 返回
@@ -210,17 +212,19 @@ export default function StoreAdminsClient({
           </div>
 
           {/* 表格 */}
-          <Table
-            columns={columns}
-            dataSource={admins}
-            rowKey="id"
-            loading={loading}
-            pagination={false}
-            locale={{
-              emptyText: '暂无管理员，点击右上角"添加管理员"按钮添加',
-            }}
-          />
-        </Space>
+          <div className="admin-list-table-frame">
+            <AdminListTable
+              columns={columns}
+              dataSource={admins}
+              rowKey="id"
+              loading={loading}
+              pagination={false}
+              locale={{
+                emptyText: '暂无管理员，点击右上角"添加管理员"按钮添加',
+              }}
+            />
+          </div>
+        </div>
       </Card>
 
       {/* 添加管理员弹窗 */}

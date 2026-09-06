@@ -5,8 +5,10 @@ import { Layout, Menu } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrandLogo } from '@/components/BrandLogo'
+import type { BrandIdentity } from '@/config/brand'
 import {
   getKeyToPathMap,
+  getMenuGroupKeys,
   getMenuItems,
   getOpenKeysForPath,
   getPathToKeyMap,
@@ -24,9 +26,16 @@ interface AppSidebarProps {
   roles: UserRole[]
   pathname: string
   onNavigate: (path: string) => void
+  brandConfig?: BrandIdentity
 }
 
-export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: AppSidebarProps) {
+export default function AppSidebar({
+  collapsed,
+  roles,
+  pathname,
+  onNavigate,
+  brandConfig,
+}: AppSidebarProps) {
   const router = useRouter()
   const visibleMenuItems = useMemo(() => getVisibleMenuItems(menuItems, roles), [roles])
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -85,7 +94,7 @@ export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: A
     () => getOpenKeysForPath(pathname, visibleMenuItems),
     [pathname, visibleMenuItems]
   )
-  const groupKeys = visibleMenuItems.filter((item) => item.children).map((item) => item.key)
+  const groupKeys = useMemo(() => getMenuGroupKeys(visibleMenuItems), [visibleMenuItems])
   const groupSignature = JSON.stringify(groupKeys)
   const [expansion, setExpansion] = useState(() => ({
     pathname,
@@ -159,6 +168,7 @@ export default function AppSidebar({ collapsed, roles, pathname, onNavigate }: A
       >
         <BrandLogo
           compact={collapsed}
+          brandConfig={brandConfig}
           logoClassName={collapsed ? 'h-8 w-8' : 'h-9 w-9'}
           textClassName="text-white"
         />

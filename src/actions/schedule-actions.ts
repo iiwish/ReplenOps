@@ -50,7 +50,7 @@ export async function saveOrderingSchedule(
     await requireActionPermission('system:manage')
     const schedules = orderingScheduleBatchSchema.parse(input)
     const saved = await orderingScheduleService.updateSchedules(schedules)
-    revalidatePath('/admin/system-config')
+    revalidatePath('/admin/system-config/ordering-schedule')
     return { success: true, data: saved }
   } catch (error) {
     return { success: false, error: getErrorMessage(error, '保存报货时间失败') }
@@ -65,7 +65,7 @@ export async function resetScheduleToDefault(): Promise<{
   try {
     await requireActionPermission('system:manage')
     const saved = await orderingScheduleService.updateSchedules(DEFAULT_ORDERING_SCHEDULES)
-    revalidatePath('/admin/system-config')
+    revalidatePath('/admin/system-config/ordering-schedule')
     return { success: true, data: saved }
   } catch (error) {
     return { success: false, error: getErrorMessage(error, '恢复默认设置失败') }

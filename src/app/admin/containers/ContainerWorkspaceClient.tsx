@@ -58,8 +58,9 @@ export default function ContainerWorkspaceClient({
   ]
 
   return (
-    <div>
+    <div className="admin-list-page">
       <Tabs
+        className="admin-list-tabs"
         activeKey={initialView}
         items={items}
         destroyOnHidden

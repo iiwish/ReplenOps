@@ -16,7 +16,6 @@ export default async function DashboardPage() {
   if (!result.success || !result.data) {
     return (
       <div>
-        <h1>工作台</h1>
         <p>加载数据失败: {result.message}</p>
       </div>
     )
@@ -54,8 +53,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>工作台</h1>
-        <p style={{ color: '#999', marginTop: 8 }}>欢迎回来,{user.displayName || user.name}!</p>
+        <p style={{ color: '#999', margin: 0 }}>欢迎回来,{user.displayName || user.name}!</p>
       </div>
 
       <Row gutter={[16, 16]}>

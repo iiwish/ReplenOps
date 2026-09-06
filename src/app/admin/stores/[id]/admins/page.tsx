@@ -1,7 +1,6 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import { notFound } from 'next/navigation'
 import { storeService } from '@/services/store.service'
-import { App } from 'antd'
 import StoreAdminsClient from './StoreAdminsClient'
 
 interface PageProps {
@@ -23,15 +22,9 @@ export default async function StoreAdminsPage({ params }: PageProps) {
   }
 
   return (
-    <App>
-      <div>
-        <h2 style={{ marginBottom: 24 }}>门店管理员管理</h2>
-        <StoreAdminsClient
-          storeId={id}
-          storeName={store.name}
-          initialAdmins={admins}
-        />
-      </div>
-    </App>
+    <div className="admin-list-page">
+      <h2 className="mb-4 shrink-0 text-xl font-semibold">门店管理员管理</h2>
+      <StoreAdminsClient storeId={id} storeName={store.name} initialAdmins={admins} />
+    </div>
   )
 }

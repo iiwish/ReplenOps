@@ -15,7 +15,6 @@ import {
   Segmented,
   Select,
   Statistic,
-  Table,
   Tag,
   Tooltip,
 } from 'antd'
@@ -29,6 +28,7 @@ import type {
   MonthlyStockOutReportOptions,
   MonthlyStockOutReportRow,
 } from '@/services/monthly-stock-out-report.service'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 interface MonthlyStockOutReportClientProps {
   initialData: MonthlyStockOutReportData
@@ -189,8 +189,8 @@ export default function MonthlyStockOutReportClient({
     month === previousMonth ? 'previous' : month === currentMonth ? 'current' : undefined
 
   return (
-    <div className="space-y-5 p-6">
-      <div className="border-b border-gray-200 pb-5">
+    <div className="admin-list-page space-y-5 p-6">
+      <div className="shrink-0 border-b border-gray-200 pb-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="shrink-0 text-sm font-medium text-gray-700">统计月份</span>
@@ -273,7 +273,7 @@ export default function MonthlyStockOutReportClient({
         </div>
       </div>
 
-      <div className="border-y border-gray-200 bg-white px-4 py-5">
+      <div className="shrink-0 border-y border-gray-200 bg-white px-4 py-5">
         <Row gutter={[24, 20]}>
           <Col xs={12} md={6}>
             <Statistic title="实际出库单" value={summary.stockOutCount} suffix="张" />
@@ -298,17 +298,19 @@ export default function MonthlyStockOutReportClient({
         />
       )}
 
-      <Table
-        columns={columns}
-        dataSource={initialData.rows}
-        rowKey="id"
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 张出库单`,
-        }}
-        scroll={{ x: 1450 }}
-      />
+      <div className="admin-list-table-frame">
+        <AdminListTable
+          columns={columns}
+          dataSource={initialData.rows}
+          rowKey="id"
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 张出库单`,
+          }}
+          scroll={{ x: 1450 }}
+        />
+      </div>
     </div>
   )
 }

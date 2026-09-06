@@ -355,9 +355,11 @@ describe('order inventory locking', () => {
 
     const inventory = await getInventory(fixtures.goodsId, fixtures.warehouseId)
     const updatedOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    const updatedStockOut = await prisma.stockOut.findUniqueOrThrow({ where: { id: stockOut.id } })
 
-    expect(updatedOrder.status).toBe('CANCELLED')
+    expect(updatedOrder.status).toBe('APPROVED')
     expect(updatedOrder.lockedWarehouseId).toBeNull()
+    expect(updatedStockOut.status).toBe('CANCELLED')
     expect(inventory).toEqual({
       quantity: 10,
       lockedQuantity: 0,

@@ -4,3 +4,8 @@ export const brand = {
   logoPath: '/brand/logo.svg',
   productPlaceholderPath: '/images/product-placeholder.svg',
 } as const
+
+export interface BrandIdentity {
+  name: string
+  logoPath: string
+}

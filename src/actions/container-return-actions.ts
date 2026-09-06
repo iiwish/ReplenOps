@@ -58,7 +58,7 @@ const completeReturnSchema = z.object({
 
 const rejectReturnSchema = z.object({
   returnId: z.string().min(1, '归还单ID不能为空'),
-  reason: z.string().trim().min(1, '请填写驳回原因'),
+  reason: z.string().trim().min(2, '驳回原因至少2个字符'),
 })
 
 const storeReturnRequestsSchema = z.object({

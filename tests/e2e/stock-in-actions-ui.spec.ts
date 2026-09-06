@@ -73,7 +73,7 @@ test('keeps cancel reason validation out of the browser error channel', async ({
   const dialog = page.getByRole('dialog', { name: '取消入库单' })
   await dialog.getByRole('button', { name: '确认取消' }).click()
 
-  await expect(page.getByText('请填写取消原因')).toBeVisible()
+  await expect(page.getByText('取消原因至少2个字符')).toBeVisible()
   await expect(dialog).toBeVisible()
   expect(pageErrors).toEqual([])
 })

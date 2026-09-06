@@ -9,12 +9,14 @@ import {
 import { Avatar, Button, Dropdown, Layout, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { logoutAndRedirect } from '@/lib/auth-client'
+import AppBreadcrumb from './AppBreadcrumb'
 
 const { Header } = Layout
 
 interface AppHeaderProps {
   collapsed: boolean
   onToggle: () => void
+  pathname?: string
   userName?: string
   userDisplayName?: string
 }
@@ -22,6 +24,7 @@ interface AppHeaderProps {
 export default function AppHeader({
   collapsed,
   onToggle,
+  pathname,
   userName = '游客',
   userDisplayName,
 }: AppHeaderProps) {
@@ -70,19 +73,23 @@ export default function AppHeader({
         zIndex: 1,
       }}
     >
-      {/* 左侧：折叠按钮 */}
-      <Button
-        type="text"
-        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-        aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
-        title={collapsed ? '展开侧栏' : '收起侧栏'}
-        onClick={onToggle}
-        style={{
-          fontSize: '16px',
-          width: 64,
-          height: 64,
-        }}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+        {/* 左侧：折叠按钮与当前页面路径 */}
+        <Button
+          type="text"
+          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          aria-label={collapsed ? '展开侧栏' : '收起侧栏'}
+          title={collapsed ? '展开侧栏' : '收起侧栏'}
+          onClick={onToggle}
+          style={{
+            fontSize: '16px',
+            width: 64,
+            height: 64,
+            flex: '0 0 auto',
+          }}
+        />
+        <AppBreadcrumb pathname={pathname} />
+      </div>
 
       {/* 右侧：用户信息 */}
       <Space>

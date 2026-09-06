@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AppSidebar from '@/components/admin/AppSidebar'
-import { getBreadcrumbItems, menuItems } from '@/config/menuConfig'
+import { getBreadcrumbItems, getMenuGroupKeys, menuItems } from '@/config/menuConfig'
 import type { UserRole } from '@/types'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ prefetch: vi.fn() }) }))
@@ -128,10 +128,37 @@ describe('admin menu organization', () => {
       ['/admin/inventory/cost-history', '成本变动记录'],
       ['/admin/reports/inventory', '库存分析'],
       ['/admin/stores', '门店档案'],
-      ['/admin/system-config', '报货时间设置'],
+      ['/admin/system-config', '系统配置'],
+      ['/admin/system-config/ordering-schedule', '报货时间'],
     ] as const) {
       expect(getBreadcrumbItems(path, menuItems).at(-1)?.label).toBe(label)
     }
+    expect(menuItems.find((item) => item.key === 'system')?.children).toMatchObject([
+      { key: 'system-config', label: '系统配置', path: '/admin/system-config' },
+      {
+        key: 'ordering-schedule',
+        label: '报货时间',
+        path: '/admin/system-config/ordering-schedule',
+      },
+      { key: 'users', label: '用户管理', path: '/admin/users' },
+      { key: 'audit-logs', label: '审计日志', path: '/admin/audit-logs' },
+    ])
+    expect(getMenuGroupKeys(menuItems)).not.toContain('system-general')
     expect(menuItems.flatMap((item) => item.children ?? []).every((item) => !item.icon)).toBe(true)
+  })
+
+  it('keeps system settings expanded for the active configuration route', () => {
+    render(sidebar('/admin/system-config'))
+    expect(screen.getByRole('menuitem', { name: /系统设置$/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+    expect(screen.queryByRole('menuitem', { name: /^系统$/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: '系统配置' })).toHaveClass('ant-menu-item-selected')
+  })
+
+  it('selects the sibling ordering schedule route under system settings', () => {
+    render(sidebar('/admin/system-config/ordering-schedule'))
+    expect(screen.getByRole('menuitem', { name: '报货时间' })).toHaveClass('ant-menu-item-selected')
   })
 })

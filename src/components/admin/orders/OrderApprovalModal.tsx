@@ -126,8 +126,8 @@ export function OrderApprovalModal({
     if (!orderId || !order || order.status !== 'PENDING') return
 
     const normalizedComment = comment.trim()
-    if (decision === 'reject' && normalizedComment.length < 5) {
-      message.error('拒绝原因至少5个字符')
+    if (decision === 'reject' && normalizedComment.length < 2) {
+      message.error('拒绝原因至少2个字符')
       return
     }
 
@@ -398,7 +398,7 @@ export function OrderApprovalModal({
                 maxLength={500}
                 showCount
                 placeholder={
-                  decision === 'reject' ? '请填写拒绝原因（至少5个字符）' : '可填写审批意见'
+                  decision === 'reject' ? '请填写拒绝原因（至少2个字符）' : '可填写审批意见'
                 }
                 onChange={(event) => setComment(event.target.value)}
               />

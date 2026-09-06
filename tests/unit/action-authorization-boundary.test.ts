@@ -5,6 +5,10 @@ const authorizationMocks = vi.hoisted(() => ({
   updateGoods: vi.fn(),
   updateStockIn: vi.fn(),
   approveOrder: vi.fn(),
+  createOrder: vi.fn(),
+  listOrderGoods: vi.fn(),
+  assertCanOperateStore: vi.fn(),
+  updateSystemConfig: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
@@ -14,7 +18,14 @@ vi.mock('@/lib/action-permissions', () => ({
 }))
 
 vi.mock('@/services/goods.service', () => ({
-  goodsService: { update: authorizationMocks.updateGoods },
+  goodsService: {
+    update: authorizationMocks.updateGoods,
+    listActiveOrderOptions: authorizationMocks.listOrderGoods,
+  },
+}))
+
+vi.mock('@/lib/store-access', () => ({
+  assertCanOperateStore: authorizationMocks.assertCanOperateStore,
 }))
 
 vi.mock('@/services/stock-in.service', () => ({
@@ -23,6 +34,14 @@ vi.mock('@/services/stock-in.service', () => ({
 
 vi.mock('@/services/order-approval.service', () => ({
   orderApprovalService: { approve: authorizationMocks.approveOrder },
+}))
+
+vi.mock('@/services/order.service', () => ({
+  orderService: { create: authorizationMocks.createOrder },
+}))
+
+vi.mock('@/services/system-config.service', () => ({
+  systemConfigService: { update: authorizationMocks.updateSystemConfig },
 }))
 
 describe('server action authorization boundaries', () => {
@@ -56,5 +75,62 @@ describe('server action authorization boundaries', () => {
     expect(result).toEqual({ success: false, message: '权限不足' })
     expect(authorizationMocks.requireActionPermission).toHaveBeenCalledWith('order:review')
     expect(authorizationMocks.approveOrder).not.toHaveBeenCalled()
+  })
+
+  it('blocks administrator order creation before validation or service access', async () => {
+    const { createAdminOrder } = await import('@/actions/order-actions')
+    const result = await createAdminOrder({ storeId: '1', items: [] })
+
+    expect(result).toEqual({ success: false, message: '权限不足' })
+    expect(authorizationMocks.requireActionPermission).toHaveBeenCalledWith('order:write')
+    expect(authorizationMocks.createOrder).not.toHaveBeenCalled()
+  })
+
+  it('blocks system branding writes before validation or service access', async () => {
+    const { updateSystemBrand } = await import('@/actions/system-config-actions')
+    const result = await updateSystemBrand({ name: '', logoPath: '' })
+
+    expect(result).toEqual({ success: false, error: '权限不足' })
+    expect(authorizationMocks.requireActionPermission).toHaveBeenCalledWith('system:manage')
+    expect(authorizationMocks.updateSystemConfig).not.toHaveBeenCalled()
+  })
+
+  it('uses the current partner price when an administrator creates an order', async () => {
+    authorizationMocks.requireActionPermission.mockResolvedValue({ id: 'admin-1' })
+    authorizationMocks.assertCanOperateStore.mockResolvedValue(undefined)
+    authorizationMocks.listOrderGoods.mockResolvedValue([
+      {
+        id: '7',
+        name: '测试商品',
+        code: 'G-7',
+        spec: null,
+        unit: '件',
+        measureType: 'INT',
+        partnerPrice: 12.5,
+        availableQty: 10,
+        categoryName: '测试分类',
+      },
+    ])
+    authorizationMocks.createOrder.mockResolvedValue({ id: 123, code: 'OR-TEST-1' })
+
+    const { createAdminOrder } = await import('@/actions/order-actions')
+    const result = await createAdminOrder({
+      storeId: '2',
+      items: [{ goodsId: '7', quantity: 2 }],
+    })
+
+    expect(result).toEqual({
+      success: true,
+      message: '订单创建成功，已进入待审批流程',
+      data: { id: '123', code: 'OR-TEST-1' },
+    })
+    expect(authorizationMocks.createOrder).toHaveBeenCalledWith(
+      {
+        storeId: '2',
+        items: [{ goodsId: '7', quantity: 2, unitPrice: 12.5 }],
+        createdBy: 'admin-1',
+      },
+      { enforceOrderingSchedule: false }
+    )
   })
 })
