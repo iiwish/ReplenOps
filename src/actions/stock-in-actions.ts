@@ -231,10 +231,10 @@ export async function approveStockIn(id: string): Promise<ActionResponse> {
 export async function rejectStockIn(id: string, reason: string): Promise<ActionResponse> {
   try {
     const user = await requireActionPermission('stock:write')
-    if (!reason || reason.trim() === '') {
+    if (!reason || reason.trim().length < 2) {
       return {
         success: false,
-        message: '请填写拒绝原因',
+        message: '拒绝原因至少2个字符',
       }
     }
 
@@ -303,10 +303,10 @@ export async function completeStockIn(id: string): Promise<ActionResponse> {
 export async function cancelStockIn(id: string, reason: string): Promise<ActionResponse> {
   try {
     const user = await requireActionPermission('stock:write')
-    if (!reason || reason.trim() === '') {
+    if (!reason || reason.trim().length < 2) {
       return {
         success: false,
-        message: '请填写取消原因',
+        message: '取消原因至少2个字符',
       }
     }
 

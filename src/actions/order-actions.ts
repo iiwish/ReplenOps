@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { orderService } from '@/services/order.service'
 import type { CartRestoreItem } from '@/services/order.service'
+import { goodsService } from '@/services/goods.service'
 import { requireActionPermission } from '@/lib/action-permissions'
 import { getCurrentUser } from '@/lib/session.server'
 import { assertCanOperateStore } from '@/lib/store-access'
@@ -30,6 +31,26 @@ const createOrderSchema = z.object({
   remark: z.string().optional(),
 })
 
+const createAdminOrderSchema = z.object({
+  storeId: z.string().regex(/^\d+$/, '门店ID无效'),
+  items: z
+    .array(
+      z.object({
+        goodsId: z.string().min(1, '请选择商品'),
+        quantity: z.number().positive('数量必须大于0'),
+      })
+    )
+    .min(1, '至少添加一个商品')
+    .refine(
+      (items) => {
+        const goodsIds = items.map((item) => item.goodsId)
+        return new Set(goodsIds).size === goodsIds.length
+      },
+      { message: '不能添加重复的商品' }
+    ),
+  remark: z.string().trim().max(500, '备注不能超过500个字符').optional(),
+})
+
 const approveOrderSchema = z.object({
   id: z.string().min(1, '订单ID不能为空'),
   comment: z.string().optional(),
@@ -37,7 +58,7 @@ const approveOrderSchema = z.object({
 
 const rejectOrderSchema = z.object({
   id: z.string().min(1, '订单ID不能为空'),
-  reason: z.string().min(1, '请填写拒绝原因'),
+  reason: z.string().trim().min(2, '拒绝原因至少2个字符'),
 })
 
 const orderIdSchema = z.string().regex(/^\d+$/, '订单ID无效')
@@ -90,6 +111,73 @@ export async function createOrder(data: {
     }
   } catch (error) {
     console.error('创建订单失败:', error)
+
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        message: '数据验证失败',
+        errors: error.flatten().fieldErrors as Record<string, string[]>,
+      }
+    }
+
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '创建订单失败',
+    }
+  }
+}
+
+/**
+ * 管理员代门店创建订单，不受门店报货时间限制，但仍进入正常审批流程。
+ */
+export async function createAdminOrder(data: {
+  storeId: string
+  items: Array<{ goodsId: string; quantity: number }>
+  remark?: string
+}): Promise<ActionResponse> {
+  try {
+    const user = await requireActionPermission('order:write')
+    const validatedData = createAdminOrderSchema.parse(data)
+
+    await assertCanOperateStore(user, Number.parseInt(validatedData.storeId, 10))
+
+    const orderOptions = await goodsService.listActiveOrderOptions()
+    const goodsById = new Map(orderOptions.map((goods) => [goods.id, goods]))
+    const items = validatedData.items.map((item) => {
+      const goods = goodsById.get(item.goodsId)
+      if (!goods) {
+        throw new Error('部分商品不存在或未启用')
+      }
+      if (goods.measureType === 'INT' && !Number.isInteger(item.quantity)) {
+        throw new Error(`商品 ${goods.name} 的数量必须为整数`)
+      }
+      return {
+        goodsId: item.goodsId,
+        quantity: item.quantity,
+        unitPrice: goods.partnerPrice,
+      }
+    })
+
+    const order = await orderService.create(
+      {
+        ...validatedData,
+        items,
+        createdBy: user.id,
+      },
+      { enforceOrderingSchedule: false }
+    )
+
+    revalidatePath('/admin/orders')
+    revalidatePath('/mobile/orders')
+    revalidatePath('/admin/dashboard')
+
+    return {
+      success: true,
+      message: '订单创建成功，已进入待审批流程',
+      data: { id: String(order.id), code: order.code },
+    }
+  } catch (error) {
+    console.error('管理员创建订单失败:', error)
 
     if (error instanceof z.ZodError) {
       return {

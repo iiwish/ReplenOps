@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Input, Space, Tag, Dropdown, App } from 'antd'
+import { Button, Input, Space, Tag, Dropdown, App, Tooltip } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -19,6 +19,8 @@ import type { PaginatedUserResult } from '@/actions/user-actions'
 import { UserFormModal } from './UserFormModal'
 import type { UserWithRoles } from '@/services/user.service'
 import { formatUserCode } from '@/lib/user-code'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 const { Search } = Input
 
@@ -227,7 +229,7 @@ export default function UserListClient({
     {
       title: '操作',
       key: 'action',
-      width: 115,
+      width: 80,
       fixed: 'right',
       render: (_, record) => {
         const isCurrentUser = record.id === currentUserId
@@ -252,22 +254,22 @@ export default function UserListClient({
 
         return (
           <Space size={4}>
-            <Button
-              type="link"
+            <ActionIconButton
+              type="text"
               size="small"
               icon={<EditOutlined />}
+              tooltip="编辑"
               onClick={() => handleOpenEditModal(record)}
-            >
-              编辑
-            </Button>
+            />
             <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-              <Button
-                type="text"
-                size="small"
-                icon={<MoreOutlined />}
-                aria-label={`更多用户操作：${record.username}`}
-                title="更多操作"
-              />
+              <Tooltip title="更多操作">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MoreOutlined />}
+                  aria-label={`更多用户操作：${record.username}`}
+                />
+              </Tooltip>
             </Dropdown>
           </Space>
         )
@@ -276,25 +278,25 @@ export default function UserListClient({
   ]
 
   return (
-    <div>
-      <div>
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Search
-              placeholder="搜索登录名、姓名、手机号或邮箱"
-              allowClear
-              enterButton={<SearchOutlined aria-label="搜索用户" />}
-              style={{ width: 350 }}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              onSearch={handleSearch}
-            />
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
-              新增用户
-            </Button>
-          </div>
+    <div className="admin-list-page">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-3">
+          <Search
+            placeholder="搜索登录名、姓名、手机号或邮箱"
+            allowClear
+            enterButton={<SearchOutlined aria-label="搜索用户" />}
+            style={{ width: 350 }}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onSearch={handleSearch}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+            新增用户
+          </Button>
+        </div>
 
-          <Table
+        <div className="admin-list-table-frame">
+          <AdminListTable
             columns={columns}
             dataSource={initialData.data}
             rowKey="id"
@@ -316,7 +318,7 @@ export default function UserListClient({
             }}
             scroll={{ x: 1175 }}
           />
-        </Space>
+        </div>
       </div>
 
       <UserFormModal

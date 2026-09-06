@@ -2,16 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Modal,
-  message,
-  Card,
-} from 'antd'
+import { Button, Input, Space, Tag, Modal, message, Card } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -23,6 +14,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { deleteWarehouse, toggleWarehouseStatus } from '@/actions/warehouse-actions'
 import type { PaginatedWarehouseResult } from '@/services/warehouse.service'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 import WarehouseFormClient from './WarehouseFormClient'
 
 const { Search } = Input
@@ -34,9 +27,7 @@ interface WarehouseListClientProps {
 type WarehouseRecord = PaginatedWarehouseResult['data'][number]
 type WarehouseFormMode = 'create' | 'edit'
 
-export default function WarehouseListClient({
-  initialData,
-}: WarehouseListClientProps) {
+export default function WarehouseListClient({ initialData }: WarehouseListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
@@ -178,51 +169,45 @@ export default function WarehouseListClient({
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 120,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
+          <ActionIconButton
+            type="text"
             size="small"
             icon={<EditOutlined />}
+            tooltip="编辑"
             onClick={() => handleOpenEditModal(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
+          />
+          <ActionIconButton
+            type="text"
             size="small"
+            icon={record.isActive ? <StopOutlined /> : <CheckCircleOutlined />}
+            tooltip={record.isActive ? '禁用' : '启用'}
             onClick={() => handleToggleStatus(record)}
             disabled={loading}
-          >
-            {record.isActive ? '禁用' : '启用'}
-          </Button>
-          <Button
-            type="link"
+          />
+          <ActionIconButton
+            type="text"
             size="small"
             danger
             icon={<DeleteOutlined />}
+            tooltip="删除"
             onClick={() => handleDelete(record)}
             disabled={loading}
-          >
-            删除
-          </Button>
+          />
         </Space>
       ),
     },
   ]
 
   return (
-    <div>
-      <Card variant="borderless">
-        <Space
-          orientation="vertical"
-          size="middle"
-          style={{ width: '100%' }}
-        >
+    <div className="admin-list-page">
+      <Card variant="borderless" className="admin-list-card">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           {/* 顶部操作栏 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <Search
               placeholder="搜索仓库名称或编码"
               allowClear
@@ -232,39 +217,37 @@ export default function WarehouseListClient({
               onChange={(e) => setKeyword(e.target.value)}
               onSearch={handleSearch}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreateModal}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
               新增仓库
             </Button>
           </div>
 
           {/* 表格 */}
-          <Table
-            columns={columns}
-            dataSource={initialData.data}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              current: initialData.page,
-              pageSize: initialData.pageSize,
-              total: initialData.total,
-              showSizeChanger: false,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: (page) => {
-                const params = new URLSearchParams()
-                params.set('page', page.toString())
-                if (keyword) {
-                  params.set('keyword', keyword)
-                }
-                router.push(`/admin/warehouse?${params.toString()}`)
-              },
-            }}
-            scroll={{ x: 1200 }}
-          />
-        </Space>
+          <div className="admin-list-table-frame">
+            <AdminListTable
+              columns={columns}
+              dataSource={initialData.data}
+              rowKey="id"
+              loading={loading}
+              pagination={{
+                current: initialData.page,
+                pageSize: initialData.pageSize,
+                total: initialData.total,
+                showSizeChanger: false,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page) => {
+                  const params = new URLSearchParams()
+                  params.set('page', page.toString())
+                  if (keyword) {
+                    params.set('keyword', keyword)
+                  }
+                  router.push(`/admin/warehouse?${params.toString()}`)
+                },
+              }}
+              scroll={{ x: 1200 }}
+            />
+          </div>
+        </div>
       </Card>
 
       <Modal

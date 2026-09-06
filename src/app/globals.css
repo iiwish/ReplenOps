@@ -96,6 +96,90 @@
   }
 }
 
+@layer components {
+  .admin-list-page {
+    display: flex;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .admin-list-page > .admin-list-card,
+  .admin-list-page > .ant-card.admin-list-card {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .admin-list-card > .ant-card-body {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .admin-list-table-frame {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .admin-list-table.ant-table-wrapper {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .admin-list-table.ant-table-wrapper > .ant-spin-nested-loading,
+  .admin-list-table.ant-table-wrapper > .ant-spin-nested-loading > .ant-spin-container,
+  .admin-list-table.ant-table-wrapper .ant-table,
+  .admin-list-table.ant-table-wrapper .ant-table-container {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .admin-list-table.ant-table-wrapper .ant-table-header {
+    flex: 0 0 auto;
+  }
+
+  .admin-list-table.ant-table-wrapper .ant-table-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    max-height: none !important;
+  }
+
+  .admin-list-tabs.ant-tabs {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .admin-list-tabs.ant-tabs > .ant-tabs-content-holder,
+  .admin-list-tabs.ant-tabs .ant-tabs-content,
+  .admin-list-tabs.ant-tabs .ant-tabs-tabpane {
+    min-height: 0;
+    flex: 1;
+  }
+
+  .admin-list-tabs.ant-tabs .ant-tabs-tabpane {
+    overflow: hidden;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -128,6 +212,58 @@
   }
 
   .stock-out-print-page tr {
+    break-inside: avoid;
+  }
+
+  body:has(.stock-out-print-modal) .ant-layout-sider,
+  body:has(.stock-out-print-modal) .ant-layout-header,
+  body:has(.stock-out-print-modal) .ant-layout-footer,
+  body:has(.stock-out-print-modal) .ant-breadcrumb,
+  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-header,
+  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-close,
+  body:has(.stock-out-print-modal) .stock-out-print-modal .stock-out-print-actions,
+  body:has(.stock-out-print-modal) .ant-modal-mask {
+    display: none !important;
+  }
+
+  body:has(.stock-out-print-modal) .ant-layout {
+    display: none !important;
+  }
+
+  body:has(.stock-out-print-modal) .ant-modal-wrap {
+    position: static !important;
+    overflow: visible !important;
+  }
+
+  body:has(.stock-out-print-modal) .stock-out-print-modal.ant-modal {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-content {
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-body {
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  body:has(.stock-out-print-modal) .stock-out-print-page {
+    max-width: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body:has(.stock-out-print-modal) .stock-out-print-page thead {
+    display: table-header-group;
+  }
+
+  body:has(.stock-out-print-modal) .stock-out-print-page tr {
     break-inside: avoid;
   }
 }

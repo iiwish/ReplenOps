@@ -44,8 +44,8 @@ export default function AppBreadcrumb({ pathname: targetPathname }: { pathname?:
     return result
   }, [pathname])
 
-  // 如果在首页，不显示面包屑
-  if (pathname === '/admin' || pathname === '/admin/dashboard') {
+  // 管理后台入口没有对应菜单项时不显示面包屑。
+  if (pathname === '/admin') {
     return null
   }
 
@@ -53,7 +53,8 @@ export default function AppBreadcrumb({ pathname: targetPathname }: { pathname?:
     <Breadcrumb
       items={breadcrumbItems}
       style={{
-        margin: '16px 0',
+        margin: 0,
+        whiteSpace: 'nowrap',
       }}
     />
   )

@@ -383,7 +383,7 @@ export default function InventoryAdjustmentModal({
               ]}
             >
               <Input.TextArea
-                placeholder="请详细说明库存调整的原因（必填）"
+                placeholder="请详细说明库存调整的原因（至少2个字符，必填）"
                 rows={4}
                 maxLength={500}
                 showCount

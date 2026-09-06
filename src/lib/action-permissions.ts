@@ -8,6 +8,7 @@ export type ActionPermission =
   | 'stock:read'
   | 'stock:write'
   | 'inventory:adjust'
+  | 'order:write'
   | 'order:review'
   | 'store:manage'
   | 'system:manage'
@@ -18,6 +19,7 @@ const ACTION_PERMISSION_ROLES: Record<ActionPermission, readonly UserRole[]> = {
   'stock:read': ['super_admin', 'warehouse_manager', 'finance', 'approver'],
   'stock:write': ['super_admin', 'warehouse_manager'],
   'inventory:adjust': ['super_admin', 'warehouse_manager'],
+  'order:write': ['super_admin', 'warehouse_manager', 'approver'],
   'order:review': ['super_admin', 'warehouse_manager', 'approver'],
   'store:manage': ['super_admin'],
   'system:manage': ['super_admin'],

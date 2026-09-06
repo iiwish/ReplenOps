@@ -5,19 +5,7 @@ import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Dayjs } from 'dayjs'
-import {
-  Button,
-  Card,
-  DatePicker,
-  Empty,
-  Input,
-  message,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Tag,
-} from 'antd'
+import { Button, Card, DatePicker, Empty, Input, message, Modal, Select, Space, Tag } from 'antd'
 import {
   AuditOutlined,
   EyeOutlined,
@@ -25,10 +13,15 @@ import {
   CloseCircleOutlined,
   SearchOutlined,
   ExclamationCircleOutlined,
+  PrinterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { completeStockOut, cancelStockOut } from '@/actions/stock-out-actions'
 import type { PaginatedStockOutResult } from '@/services/stock-out.service'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
+import StockOutPrintModal from '@/components/admin/stock-out/StockOutPrintModal'
+import { confirmStockOut } from '@/components/admin/stock-out/confirmStockOut'
 import dayjs from 'dayjs'
 
 const { Search } = Input
@@ -65,6 +58,7 @@ export default function StockOutListClient({
 }: StockOutListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [printStockOutId, setPrintStockOutId] = useState<string | null>(null)
   const [searchKeyword, setSearchKeyword] = useState(initialFilters.keyword ?? '')
   const [selectedStatus, setSelectedStatus] = useState(initialFilters.status)
   const [selectedWarehouse, setSelectedWarehouse] = useState(initialFilters.warehouseId)
@@ -135,25 +129,15 @@ export default function StockOutListClient({
   }
 
   const handleComplete = (record: StockOutRecord) => {
-    Modal.confirm({
-      title: '确认出库',
-      content: `确定要确认出库单"${record.code}"吗？此操作将扣减库存并记录出库成本。`,
-      okText: '确认',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
-      onOk: async () => {
+    confirmStockOut({
+      stockOutCode: record.code,
+      onConfirm: async () => {
         setLoading(true)
         try {
           const result = await completeStockOut(record.id)
           if (result.success) {
+            message.success(result.message || '出库成功')
             router.refresh()
-            Modal.confirm({
-              title: '发货完成',
-              content: '库存已扣减，订单已进入待收货状态。是否立即打印出库单进行复核？',
-              okText: '打印出库单',
-              cancelText: '稍后打印',
-              onOk: () => window.open(`/admin/stock-out/${record.id}/print`, '_blank'),
-            })
           } else {
             message.error(result.message || '出库失败')
           }
@@ -174,7 +158,7 @@ export default function StockOutListClient({
         <div>
           <p>确定要取消出库单 &quot;{record.code}&quot; 吗？</p>
           <Input.TextArea
-            placeholder="请填写取消原因"
+            placeholder="请填写取消原因（至少2个字符）"
             rows={4}
             onChange={(e) => {
               cancelReason = e.target.value
@@ -186,8 +170,8 @@ export default function StockOutListClient({
       cancelText: '取消',
       okButtonProps: { danger: true },
       onOk: (close: () => void) => {
-        if (!cancelReason || cancelReason.trim() === '') {
-          message.error('请填写取消原因')
+        if (cancelReason.trim().length < 2) {
+          message.error('取消原因至少2个字符')
           return
         }
 
@@ -311,39 +295,47 @@ export default function StockOutListClient({
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 120,
       fixed: 'right',
       render: (_, record) => {
         const { status } = record
         return (
           <Space>
-            <Button
-              type="link"
+            <ActionIconButton
+              type="text"
               size="small"
               icon={<EyeOutlined />}
+              tooltip="查看"
               onClick={() => router.push(`/admin/stock-out/${record.id}`)}
-            >
-              查看
-            </Button>
+            />
+            {status === 'COMPLETED' && (
+              <ActionIconButton
+                type="text"
+                size="small"
+                icon={<PrinterOutlined />}
+                tooltip="打印出库单"
+                onClick={() => setPrintStockOutId(record.id)}
+              />
+            )}
             {canWriteStock && status === 'PENDING' && (
               <>
-                <Button
-                  type="link"
+                <ActionIconButton
+                  type="text"
                   size="small"
+                  icon={<CheckCircleOutlined />}
+                  tooltip="确认出库"
                   onClick={() => handleComplete(record)}
                   loading={loading}
-                >
-                  确认出库
-                </Button>
-                <Button
-                  type="link"
+                />
+                <ActionIconButton
+                  type="text"
                   size="small"
                   danger
+                  icon={<CloseCircleOutlined />}
+                  tooltip="取消"
                   onClick={() => handleCancel(record)}
                   loading={loading}
-                >
-                  取消
-                </Button>
+                />
               </>
             )}
           </Space>
@@ -353,9 +345,9 @@ export default function StockOutListClient({
   ]
 
   return (
-    <div>
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="admin-list-page">
+      <Card className="admin-list-card">
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <Search
               placeholder="搜索单号或订单号"
@@ -404,38 +396,46 @@ export default function StockOutListClient({
           )}
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={initialData.data}
-          rowKey="id"
-          pagination={{
-            current: initialData.page,
-            pageSize: initialData.pageSize,
-            total: initialData.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-            onChange: (page, pageSize) => {
-              buildUrl({ page: page.toString(), pageSize: pageSize?.toString() })
-            },
-          }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="订单审批通过后会自动生成待出库单"
-              >
-                {canReviewOrders && (
-                  <Link href={'/admin/orders?status=PENDING' as Route}>
-                    <Button type="primary">去处理待审批订单</Button>
-                  </Link>
-                )}
-              </Empty>
-            ),
-          }}
-          scroll={{ x: 1500 }}
-        />
+        <div className="admin-list-table-frame">
+          <AdminListTable
+            columns={columns}
+            dataSource={initialData.data}
+            rowKey="id"
+            pagination={{
+              current: initialData.page,
+              pageSize: initialData.pageSize,
+              total: initialData.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+              onChange: (page, pageSize) => {
+                buildUrl({ page: page.toString(), pageSize: pageSize?.toString() })
+              },
+            }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="订单审批通过后会自动生成待出库单"
+                >
+                  {canReviewOrders && (
+                    <Link href={'/admin/orders?status=PENDING' as Route}>
+                      <Button type="primary">去处理待审批订单</Button>
+                    </Link>
+                  )}
+                </Empty>
+              ),
+            }}
+            scroll={{ x: 1500 }}
+          />
+        </div>
       </Card>
+
+      <StockOutPrintModal
+        open={printStockOutId !== null}
+        stockOutId={printStockOutId}
+        onCancel={() => setPrintStockOutId(null)}
+      />
     </div>
   )
 }

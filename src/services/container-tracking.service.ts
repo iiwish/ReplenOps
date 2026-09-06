@@ -405,7 +405,7 @@ class ContainerTrackingService {
     reviewerId: string
   ): Promise<ContainerReturnRequestRecord> {
     const numericReturnId = Number.parseInt(returnId, 10)
-    if (!reason.trim()) throw new Error('请填写驳回原因')
+    if (reason.trim().length < 2) throw new Error('驳回原因至少2个字符')
 
     return prisma.$transaction(async (tx) => {
       await tx.$queryRaw(Prisma.sql`

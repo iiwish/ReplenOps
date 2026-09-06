@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Table,
   Button,
   Modal,
   Form,
@@ -26,6 +25,8 @@ import {
   listContainers,
 } from '@/actions/container-actions'
 import { CONTAINER_CODE_PATTERN } from '@/lib/container-code-policy'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 interface Container {
   id: string
@@ -252,23 +253,21 @@ export default function ContainersListClient({ canManage }: { canManage: boolean
             key: 'action',
             render: (_value: unknown, record: Container) => (
               <Space>
-                <Button
-                  type="link"
+                <ActionIconButton
+                  type="text"
                   size="small"
                   icon={<EditOutlined />}
+                  tooltip="编辑"
                   onClick={() => handleEdit(record)}
-                >
-                  编辑
-                </Button>
-                <Button
-                  type="link"
+                />
+                <ActionIconButton
+                  type="text"
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
+                  tooltip="删除"
                   onClick={() => handleDelete(record.id)}
-                >
-                  删除
-                </Button>
+                />
               </Space>
             ),
           },
@@ -277,8 +276,8 @@ export default function ContainersListClient({ canManage }: { canManage: boolean
   ]
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <div className="admin-list-page">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
         <div>
           <h2 className="m-0 text-lg font-semibold">包装物档案</h2>
           <p className="mb-0 mt-1 text-sm text-gray-500">
@@ -297,21 +296,23 @@ export default function ContainersListClient({ canManage }: { canManage: boolean
         )}
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={containers.filter((c) => !c.isDeleted)}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 20 }}
-        locale={{
-          emptyText: (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={canManage ? '暂无包装物，可先新增包装物' : '暂无包装物'}
-            />
-          ),
-        }}
-      />
+      <div className="admin-list-table-frame">
+        <AdminListTable
+          columns={columns}
+          dataSource={containers.filter((c) => !c.isDeleted)}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 20 }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={canManage ? '暂无包装物，可先新增包装物' : '暂无包装物'}
+              />
+            ),
+          }}
+        />
+      </div>
 
       <Modal
         title={editingContainer ? '编辑包装物' : '新增包装物'}

@@ -106,7 +106,7 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
         <div>
           <p>确定要取消入库单 &quot;{data.code}&quot; 吗？</p>
           <Input.TextArea
-            placeholder="请填写取消原因"
+            placeholder="请填写取消原因（至少2个字符）"
             rows={4}
             onChange={(e) => (cancelReason = e.target.value)}
           />
@@ -116,8 +116,8 @@ export default function StockInDetailClient({ data }: StockInDetailClientProps) 
       okType: 'danger',
       cancelText: '返回',
       onOk: async (close) => {
-        if (!cancelReason.trim()) {
-          message.error('请填写取消原因')
+        if (cancelReason.trim().length < 2) {
+          message.error('取消原因至少2个字符')
           return
         }
         setLoading(true)

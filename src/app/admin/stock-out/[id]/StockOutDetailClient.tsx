@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -18,7 +17,6 @@ import {
   Statistic,
   Alert,
   Input,
-  InputNumber,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -30,6 +28,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { completeStockOut, cancelStockOut } from '@/actions/stock-out-actions'
 import type { StockOutDetail } from '@/services/stock-out.service'
+import StockOutPrintModal from '@/components/admin/stock-out/StockOutPrintModal'
+import { confirmStockOut } from '@/components/admin/stock-out/confirmStockOut'
 import dayjs from 'dayjs'
 
 interface StockOutDetailClientProps {
@@ -49,51 +49,18 @@ export default function StockOutDetailClient({
 }: StockOutDetailClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [printModalOpen, setPrintModalOpen] = useState(false)
 
   const handleComplete = () => {
-    const shippedQuantities = new Map(
-      stockOut.containers.map((item) => [item.id, item.shippedQuantity])
-    )
-    Modal.confirm({
-      title: '确认出库',
-      content: (
-        <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <div>确认后将扣减库存、登记包装物，并将订单转为待收货。</div>
-          {stockOut.containers.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ flex: 1 }}>{item.containerName}</span>
-              <span>建议 {item.expectedQuantity}</span>
-              <InputNumber
-                min={0}
-                precision={0}
-                defaultValue={item.shippedQuantity}
-                onChange={(value) => shippedQuantities.set(item.id, value ?? 0)}
-              />
-            </div>
-          ))}
-        </Space>
-      ),
-      okText: '确认',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
-      onOk: async () => {
+    confirmStockOut({
+      stockOutCode: stockOut.code,
+      onConfirm: async () => {
         setLoading(true)
         try {
-          const result = await completeStockOut(stockOut.id, {
-            containers: stockOut.containers.map((item) => ({
-              itemId: item.id,
-              shippedQuantity: shippedQuantities.get(item.id) ?? 0,
-            })),
-          })
+          const result = await completeStockOut(stockOut.id)
           if (result.success) {
+            message.success(result.message || '出库成功')
             router.refresh()
-            Modal.confirm({
-              title: '出库完成',
-              content: '库存已扣减。是否立即打印出库单进行复核？',
-              okText: '打印出库单',
-              cancelText: '稍后打印',
-              onOk: () => window.open(`/admin/stock-out/${stockOut.id}/print`, '_blank'),
-            })
           } else {
             message.error(result.message || '出库失败')
           }
@@ -114,7 +81,7 @@ export default function StockOutDetailClient({
         <div>
           <p>确定要取消出库单 &quot;{stockOut.code}&quot; 吗？</p>
           <Input.TextArea
-            placeholder="请填写取消原因"
+            placeholder="请填写取消原因（至少2个字符）"
             rows={4}
             onChange={(e) => {
               cancelReason = (e.target as HTMLTextAreaElement).value
@@ -126,8 +93,8 @@ export default function StockOutDetailClient({
       cancelText: '取消',
       okButtonProps: { danger: true },
       onOk: (close: () => void) => {
-        if (!cancelReason || cancelReason.trim() === '') {
-          message.error('请填写取消原因')
+        if (cancelReason.trim().length < 2) {
+          message.error('取消原因至少2个字符')
           return
         }
 
@@ -239,9 +206,9 @@ export default function StockOutDetailClient({
             <Button>查看关联订单</Button>
           </Link>
         )}
-        <Link href={`/admin/stock-out/${stockOut.id}/print` as Route} target="_blank">
-          <Button icon={<PrinterOutlined />}>打印出库单</Button>
-        </Link>
+        <Button icon={<PrinterOutlined />} onClick={() => setPrintModalOpen(true)}>
+          打印出库单
+        </Button>
         {canWriteStock && stockOut.status === 'PENDING' && (
           <>
             <Button type="primary" onClick={handleComplete} loading={loading} danger>
@@ -253,6 +220,13 @@ export default function StockOutDetailClient({
           </>
         )}
       </Space>
+
+      <StockOutPrintModal
+        open={printModalOpen}
+        stockOutId={stockOut.id}
+        initialStockOut={stockOut}
+        onCancel={() => setPrintModalOpen(false)}
+      />
 
       <Row gutter={16}>
         <Col span={16}>

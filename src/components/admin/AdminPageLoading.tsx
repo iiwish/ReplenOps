@@ -1,8 +1,14 @@
 import styles from './AdminPageLoading.module.css'
 
-export default function AdminPageLoading() {
+interface AdminPageLoadingProps {
+  ariaLabel?: string
+}
+
+export default function AdminPageLoading({
+  ariaLabel = '正在加载页面',
+}: AdminPageLoadingProps) {
   return (
-    <div className={styles.loading} role="status" aria-label="正在加载页面" aria-busy="true">
+    <div className={styles.loading} role="status" aria-label={ariaLabel} aria-busy="true">
       <span className={styles.label}>正在加载…</span>
       <div aria-hidden="true">
         <div className={styles.filters}>

@@ -13,7 +13,7 @@ const approveOrderSchema = z.object({
 
 const rejectOrderSchema = z.object({
   orderId: z.string().min(1, '订单ID不能为空'),
-  reason: z.string().min(5, '拒绝原因至少5个字符'),
+  reason: z.string().trim().min(2, '拒绝原因至少2个字符'),
 })
 
 // 通用响应接口

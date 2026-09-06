@@ -3,12 +3,13 @@
 import type { Route } from 'next'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, Table, Button, Select, DatePicker, Space, Typography, Row, Col, Input } from 'antd'
+import { Card, Button, Select, DatePicker, Space, Typography, Row, Col, Input } from 'antd'
 import { FilterOutlined, ReloadOutlined, FileExcelOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PaginatedCostHistoryResult } from '@/services/cost.service'
 import dayjs from 'dayjs'
 import Link from 'next/link'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
@@ -241,8 +242,8 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
   ]
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Card>
+    <div className="admin-list-page p-6">
+      <Card className="admin-list-card">
         {/* 标题栏 */}
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
@@ -321,22 +322,24 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
         </Card>
 
         {/* 数据表格 */}
-        <Table
-          columns={columns}
-          dataSource={initialData.data}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1600 }}
-          pagination={{
-            current: initialData.page,
-            pageSize: initialData.pageSize,
-            total: initialData.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
-            onChange: handlePageChange,
-          }}
-        />
+        <div className="admin-list-table-frame">
+          <AdminListTable
+            columns={columns}
+            dataSource={initialData.data}
+            rowKey="id"
+            loading={loading}
+            scroll={{ x: 1600 }}
+            pagination={{
+              current: initialData.page,
+              pageSize: initialData.pageSize,
+              total: initialData.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条记录`,
+              onChange: handlePageChange,
+            }}
+          />
+        </div>
       </Card>
     </div>
   )

@@ -681,3 +681,15 @@ model OrderingSchedule {
   @@unique([dayOfWeek])
   @@map("ordering_schedules")
 }
+
+// 系统品牌配置模块 (System Brand Configuration)
+
+model SystemConfig {
+  id        Int      @id @default(1)
+  name      String   @default("ReplenOps") @db.VarChar(80)
+  logoPath  String   @default("/brand/logo.svg") @map("logo_path") @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}

@@ -1,10 +1,13 @@
 'use client'
 
-import { Table, Tag, Space, Button, Tooltip, Typography } from 'antd'
+import { Tag, Space, Button, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { EyeOutlined } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 import dayjs from 'dayjs'
 import type { AuditLogListItem } from '@/services/audit-log.service'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 
 const { Text } = Typography
 
@@ -123,23 +126,23 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 80,
       render: (_: unknown, record: AuditLogListItem) => (
         <Space size="small">
-          <Button
-            type="link"
+          <ActionIconButton
+            type="text"
             size="small"
+            icon={<EyeOutlined />}
+            tooltip="详情"
             onClick={() => router.push(`/admin/audit-logs/${record.id}`)}
-          >
-            详情
-          </Button>
+          />
         </Space>
       ),
     },
   ]
 
   return (
-    <Table
+    <AdminListTable
       columns={columns}
       dataSource={data}
       rowKey="id"

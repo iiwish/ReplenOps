@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Table, Button, Input, Space, Tag, Modal, message, Select, Empty } from 'antd'
+import { Button, Input, Space, Tag, Modal, message, Select, Empty } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -14,6 +14,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { deleteGoods, getNextGoodsCode, toggleGoodsStatus } from '@/actions/goods-actions'
 import type { PaginatedGoodsResult } from '@/services/goods.service'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 import GoodsFormClient from './GoodsFormClient'
 
 const { Search } = Input
@@ -233,36 +235,34 @@ export default function GoodsListClient({
           {
             title: '操作',
             key: 'action',
-            width: 200,
+            width: 120,
             fixed: 'right' as const,
             render: (_: unknown, record: GoodsRecord) => (
               <Space size="small">
-                <Button
-                  type="link"
+                <ActionIconButton
+                  type="text"
                   size="small"
                   icon={<EditOutlined />}
+                  tooltip="编辑"
                   onClick={() => handleOpenEditModal(record)}
-                >
-                  编辑
-                </Button>
-                <Button
-                  type="link"
+                />
+                <ActionIconButton
+                  type="text"
                   size="small"
+                  icon={record.isActive ? <StopOutlined /> : <CheckCircleOutlined />}
+                  tooltip={record.isActive ? '禁用' : '启用'}
                   onClick={() => handleToggleStatus(record)}
                   disabled={loading}
-                >
-                  {record.isActive ? '禁用' : '启用'}
-                </Button>
-                <Button
-                  type="link"
+                />
+                <ActionIconButton
+                  type="text"
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
+                  tooltip="删除"
                   onClick={() => handleDelete(record)}
                   disabled={loading}
-                >
-                  删除
-                </Button>
+                />
               </Space>
             ),
           },
@@ -271,8 +271,8 @@ export default function GoodsListClient({
   ]
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="admin-list-page">
+      <div className="mb-4 flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="m-0 text-2xl font-semibold">商品档案</h1>
           <p className="mb-0 mt-1 text-sm text-gray-500">查询商品、价格与启用状态。</p>
@@ -289,8 +289,8 @@ export default function GoodsListClient({
         )}
       </div>
 
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Space>
             <Select
               placeholder="请选择分类"
@@ -319,37 +319,39 @@ export default function GoodsListClient({
         </div>
 
         {/* 表格 */}
-        <Table
-          columns={columns}
-          dataSource={initialData.data}
-          rowKey="id"
-          loading={loading}
-          locale={{
-            emptyText: (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有符合条件的商品" />
-            ),
-          }}
-          pagination={{
-            current: initialData.page,
-            pageSize: initialData.pageSize,
-            total: initialData.total,
-            showSizeChanger: false,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (page) => {
-              const params = new URLSearchParams()
-              params.set('page', page.toString())
-              if (searchKeyword) {
-                params.set('search', searchKeyword)
-              }
-              if (selectedCategory) {
-                params.set('categoryId', selectedCategory)
-              }
-              router.push(`/admin/goods?${params.toString()}`)
-            },
-          }}
-          scroll={{ x: 1050 }}
-        />
-      </Space>
+        <div className="admin-list-table-frame">
+          <AdminListTable
+            columns={columns}
+            dataSource={initialData.data}
+            rowKey="id"
+            loading={loading}
+            locale={{
+              emptyText: (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有符合条件的商品" />
+              ),
+            }}
+            pagination={{
+              current: initialData.page,
+              pageSize: initialData.pageSize,
+              total: initialData.total,
+              showSizeChanger: false,
+              showTotal: (total) => `共 ${total} 条`,
+              onChange: (page) => {
+                const params = new URLSearchParams()
+                params.set('page', page.toString())
+                if (searchKeyword) {
+                  params.set('search', searchKeyword)
+                }
+                if (selectedCategory) {
+                  params.set('categoryId', selectedCategory)
+                }
+                router.push(`/admin/goods?${params.toString()}`)
+              },
+            }}
+            scroll={{ x: 1050 }}
+          />
+        </div>
+      </div>
 
       {canWrite && (
         <Modal

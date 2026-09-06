@@ -13,6 +13,14 @@ describe('container return navigation', () => {
     expect(returnList).toContain('确认验收')
   })
 
+  it('summarizes packaging names, quantities, and units in the acceptance list', () => {
+    const returnList = readSource('src/components/admin/containers/ContainerReturnList.tsx')
+
+    expect(returnList).toContain("title: '包装物摘要'")
+    expect(returnList).toContain('item.requestedQuantity')
+    expect(returnList).toContain(".join('；')")
+  })
+
   it('consolidates packaging operations into one workspace and preserves legacy links', () => {
     const workspace = readSource('src/app/admin/containers/ContainerWorkspaceClient.tsx')
     const trackingRoute = readSource('src/app/admin/container-tracking/page.tsx')
@@ -34,7 +42,8 @@ describe('container return navigation', () => {
 
     expect(mobileForm).toContain('items: selectedItems.map')
     expect(mobileForm).toContain('container.containerUnit')
-    expect(mobileForm).not.toContain('selectedContainer')
+    expect(mobileForm).toContain('selectedContainerIds')
+    expect(mobileForm).toContain('value={isSelected && quantity > 0 ? quantity : undefined}')
     expect(mobileForm).not.toContain('ArrowLeftOutlined')
     expect(mobileLayout).toContain("'/mobile/container-return': '包装物归还'")
     expect(mobileTracking).not.toContain('<h1')

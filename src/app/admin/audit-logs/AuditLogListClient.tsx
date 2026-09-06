@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Card, Space, Pagination, Button, message } from 'antd'
+import { Card, Pagination, Button, message } from 'antd'
 import { ExportOutlined } from '@ant-design/icons'
 import { AuditLogList } from '@/components/admin/audit-logs/AuditLogList'
 import AuditLogFilters from '@/components/admin/audit-logs/AuditLogFilters'
@@ -118,16 +118,10 @@ export default function AuditLogListClient({
   }
 
   return (
-    <div>
-      <Card variant="borderless">
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
+    <div className="admin-list-page">
+      <Card variant="borderless" className="admin-list-card">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          <div className="flex shrink-0 items-center justify-between gap-3">
             <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>审计日志</h1>
             {isSuperAdmin && (
               <Button
@@ -141,15 +135,19 @@ export default function AuditLogListClient({
             )}
           </div>
 
-          <AuditLogFilters
-            onFiltersChange={handleFiltersChange}
-            loading={loading}
-            operators={operators}
-          />
+          <div className="shrink-0">
+            <AuditLogFilters
+              onFiltersChange={handleFiltersChange}
+              loading={loading}
+              operators={operators}
+            />
+          </div>
 
-          <AuditLogList data={data.data} loading={loading} />
+          <div className="admin-list-table-frame">
+            <AuditLogList data={data.data} loading={loading} />
+          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="flex shrink-0 justify-end border-t border-gray-200 pt-2">
             <Pagination
               current={data.page}
               pageSize={data.pageSize}
@@ -159,7 +157,7 @@ export default function AuditLogListClient({
               onChange={handlePageChange}
             />
           </div>
-        </Space>
+        </div>
       </Card>
     </div>
   )

@@ -4,20 +4,41 @@ import { Layout, theme } from 'antd'
 import type { Route } from 'next'
 import { usePathname, useRouter } from 'next/navigation'
 import { useOptimistic, useState, useTransition } from 'react'
-import AppBreadcrumb from './AppBreadcrumb'
 import AppHeader from './AppHeader'
 import AppSidebar from './AppSidebar'
 import AdminPageLoading from './AdminPageLoading'
 import type { UserRole } from '@/types'
 import { requestAppNavigation } from '@/lib/unsaved-changes'
+import type { BrandIdentity } from '@/config/brand'
 
 const { Content } = Layout
+
+const ADMIN_LIST_PATHS = new Set([
+  '/admin/audit-logs',
+  '/admin/containers',
+  '/admin/goods',
+  '/admin/goods-category',
+  '/admin/inventory/cost-history',
+  '/admin/inventory/logs',
+  '/admin/inventory/query',
+  '/admin/reports/stock-out',
+  '/admin/stock-in',
+  '/admin/stock-out',
+  '/admin/stores',
+  '/admin/users',
+  '/admin/warehouse',
+])
+
+function isAdminListPage(pathname: string) {
+  return ADMIN_LIST_PATHS.has(pathname) || /^\/admin\/stores\/[^/]+\/admins$/.test(pathname)
+}
 
 interface AdminLayoutClientProps {
   children: React.ReactNode
   userName?: string
   userDisplayName?: string
   roles: UserRole[]
+  brandConfig?: BrandIdentity
 }
 
 export default function AdminLayoutClient({
@@ -25,6 +46,7 @@ export default function AdminLayoutClient({
   userName,
   userDisplayName,
   roles,
+  brandConfig,
 }: AdminLayoutClientProps) {
   const [collapsed, setCollapsed] = useState(false)
   const router = useRouter()
@@ -32,6 +54,8 @@ export default function AdminLayoutClient({
   const [targetPathname, setTargetPathname] = useOptimistic(pathname)
   const [isPending, startTransition] = useTransition()
   const isNavigating = isPending && targetPathname !== pathname
+  const isOrdersPage = targetPathname === '/admin/orders'
+  const isListPage = isOrdersPage || isAdminListPage(targetPathname)
 
   const navigate = (path: string) => {
     if (isNavigating && path === targetPathname) return
@@ -48,30 +72,55 @@ export default function AdminLayoutClient({
   } = theme.useToken()
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout
+      style={{
+        minHeight: '100vh',
+        ...(isListPage ? { height: '100dvh', overflow: 'hidden' } : {}),
+      }}
+    >
       {/* 侧边栏 */}
       <AppSidebar
         collapsed={collapsed}
         roles={roles}
         pathname={targetPathname}
         onNavigate={navigate}
+        brandConfig={brandConfig}
       />
 
       {/* 主内容区域 */}
-      <Layout style={{ minWidth: 0, marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>
+      <Layout
+        style={{
+          minWidth: 0,
+          marginLeft: collapsed ? 80 : 240,
+          transition: 'all 0.2s',
+          ...(isListPage ? { height: '100%', minHeight: 0, overflow: 'hidden' } : {}),
+        }}
+      >
         {/* 顶部导航栏 */}
         <AppHeader
           collapsed={collapsed}
           onToggle={() => setCollapsed(!collapsed)}
+          pathname={targetPathname}
           userName={userName}
           userDisplayName={userDisplayName}
         />
 
         {/* 内容区域 */}
-        <Content style={{ margin: '0 16px' }}>
-          {/* 面包屑 */}
-          <AppBreadcrumb pathname={targetPathname} />
-
+        <Content
+          style={{
+            margin: '0 16px',
+            ...(isListPage
+              ? {
+                  display: 'flex',
+                  flex: 1,
+                  minHeight: 0,
+                  minWidth: 0,
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }
+              : {}),
+          }}
+        >
           {/* 页面内容 */}
           <div
             style={{
@@ -79,18 +128,40 @@ export default function AdminLayoutClient({
               minHeight: 360,
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
+              ...(isListPage
+                ? {
+                    display: 'flex',
+                    flex: 1,
+                    minHeight: 0,
+                    minWidth: 0,
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    padding: '12px 24px 8px',
+                  }
+                : {}),
             }}
           >
-            {isNavigating && <AdminPageLoading />}
+            {isNavigating && <AdminPageLoading ariaLabel="正在切换页面" />}
             {/* Keep the previous form mounted until navigation commits, including on failure. */}
-            <div hidden={isNavigating}>{children}</div>
+            <div
+              hidden={isNavigating}
+              style={
+                isListPage
+                  ? {
+                      display: 'flex',
+                      flex: 1,
+                      minHeight: 0,
+                      minWidth: 0,
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                    }
+                  : undefined
+              }
+            >
+              {children}
+            </div>
           </div>
         </Content>
-
-        {/* 底部 */}
-        <Layout.Footer style={{ textAlign: 'center' }}>
-          ReplenOps © {new Date().getFullYear()} iiwish
-        </Layout.Footer>
       </Layout>
     </Layout>
   )

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Dayjs } from 'dayjs'
-import { Table, Button, Input, Space, Tag, App, Card, Select, DatePicker } from 'antd'
+import { Button, Input, Space, Tag, App, Card, Select, DatePicker } from 'antd'
 import {
   PlusOutlined,
   EyeOutlined,
@@ -23,6 +23,8 @@ import {
   cancelStockIn,
 } from '@/actions/stock-in-actions'
 import type { PaginatedStockInResult } from '@/services/stock-in.service'
+import ActionIconButton from '@/components/admin/ActionIconButton'
+import AdminListTable from '@/components/admin/AdminListTable'
 import dayjs from 'dayjs'
 
 const { Search } = Input
@@ -163,7 +165,7 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
         <div>
           <p>确定要取消入库单 &quot;{record.code}&quot; 吗？</p>
           <Input.TextArea
-            placeholder="请填写取消原因"
+            placeholder="请填写取消原因（至少2个字符）"
             rows={4}
             onChange={(e) => (cancelReason = e.target.value)}
           />
@@ -173,8 +175,8 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
       okType: 'danger',
       cancelText: '返回',
       onOk: async (close) => {
-        if (!cancelReason.trim()) {
-          message.error('请填写取消原因')
+        if (cancelReason.trim().length < 2) {
+          message.error('取消原因至少2个字符')
           return
         }
         setLoading(true)
@@ -292,74 +294,71 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
     {
       title: '操作',
       key: 'action',
-      width: 280,
+      width: 160,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
+          <ActionIconButton
+            type="text"
             size="small"
             icon={<EyeOutlined />}
+            tooltip="查看"
             onClick={() => router.push(`/admin/stock-in/${record.id}`)}
-          >
-            查看
-          </Button>
+          />
 
           {record.status === 'PENDING' && (
             <>
-              <Button
-                type="link"
+              <ActionIconButton
+                type="text"
                 size="small"
                 icon={<EditOutlined />}
+                tooltip="编辑"
                 onClick={() => router.push(`/admin/stock-in/${record.id}/edit`)}
-              >
-                编辑
-              </Button>
-              <Button
-                type="link"
+              />
+              <ActionIconButton
+                type="text"
                 size="small"
+                icon={<CheckCircleOutlined />}
+                tooltip="审批通过"
                 onClick={() => handleApprove(record)}
                 disabled={loading}
-              >
-                审批通过
-              </Button>
+              />
             </>
           )}
 
           {record.status === 'APPROVED' && (
-            <Button
-              type="link"
+            <ActionIconButton
+              type="text"
               size="small"
+              icon={<CheckCircleOutlined />}
+              tooltip="确认入库"
               onClick={() => handleComplete(record)}
               disabled={loading}
-            >
-              确认入库
-            </Button>
+            />
           )}
 
           {(record.status === 'PENDING' || record.status === 'APPROVED') && (
-            <Button
-              type="link"
+            <ActionIconButton
+              type="text"
               size="small"
               danger
+              icon={<CloseCircleOutlined />}
+              tooltip="取消"
               onClick={() => handleCancel(record)}
               disabled={loading}
-            >
-              取消
-            </Button>
+            />
           )}
 
           {(record.status === 'REJECTED' || record.status === 'CANCELLED') && (
-            <Button
-              type="link"
+            <ActionIconButton
+              type="text"
               size="small"
               danger
               icon={<DeleteOutlined />}
+              tooltip="删除"
               onClick={() => handleDelete(record)}
               disabled={loading}
-            >
-              删除
-            </Button>
+            />
           )}
         </Space>
       ),
@@ -367,11 +366,11 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
   ]
 
   return (
-    <div>
-      <Card variant="borderless">
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <div className="admin-list-page">
+      <Card variant="borderless" className="admin-list-card">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           {/* 顶部操作栏 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <Space wrap>
               <Select
                 placeholder="请选择状态"
@@ -427,33 +426,35 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
           </div>
 
           {/* 表格 */}
-          <Table
-            columns={columns}
-            dataSource={initialData.data}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              current: initialData.page,
-              pageSize: initialData.pageSize,
-              total: initialData.total,
-              showSizeChanger: false,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: (page) => {
-                const params = new URLSearchParams()
-                params.set('page', page.toString())
-                if (searchKeyword) params.set('keyword', searchKeyword)
-                if (selectedStatus) params.set('status', selectedStatus)
-                if (selectedWarehouse) params.set('warehouseId', selectedWarehouse)
-                if (dateRange) {
-                  params.set('startDate', dateRange[0])
-                  params.set('endDate', dateRange[1])
-                }
-                router.push(`/admin/stock-in?${params.toString()}`)
-              },
-            }}
-            scroll={{ x: 1800 }}
-          />
-        </Space>
+          <div className="admin-list-table-frame">
+            <AdminListTable
+              columns={columns}
+              dataSource={initialData.data}
+              rowKey="id"
+              loading={loading}
+              pagination={{
+                current: initialData.page,
+                pageSize: initialData.pageSize,
+                total: initialData.total,
+                showSizeChanger: false,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (page) => {
+                  const params = new URLSearchParams()
+                  params.set('page', page.toString())
+                  if (searchKeyword) params.set('keyword', searchKeyword)
+                  if (selectedStatus) params.set('status', selectedStatus)
+                  if (selectedWarehouse) params.set('warehouseId', selectedWarehouse)
+                  if (dateRange) {
+                    params.set('startDate', dateRange[0])
+                    params.set('endDate', dateRange[1])
+                  }
+                  router.push(`/admin/stock-in?${params.toString()}`)
+                },
+              }}
+              scroll={{ x: 1800 }}
+            />
+          </div>
+        </div>
       </Card>
     </div>
   )

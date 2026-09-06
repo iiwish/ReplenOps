@@ -44,6 +44,10 @@ export interface CreateOrderDto {
   createdBy: string
 }
 
+export interface CreateOrderOptions {
+  enforceOrderingSchedule?: boolean
+}
+
 // 撤回订单时用于恢复购物车的商品结构
 // goodsId 为 string，与 CartItem / useCartStore 保持一致
 export interface CartRestoreItem {
@@ -77,6 +81,11 @@ export interface OrderListItem {
   orderedAt: Date
   createdAt: Date
   updatedAt: Date
+  stockOut: {
+    id: string
+    code: string
+    status: string
+  } | null
 }
 
 // 分页返回结果
@@ -137,8 +146,10 @@ export class OrderService {
   /**
    * 创建订单
    */
-  async create(dto: CreateOrderDto) {
-    await orderingScheduleService.assertWithinOrderingTime()
+  async create(dto: CreateOrderDto, options: CreateOrderOptions = {}) {
+    if (options.enforceOrderingSchedule !== false) {
+      await orderingScheduleService.assertWithinOrderingTime()
+    }
 
     // 计算总金额
     const totalAmount = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
@@ -357,6 +368,13 @@ export class OrderService {
             name: true,
           },
         },
+        stockOut: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+          },
+        },
       },
       orderBy: {
         orderedAt: 'desc',
@@ -386,6 +404,13 @@ export class OrderService {
       orderedAt: order.orderedAt,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
+      stockOut: order.stockOut
+        ? {
+            id: String(order.stockOut.id),
+            code: order.stockOut.code,
+            status: order.stockOut.status,
+          }
+        : null,
     }))
 
     return {
@@ -678,9 +703,9 @@ export class OrderService {
       throw new Error('订单不存在')
     }
 
-    // 只能删除待审批或已拒绝的订单
-    if (order.status !== 'PENDING' && order.status !== 'REJECTED') {
-      throw new Error('只能删除待审批或已拒绝的订单')
+    // 待审批订单必须经过审批流程，不能被管理员直接删除。
+    if (order.status !== 'REJECTED') {
+      throw new Error('只能删除已拒绝的订单')
     }
 
     return await prisma.$transaction(async (tx) => {

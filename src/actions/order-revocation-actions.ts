@@ -7,7 +7,7 @@ import { orderRevocationService } from '@/services/order-revocation.service'
 import { revalidatePath } from 'next/cache'
 
 const revokeOrderSchema = z.object({
-  reason: z.string().min(3, '撤销原因至少 3 个字符').max(500, '撤销原因不能超过 500 字'),
+  reason: z.string().trim().min(2, '撤销原因至少2个字符').max(500, '撤销原因不能超过 500 字'),
 })
 
 export async function revokeOrder(orderId: string, data: { reason: string }) {
