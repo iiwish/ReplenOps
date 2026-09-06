@@ -378,6 +378,7 @@ describe('order inventory locking', () => {
     expect(updatedOrder.lockedWarehouseId).toBeNull()
     expect(restoredItems).toHaveLength(1)
     expect(restoredItems[0]?.quantity).toBe(2)
+    expect(restoredItems[0]?.availableQty).toBe(10)
     expect(inventory).toEqual({
       quantity: 10,
       lockedQuantity: 0,

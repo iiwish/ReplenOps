@@ -85,32 +85,36 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const totalMeasureType = order.items.every((item) => item.measureType === 'INT')
     ? 'INT'
     : 'DECIMAL'
+  const hasAction = ['PENDING', 'REJECTED', 'PROCESSING'].includes(order.status)
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+    <div className={hasAction ? 'pb-20' : undefined}>
+      <div className="mx-auto max-w-2xl space-y-3 p-3">
         {/* 订单状态卡片 */}
         <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle>{order.code}</CardTitle>
-                <CardDescription className="mt-1">
+          <CardHeader className="px-3 pb-2 pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <CardTitle
+                  className="truncate text-[13px] leading-5 tracking-normal"
+                  title={order.code}
+                >
+                  {order.code}
+                </CardTitle>
+                <CardDescription className="mt-0.5 text-xs">
                   {new Date(order.orderedAt).toLocaleString('zh-CN')}
                 </CardDescription>
               </div>
-              <Badge variant={statusInfo.variant}>{statusInfo.text}</Badge>
+              <Badge variant={statusInfo.variant} className="shrink-0 whitespace-nowrap">
+                {statusInfo.text}
+              </Badge>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">门店</span>
                 <span>{order.storeName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">订单号</span>
-                <span className="font-mono text-xs">{order.code}</span>
               </div>
               {order.approvedBy && order.approvedAt && (
                 <>
@@ -125,15 +129,24 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   </div>
                 </>
               )}
-              {order.stockOut?.completedAt && (
-                <>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">发货时间</span>
-                    <span>{new Date(order.stockOut.completedAt).toLocaleString('zh-CN')}</span>
-                  </div>
-                </>
-              )}
+              {order.stockOut &&
+                (order.stockOut.status === 'COMPLETED' || order.stockOut.completedAt) && (
+                  <>
+                    <Separator />
+                    <div className="flex justify-between gap-3">
+                      <span className="shrink-0 text-muted-foreground">出库单号</span>
+                      <span className="break-all text-right text-xs leading-5">
+                        {order.stockOut.code}
+                      </span>
+                    </div>
+                    {order.stockOut.completedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">发货时间</span>
+                        <span>{new Date(order.stockOut.completedAt).toLocaleString('zh-CN')}</span>
+                      </div>
+                    )}
+                  </>
+                )}
               {order.revokedBy && order.revokedAt && (
                 <>
                   <Separator />
@@ -159,25 +172,26 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* 商品列表 */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">商品清单</CardTitle>
+          <CardHeader className="px-3 pb-1 pt-3">
+            <CardTitle className="text-sm tracking-normal">商品清单</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {order.items.map((item, index) => (
-              <div key={item.id}>
-                {index > 0 && <Separator className="my-3" />}
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="font-medium">{item.goodsName}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      编号: {item.goodsCode}
-                    </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      ¥{item.unitPrice.toFixed(2)} ×{' '}
-                      {formatGoodsQuantity(item.quantity, item.measureType)} {item.goodsUnit}
-                    </div>
+          <CardContent className="divide-y px-3 pb-1">
+            {order.items.map((item) => (
+              <div key={item.id} className="space-y-1 py-2.5">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <div className="min-w-0 truncate font-medium" title={item.goodsName}>
+                    {item.goodsName}
                   </div>
-                  <div className="font-medium">¥{item.totalPrice.toFixed(2)}</div>
+                  <div className="shrink-0 font-medium">¥{item.totalPrice.toFixed(2)}</div>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="min-w-0 truncate" title={item.goodsCode}>
+                    编号: {item.goodsCode}
+                  </div>
+                  <div className="shrink-0 whitespace-nowrap">
+                    ¥{item.unitPrice.toFixed(2)} ×{' '}
+                    {formatGoodsQuantity(item.quantity, item.measureType)} {item.goodsUnit}
+                  </div>
                 </div>
               </div>
             ))}
@@ -186,7 +200,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* 金额汇总 */}
         <Card>
-          <CardContent className="space-y-2 pt-6">
+          <CardContent className="space-y-2 p-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">商品种类</span>
               <span>{order.items.length} 种</span>
@@ -196,7 +210,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <span>{formatGoodsQuantity(totalQuantity, totalMeasureType)}</span>
             </div>
             <Separator />
-            <div className="flex justify-between text-lg font-bold">
+            <div className="flex justify-between text-base font-bold">
               <span>合计</span>
               <span className="text-primary">¥{order.totalAmount.toFixed(2)}</span>
             </div>
@@ -206,17 +220,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         {/* 备注 */}
         {order.remark && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">备注</CardTitle>
+            <CardHeader className="px-3 pb-2 pt-3">
+              <CardTitle className="text-sm tracking-normal">备注</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pb-3">
               <p className="text-sm text-muted-foreground">{order.remark}</p>
             </CardContent>
           </Card>
         )}
-
-        {/* 底部间距 */}
-        <div className="h-4" />
 
         {order.status === 'APPROVED' && (
           <div className="border-y bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
@@ -225,17 +236,18 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         )}
 
         {order.status === 'PROCESSING' && (
-          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 -mx-4 border-t bg-background/95 px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="fixed bottom-[var(--mobile-tab-bar-height)] left-0 right-0 z-30 border-t bg-background px-3 py-3">
             <ConfirmReceiptButton orderId={order.id} orderCode={order.code} />
           </div>
         )}
 
         {/* 撤回按钮（PENDING / REJECTED 状态显示） */}
         {(order.status === 'PENDING' || order.status === 'REJECTED') && (
-          <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 -mx-4 border-t bg-background/95 px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="fixed bottom-[var(--mobile-tab-bar-height)] left-0 right-0 z-30 border-t bg-background px-3 py-3">
             <WithdrawOrderButton
               orderId={order.id}
               orderCode={order.code}
+              storeId={order.storeId}
               orderItems={order.items}
             />
           </div>

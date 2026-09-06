@@ -32,12 +32,12 @@ export default function ContainerWorkspaceClient({
     },
     {
       key: 'returns',
-      label: '归还验收',
+      label: '归还日志',
       children: <ContainerReturnList canWriteStock={canWriteStock} />,
     },
     {
       key: 'all',
-      label: '全部台账',
+      label: '门店台账',
       children: (
         <ContainerTrackingClient
           canWriteStock={canWriteStock}
@@ -59,13 +59,6 @@ export default function ContainerWorkspaceClient({
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>包装物</h1>
-        <p style={{ color: '#666', margin: '8px 0 0' }}>
-          优先处理门店在外包装物和归还验收，档案与商品关联集中在设置中维护。
-        </p>
-      </div>
-
       <Tabs
         activeKey={initialView}
         items={items}

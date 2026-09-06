@@ -610,33 +610,7 @@ export class OrderService {
 
     const goodsIds = orderItems.map((item) => item.goodsId)
 
-    // 查询所有仓库中每个商品的总可用库存
-    const inventories = await prisma.inventory.findMany({
-      where: { goodsId: { in: goodsIds }, isDeleted: false },
-    })
-
-    // 按商品ID汇总可用库存
-    const inventoryMap = new Map<number, number>()
-    for (const inv of inventories) {
-      const current = inventoryMap.get(inv.goodsId) || 0
-      inventoryMap.set(inv.goodsId, current + inv.availableQuantity.toNumber())
-    }
-
-    // 构建恢复购物车的商品列表
-    const restoredItems: CartRestoreItem[] = orderItems.map((item) => ({
-      goodsId: String(item.goodsId),
-      code: item.goods.code,
-      name: item.goods.name,
-      spec: item.goods.spec,
-      unit: item.goods.unit,
-      measureType: item.goods.measureType,
-      price: item.unitPrice.toNumber(),
-      quantity: item.quantity.toNumber(),
-      availableQty: inventoryMap.get(item.goodsId) || 0,
-      imageUrl: item.goods.imageUrl,
-    }))
-
-    await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
       const claimed = await tx.order.updateMany({
         where: {
           id,
@@ -663,9 +637,31 @@ export class OrderService {
         where: { id },
         data: { lockedWarehouseId: null, updatedAt: new Date() },
       })
-    })
 
-    return restoredItems
+      // Restore against inventory after this order's locks have been released.
+      const inventories = await tx.inventory.findMany({
+        where: { goodsId: { in: goodsIds }, isDeleted: false },
+      })
+      const inventoryMap = new Map<number, number>()
+      for (const inv of inventories) {
+        inventoryMap.set(
+          inv.goodsId,
+          (inventoryMap.get(inv.goodsId) || 0) + inv.availableQuantity.toNumber()
+        )
+      }
+      return orderItems.map((item) => ({
+        goodsId: String(item.goodsId),
+        code: item.goods.code,
+        name: item.goods.name,
+        spec: item.goods.spec,
+        unit: item.goods.unit,
+        measureType: item.goods.measureType,
+        price: item.unitPrice.toNumber(),
+        quantity: item.quantity.toNumber(),
+        availableQty: inventoryMap.get(item.goodsId) || 0,
+        imageUrl: item.goods.imageUrl,
+      }))
+    })
   }
 
   /**

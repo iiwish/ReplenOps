@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Table, Button, Modal, message, Segmented, Space, Empty } from 'antd'
-import { AuditOutlined, ContainerOutlined } from '@ant-design/icons'
+import { Table, Button, Modal, message, Segmented, Space, Empty, Tooltip } from 'antd'
+import { AuditOutlined, HistoryOutlined, CheckOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
 import { listTracking, getTrackingLogs } from '@/actions/container-tracking-actions'
+import { ContainerReturnList } from '@/components/admin/containers/ContainerReturnList'
 
 interface TrackingItem {
   id: string
@@ -55,6 +56,10 @@ export default function ContainerTrackingPage({
   const [trackingData, setTrackingData] = useState<TrackingItem[]>([])
   const [logModalVisible, setLogModalVisible] = useState(false)
   const [currentLogs, setCurrentLogs] = useState<LogItem[]>([])
+  const [review, setReview] = useState<{
+    tracking: TrackingItem
+    action: 'accept' | 'reject'
+  } | null>(null)
 
   const columns: ColumnsType<TrackingItem> = [
     {
@@ -107,14 +112,38 @@ export default function ContainerTrackingPage({
       key: 'action',
       render: (_value: unknown, record: TrackingItem) => (
         <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<ContainerOutlined />}
-            onClick={() => handleShowLogs(record.id)}
-          >
-            查看日志
-          </Button>
+          <Tooltip title="查看日志">
+            <Button
+              type="text"
+              size="small"
+              aria-label="查看日志"
+              icon={<HistoryOutlined />}
+              onClick={() => handleShowLogs(record.id)}
+            />
+          </Tooltip>
+          {canWriteStock && record.pendingReturnQuantity > 0 && (
+            <>
+              <Tooltip title="验收">
+                <Button
+                  type="text"
+                  size="small"
+                  aria-label="验收"
+                  icon={<CheckOutlined />}
+                  onClick={() => setReview({ tracking: record, action: 'accept' })}
+                />
+              </Tooltip>
+              <Tooltip title="驳回">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  aria-label="驳回"
+                  icon={<StopOutlined />}
+                  onClick={() => setReview({ tracking: record, action: 'reject' })}
+                />
+              </Tooltip>
+            </>
+          )}
         </Space>
       ),
     },
@@ -207,20 +236,20 @@ export default function ContainerTrackingPage({
     <div className={embedded ? '' : 'p-6'}>
       {!embedded && <h1 className="mb-4 text-2xl font-bold">包装物台账查询</h1>}
 
-      <div className="mb-4 flex justify-end gap-2">
-        {canWriteStock && !embedded && (
-          <Button
-            icon={<AuditOutlined />}
-            onClick={() => router.push('/admin/container-return' as Route)}
-          >
-            归还验收
-          </Button>
-        )}
-        {!embedded && (
+      {!embedded && (
+        <div className="mb-4 flex justify-end gap-2">
+          {canWriteStock && (
+            <Button
+              icon={<AuditOutlined />}
+              onClick={() => router.push('/admin/container-return' as Route)}
+            >
+              归还日志
+            </Button>
+          )}
           <Segmented
             value={hasUnreturned ? 'unreturned' : 'all'}
             options={[
-              { label: '全部台账', value: 'all' },
+              { label: '门店台账', value: 'all' },
               { label: '在外包装物', value: 'unreturned' },
             ]}
             onChange={(value) => {
@@ -233,8 +262,8 @@ export default function ContainerTrackingPage({
               )
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <Table
         columns={columns}
@@ -252,6 +281,30 @@ export default function ContainerTrackingPage({
         }}
         scroll={{ x: 900 }}
       />
+
+      <Modal
+        title={
+          review
+            ? `${review.tracking.storeName} · ${review.tracking.containerName} · 待验收归还单`
+            : '待验收归还单'
+        }
+        open={Boolean(review)}
+        onCancel={() => setReview(null)}
+        width={960}
+        footer={null}
+        destroyOnHidden
+      >
+        {review && (
+          <ContainerReturnList
+            key={`${review.tracking.id}-${review.action}`}
+            storeId={review.tracking.storeId}
+            containerId={review.tracking.containerId}
+            canWriteStock={canWriteStock}
+            reviewAction={review.action}
+            onReviewed={fetchData}
+          />
+        )}
+      </Modal>
 
       <Modal
         title="包装物变动日志"

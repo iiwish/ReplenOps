@@ -1,6 +1,7 @@
 'use client'
 
 const AUTH_EVENT_KEY = 'replenops:auth-ended'
+type SessionEndReason = 'expired' | 'logout'
 
 export function isProtectedPath(pathname: string): boolean {
   return (
@@ -11,28 +12,49 @@ export function isProtectedPath(pathname: string): boolean {
   )
 }
 
-export function getLoginUrl(location: Pick<Location, 'pathname' | 'search' | 'hash'>): string {
-  const redirect = `${location.pathname}${location.search}${location.hash}`
+export function getLoginUrl(
+  location: Pick<Location, 'pathname' | 'search' | 'hash'>,
+  reason: SessionEndReason = 'expired'
+): string {
+  const redirect =
+    reason === 'logout' &&
+    (location.pathname === '/mobile' || location.pathname.startsWith('/mobile/'))
+      ? '/mobile/home'
+      : `${location.pathname}${location.search}${location.hash}`
   const params = new URLSearchParams({ redirect })
   return `/login?${params.toString()}`
 }
 
-export function announceSessionEnded(): void {
+export function announceSessionEnded(reason: SessionEndReason = 'expired'): void {
   try {
-    localStorage.setItem(AUTH_EVENT_KEY, `${Date.now()}:${crypto.randomUUID()}`)
+    localStorage.setItem(AUTH_EVENT_KEY, JSON.stringify({ id: crypto.randomUUID(), reason }))
   } catch (error) {
     console.error('无法通知其他页面会话已结束:', error)
   }
 }
 
-export function redirectToLogin(): void {
+export function redirectToLogin(reason: SessionEndReason = 'expired'): void {
   if (!isProtectedPath(window.location.pathname)) return
-  window.location.replace(getLoginUrl(window.location))
+  window.location.replace(getLoginUrl(window.location, reason))
 }
 
-export function endClientSession(): void {
-  announceSessionEnded()
-  redirectToLogin()
+export function endClientSession(reason: SessionEndReason = 'expired'): void {
+  announceSessionEnded(reason)
+  redirectToLogin(reason)
+}
+
+export function getSessionEndReason(value: string | null): SessionEndReason {
+  try {
+    const event: unknown = JSON.parse(value ?? 'null')
+    return typeof event === 'object' &&
+      event !== null &&
+      'reason' in event &&
+      event.reason === 'logout'
+      ? 'logout'
+      : 'expired'
+  } catch {
+    return 'expired'
+  }
 }
 
 export function isSessionEndedStorageEvent(event: StorageEvent): boolean {
@@ -46,5 +68,5 @@ export async function logoutAndRedirect(): Promise<void> {
     throw new Error('Logout request failed')
   }
 
-  endClientSession()
+  endClientSession('logout')
 }

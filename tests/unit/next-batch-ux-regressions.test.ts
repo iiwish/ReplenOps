@@ -67,7 +67,7 @@ describe('next-batch UX regression guards', () => {
 
     expect(detailPage).not.toContain('ArrowLeft')
     expect(detailPage).toContain('formatGoodsQuantity')
-    expect(detailPage).toContain('bottom-[calc(4rem+env(safe-area-inset-bottom))]')
+    expect(detailPage).toContain('fixed bottom-[var(--mobile-tab-bar-height)]')
     expect(listPage).toContain('placeholder="更多状态"')
     expect(listPage).toContain('待出库')
     expect(listPage).not.toContain('待发货')

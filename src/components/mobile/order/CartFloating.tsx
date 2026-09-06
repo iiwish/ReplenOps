@@ -29,7 +29,7 @@ export function CartFloating({
   const hasItems = visibleItems.length > 0
 
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-20 px-3 pb-2">
+    <div className="fixed bottom-[var(--mobile-tab-bar-height)] left-0 right-0 z-20 px-3 pb-2">
       <div
         className={cn(
           'relative flex items-center justify-between gap-2 rounded-lg border bg-background p-2 shadow-[0_-6px_18px_rgba(15,23,42,0.12)] transition-all',

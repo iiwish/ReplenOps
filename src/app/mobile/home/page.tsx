@@ -5,7 +5,6 @@ import { CalendarDays, CheckCircle2, Clock, LogOut, RefreshCw, ShoppingBag } fro
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/mobile/dashboard/StatCard'
 import { TodoList } from '@/components/mobile/dashboard/TodoList'
-import { QuickActions } from '@/components/mobile/dashboard/QuickActions'
 import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
 import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
@@ -271,8 +270,6 @@ export default function HomePage() {
         </section>
 
         <TodoList items={data.todos} />
-
-        <QuickActions />
       </div>
 
       {refreshing && (

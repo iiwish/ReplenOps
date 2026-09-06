@@ -19,8 +19,9 @@ describe('container return navigation', () => {
     const returnRoute = readSource('src/app/admin/container-return/page.tsx')
 
     expect(workspace).toContain("label: '在外包装物'")
-    expect(workspace).toContain("label: '归还验收'")
-    expect(workspace).toContain("label: '全部台账'")
+    expect(workspace).toContain("label: '归还日志'")
+    expect(workspace).toContain("label: '门店台账'")
+    expect(workspace).not.toContain('<h1')
     expect(workspace).toContain("label: '包装物设置'")
     expect(trackingRoute).toContain("'/admin/containers?view=outstanding'")
     expect(returnRoute).toContain("redirect('/admin/containers?view=returns')")

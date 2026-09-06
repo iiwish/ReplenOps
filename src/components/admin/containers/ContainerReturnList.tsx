@@ -62,6 +62,8 @@ interface ContainerReturnListProps {
   storeId?: string
   containerId?: string
   canWriteStock: boolean
+  reviewAction?: 'accept' | 'reject'
+  onReviewed?: () => Promise<void>
 }
 
 const statusMeta: Record<ReturnStatus, { text: string; color: string }> = {
@@ -75,6 +77,8 @@ export function ContainerReturnList({
   storeId,
   containerId,
   canWriteStock,
+  reviewAction,
+  onReviewed,
 }: ContainerReturnListProps) {
   const [form] = Form.useForm()
   const [stores, setStores] = useState<Array<{ id: string; name: string }>>([])
@@ -96,9 +100,9 @@ export function ContainerReturnList({
       try {
         const values = form.getFieldsValue()
         const result = await getContainerReturnRequests({
-          storeId: values.storeId,
-          containerId: values.containerId,
-          status: values.status,
+          storeId: storeId ?? values.storeId,
+          containerId: containerId ?? values.containerId,
+          status: reviewAction ? 'PENDING' : values.status,
           dateFrom: values.dateFrom?.format('YYYY-MM-DD'),
           dateTo: values.dateTo?.format('YYYY-MM-DD'),
           page: currentPage,
@@ -111,26 +115,30 @@ export function ContainerReturnList({
         } else {
           message.error(result.message || '加载归还申请失败')
         }
+      } catch {
+        message.error('加载归还申请失败')
       } finally {
         setLoading(false)
       }
     },
-    [form]
+    [containerId, form, reviewAction, storeId]
   )
 
   useEffect(() => {
-    form.setFieldsValue({ storeId, containerId, status: 'PENDING' })
-    void Promise.all([
-      fetch('/api/stores/user', { cache: 'no-store' }).then((response) => response.json()),
-      fetch('/api/containers', { cache: 'no-store' }).then((response) => response.json()),
-    ])
-      .then(([storeResult, containerResult]) => {
-        if (storeResult.success && storeResult.data) setStores(storeResult.data)
-        if (Array.isArray(containerResult)) setContainers(containerResult)
-      })
-      .catch(() => message.error('加载筛选项失败'))
+    form.setFieldsValue({ storeId, containerId, status: undefined })
+    if (!reviewAction) {
+      void Promise.all([
+        fetch('/api/stores/user', { cache: 'no-store' }).then((response) => response.json()),
+        fetch('/api/containers', { cache: 'no-store' }).then((response) => response.json()),
+      ])
+        .then(([storeResult, containerResult]) => {
+          if (storeResult.success && storeResult.data) setStores(storeResult.data)
+          if (Array.isArray(containerResult)) setContainers(containerResult)
+        })
+        .catch(() => message.error('加载筛选项失败'))
+    }
     void loadRequests(1, 20)
-  }, [containerId, form, loadRequests, storeId])
+  }, [containerId, form, loadRequests, reviewAction, storeId])
 
   const openAccept = (request: ReturnRequest) => {
     setAccepting(request)
@@ -157,6 +165,9 @@ export function ContainerReturnList({
       message.success(result.message)
       setAccepting(null)
       await loadRequests(page, pageSize)
+      await onReviewed?.()
+    } catch {
+      message.error('验收失败，请刷新后重试')
     } finally {
       setLoading(false)
     }
@@ -181,6 +192,9 @@ export function ContainerReturnList({
       setRejecting(null)
       setRejectReason('')
       await loadRequests(page, pageSize)
+      await onReviewed?.()
+    } catch {
+      message.error('驳回失败，请刷新后重试')
     } finally {
       setLoading(false)
     }
@@ -188,7 +202,7 @@ export function ContainerReturnList({
 
   const columns: ColumnsType<ReturnRequest> = [
     { title: '归还单号', dataIndex: 'code', width: 180 },
-    { title: '门店', dataIndex: 'storeName', width: 140 },
+    { title: '门店', dataIndex: 'storeName', width: 140, hidden: Boolean(reviewAction) },
     {
       title: '包装物种类',
       width: 100,
@@ -196,6 +210,7 @@ export function ContainerReturnList({
     },
     {
       title: '状态',
+      hidden: Boolean(reviewAction),
       dataIndex: 'status',
       width: 100,
       render: (status: ReturnStatus) => (
@@ -208,15 +223,17 @@ export function ContainerReturnList({
       width: 170,
       render: (date: Date) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
-    { title: '提交人', dataIndex: 'submittedByName', width: 110 },
+    { title: '提交人', dataIndex: 'submittedByName', width: 110, hidden: Boolean(reviewAction) },
     {
       title: '处理人',
+      hidden: Boolean(reviewAction),
       dataIndex: 'reviewedByName',
       width: 110,
       render: (name: string | null) => name || '-',
     },
     {
       title: '备注/处理原因',
+      hidden: Boolean(reviewAction),
       ellipsis: true,
       render: (_, request) => request.reviewReason || request.remark || '-',
     },
@@ -227,25 +244,29 @@ export function ContainerReturnList({
       render: (_, request) =>
         canWriteStock && request.status === 'PENDING' ? (
           <Space>
-            <Button
-              type="primary"
-              size="small"
-              icon={<CheckOutlined />}
-              onClick={() => openAccept(request)}
-            >
-              验收
-            </Button>
-            <Button
-              danger
-              size="small"
-              icon={<StopOutlined />}
-              onClick={() => {
-                setRejecting(request)
-                setRejectReason('')
-              }}
-            >
-              驳回
-            </Button>
+            {reviewAction !== 'reject' && (
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => openAccept(request)}
+              >
+                验收
+              </Button>
+            )}
+            {reviewAction !== 'accept' && (
+              <Button
+                danger
+                size="small"
+                icon={<StopOutlined />}
+                onClick={() => {
+                  setRejecting(request)
+                  setRejectReason('')
+                }}
+              >
+                驳回
+              </Button>
+            )}
           </Space>
         ) : (
           '-'
@@ -255,12 +276,17 @@ export function ContainerReturnList({
 
   return (
     <>
-      <Form form={form} layout="inline" style={{ marginBottom: 16 }}>
+      <Form
+        form={form}
+        layout="inline"
+        style={{ marginBottom: 16, display: reviewAction ? 'none' : undefined }}
+      >
         <Form.Item name="storeId">
           <Select
             placeholder="选择门店"
             style={{ width: 150 }}
             allowClear
+            disabled={Boolean(storeId)}
             showSearch
             optionFilterProp="label"
             options={stores.map((store) => ({ label: store.name, value: store.id }))}
@@ -271,6 +297,7 @@ export function ContainerReturnList({
             placeholder="选择包装物"
             style={{ width: 150 }}
             allowClear
+            disabled={Boolean(containerId)}
             showSearch
             optionFilterProp="label"
             options={containers.map((container) => ({
@@ -310,7 +337,7 @@ export function ContainerReturnList({
             <Button
               onClick={() => {
                 form.resetFields()
-                form.setFieldValue('status', 'PENDING')
+                form.setFieldsValue({ storeId, containerId, status: undefined })
                 setPage(1)
                 void loadRequests(1, pageSize)
               }}
@@ -336,7 +363,7 @@ export function ContainerReturnList({
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前没有符合条件的归还申请" />
           ),
         }}
-        scroll={{ x: 1270 }}
+        scroll={{ x: reviewAction ? 600 : 1270 }}
         expandable={{
           expandedRowRender: (request) => (
             <Table
@@ -381,6 +408,10 @@ export function ContainerReturnList({
         onCancel={() => setAccepting(null)}
         onOk={() => void submitAccept()}
         confirmLoading={loading}
+        cancelButtonProps={{ disabled: loading }}
+        closable={!loading}
+        maskClosable={!loading}
+        keyboard={!loading}
         okText="确认验收"
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
@@ -417,6 +448,10 @@ export function ContainerReturnList({
         onCancel={() => setRejecting(null)}
         onOk={() => void submitReject()}
         confirmLoading={loading}
+        cancelButtonProps={{ disabled: loading }}
+        closable={!loading}
+        maskClosable={!loading}
+        keyboard={!loading}
         okButtonProps={{ danger: true }}
         okText="确认驳回"
       >
