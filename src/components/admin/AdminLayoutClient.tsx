@@ -141,7 +141,7 @@ export default function AdminLayoutClient({
                 : {}),
             }}
           >
-            {isNavigating && <AdminPageLoading ariaLabel="正在切换页面" />}
+            {isNavigating && <AdminPageLoading />}
             {/* Keep the previous form mounted until navigation commits, including on failure. */}
             <div
               hidden={isNavigating}
