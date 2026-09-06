@@ -53,7 +53,7 @@ export default function AdminLayoutClient({
   const pathname = usePathname()
   const [targetPathname, setTargetPathname] = useOptimistic(pathname)
   const [isPending, startTransition] = useTransition()
-  const isNavigating = isPending && targetPathname !== pathname
+  const isNavigating = isPending
   const isOrdersPage = targetPathname === '/admin/orders'
   const isListPage = isOrdersPage || isAdminListPage(targetPathname)
 
