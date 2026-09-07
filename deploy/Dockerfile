@@ -21,6 +21,13 @@ COPY --chown=replenops:nodejs prisma ./prisma
 USER replenops
 CMD ["npm", "run", "db:prepare"]
 
+FROM migrator AS release-migrator
+USER root
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+USER replenops
+CMD ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+
 FROM node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runner
 WORKDIR /app
 ENV NODE_ENV=production

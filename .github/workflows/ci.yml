@@ -93,6 +93,19 @@ jobs:
           ignore-unfixed: true
           severity: CRITICAL,HIGH
 
+      - name: Build release migration image
+        run: docker build --target release-migrator --tag replenops-migrator-ci:${{ github.sha }} -f deploy/Dockerfile .
+      - name: Verify migration CLI
+        run: docker run --rm replenops-migrator-ci:${{ github.sha }} node node_modules/prisma/build/index.js --version
+      - name: Scan release migration image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: replenops-migrator-ci:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
   codeql:
     name: CodeQL
     if: >-
