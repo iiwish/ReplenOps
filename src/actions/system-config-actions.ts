@@ -39,8 +39,7 @@ export async function updateSystemBrand(
     const validated = systemConfigSchema.parse(input)
     const config = await systemConfigService.update(validated)
 
-    revalidatePath('/admin', 'layout')
-    revalidatePath('/login')
+    revalidatePath('/', 'layout')
     return { success: true, data: config }
   } catch (error) {
     if (error instanceof z.ZodError) {
