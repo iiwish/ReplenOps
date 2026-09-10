@@ -68,6 +68,17 @@ test.beforeEach(async ({ page }) => {
   expect(login.ok()).toBe(true)
 })
 
+test('offers only supported account actions and logs out', async ({ page }) => {
+  await page.goto('/admin/users')
+  await page.locator('header').getByText('用户管理测试管理员', { exact: true }).hover()
+  await expect(page.getByRole('menuitem', { name: '退出登录' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '个人信息' })).toHaveCount(0)
+  await page.getByRole('menuitem', { name: '退出登录' }).click()
+  await expect(page).toHaveURL(/\/login(?:\?|$)/)
+  const response = await page.request.get('/api/users')
+  expect(response.status()).toBe(401)
+})
+
 test('shows supported roles and human-readable user codes', async ({ page }) => {
   await page.goto('/admin/users')
   await expect(page.getByRole('cell', { name: formatUserCode(initialUserCode) })).toBeVisible()
