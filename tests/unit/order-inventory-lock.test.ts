@@ -307,7 +307,7 @@ describe('order inventory locking', () => {
     expect(nextOrder.status).toBe('PENDING')
   })
 
-  it('does not let migrated historical orders block the one-active-order rule', async () => {
+  it.each(['migration', 'real-user'])('applies the active-order rule to historical orders with creator %s', async (creator) => {
     const fixtures = await seedFixtures(10)
 
     await prisma.order.create({
@@ -316,12 +316,14 @@ describe('order inventory locking', () => {
         storeId: fixtures.storeId,
         status: 'PENDING',
         totalAmount: new Prisma.Decimal(0),
-        createdBy: 'migration',
+        createdBy: creator === 'real-user' ? adminUser.id : creator,
       },
     })
 
-    const order = await createStage2Order(fixtures, 2)
-    expect(order.status).toBe('PENDING')
+    expect(await orderService.getActiveOrderForStore(String(fixtures.storeId), adminUser)).toMatchObject({
+      code: 'O-MIGRATED-PENDING',
+    })
+    await expect(createStage2Order(fixtures, 2)).rejects.toThrow(/门店已有待处理订单/)
   })
 
   it('releases locked inventory when an order is rejected', async () => {

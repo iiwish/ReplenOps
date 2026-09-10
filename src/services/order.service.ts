@@ -174,7 +174,6 @@ export class OrderService {
           storeId: storeIdInt,
           status: { in: ACTIVE_ORDER_STATUSES },
           isDeleted: false,
-          createdBy: { not: 'migration' },
         },
         select: { code: true },
         orderBy: { orderedAt: 'desc' },
@@ -256,8 +255,7 @@ export class OrderService {
   }
 
   /**
-   * 获取门店当前由本系统创建的待处理订单。
-   * 历史迁移订单不参与“一店一单”限制，避免存量待审批数据阻塞新流程。
+   * 获取门店当前待处理订单，历史订单与新建订单遵守相同业务规则。
    */
   async getActiveOrderForStore(storeId: string, user: AuthUser) {
     const storeIdInt = Number.parseInt(storeId, 10)
@@ -272,7 +270,6 @@ export class OrderService {
         storeId: storeIdInt,
         status: { in: ACTIVE_ORDER_STATUSES },
         isDeleted: false,
-        createdBy: { not: 'migration' },
       },
       select: {
         id: true,
