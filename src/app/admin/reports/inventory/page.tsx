@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Table, Statistic, Row, Col, message, Button, Space } from 'antd'
+import { Card, Table, Statistic, Row, Col, message, Space } from 'antd'
 import { Package, AlertTriangle } from 'lucide-react'
 import { ReportChart } from '@/components/admin/reports/ReportChart'
 import type { InventoryReportData } from '@/services/report.service'
-
-type InventoryReportItem = InventoryReportData['inventory'][number]
 
 const formatAmount = (value: number) =>
   `¥${value.toLocaleString('zh-CN', {
@@ -36,89 +34,9 @@ export default function InventoryReportPage() {
     }
   }
 
-  const handleExport = async () => {
-    if (!data) return
-    try {
-      const response = await fetch('/api/reports/inventory/export')
-
-      if (!response.ok) {
-        const result = await response.json().catch(() => null)
-        message.error(result?.error || '导出失败')
-        return
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `库存报表_${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      message.success('导出成功')
-    } catch (error) {
-      console.error('导出失败:', error)
-      message.error('导出失败')
-    }
-  }
-
   useEffect(() => {
     loadData()
   }, [])
-
-  const columns = [
-    {
-      title: '商品编码',
-      dataIndex: 'goodsCode',
-      key: 'goodsCode',
-    },
-    {
-      title: '商品名称',
-      dataIndex: 'goodsName',
-      key: 'goodsName',
-    },
-    {
-      title: '分类',
-      dataIndex: 'categoryName',
-      key: 'categoryName',
-    },
-    {
-      title: '仓库',
-      dataIndex: 'warehouseName',
-      key: 'warehouseName',
-    },
-    {
-      title: '库存数量',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      render: (value: number) => value.toLocaleString(),
-    },
-    {
-      title: '可用库存',
-      dataIndex: 'availableQuantity',
-      key: 'availableQuantity',
-      render: (value: number, record: InventoryReportItem) => {
-        return (
-          <span className={value < record.minStock ? 'font-semibold text-red-600' : ''}>
-            {value.toLocaleString()}
-          </span>
-        )
-      },
-    },
-    {
-      title: '平均成本',
-      dataIndex: 'avgCost',
-      key: 'avgCost',
-      render: (value: number) => formatAmount(value),
-    },
-    {
-      title: '库存金额',
-      dataIndex: 'totalCost',
-      key: 'totalCost',
-      render: (value: number) => formatAmount(value),
-    },
-  ]
 
   const lowStockColumns = [
     { title: '商品编码', dataIndex: 'goodsCode', key: 'goodsCode' },
@@ -196,12 +114,15 @@ export default function InventoryReportPage() {
       </Card>
 
       <Card className="mb-6">
-        <Space>
-          <Button onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-          <Button onClick={handleExport}>导出CSV</Button>
-        </Space>
+        <ReportChart
+          type="pie"
+          data={categoryData}
+          dataKey="value"
+          nameKey="name"
+          title="库存分布（按分类）"
+          height={300}
+          valueFormatter={formatAmount}
+        />
       </Card>
 
       <Card className="mb-6">
@@ -219,28 +140,6 @@ export default function InventoryReportPage() {
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: '当前没有库存预警商品' }}
           scroll={{ x: 900 }}
-        />
-      </Card>
-
-      <Card className="mb-6">
-        <ReportChart
-          type="pie"
-          data={categoryData}
-          dataKey="value"
-          nameKey="name"
-          title="库存分布（按分类）"
-          height={300}
-          valueFormatter={formatAmount}
-        />
-      </Card>
-
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={data?.inventory || []}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
         />
       </Card>
     </div>

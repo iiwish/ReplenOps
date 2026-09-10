@@ -307,24 +307,29 @@ describe('order inventory locking', () => {
     expect(nextOrder.status).toBe('PENDING')
   })
 
-  it.each(['migration', 'real-user'])('applies the active-order rule to historical orders with creator %s', async (creator) => {
-    const fixtures = await seedFixtures(10)
+  it.each(['migration', 'real-user'])(
+    'applies the active-order rule to historical orders with creator %s',
+    async (creator) => {
+      const fixtures = await seedFixtures(10)
 
-    await prisma.order.create({
-      data: {
+      await prisma.order.create({
+        data: {
+          code: 'O-MIGRATED-PENDING',
+          storeId: fixtures.storeId,
+          status: 'PENDING',
+          totalAmount: new Prisma.Decimal(0),
+          createdBy: creator === 'real-user' ? adminUser.id : creator,
+        },
+      })
+
+      expect(
+        await orderService.getActiveOrderForStore(String(fixtures.storeId), adminUser)
+      ).toMatchObject({
         code: 'O-MIGRATED-PENDING',
-        storeId: fixtures.storeId,
-        status: 'PENDING',
-        totalAmount: new Prisma.Decimal(0),
-        createdBy: creator === 'real-user' ? adminUser.id : creator,
-      },
-    })
-
-    expect(await orderService.getActiveOrderForStore(String(fixtures.storeId), adminUser)).toMatchObject({
-      code: 'O-MIGRATED-PENDING',
-    })
-    await expect(createStage2Order(fixtures, 2)).rejects.toThrow(/门店已有待处理订单/)
-  })
+      })
+      await expect(createStage2Order(fixtures, 2)).rejects.toThrow(/门店已有待处理订单/)
+    }
+  )
 
   it('releases locked inventory when an order is rejected', async () => {
     const fixtures = await seedFixtures(10)

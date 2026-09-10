@@ -113,16 +113,19 @@ describe('admin sidebar expansion', () => {
 })
 
 describe('admin menu organization', () => {
-  it('places daily work before reports and configuration without changing route ownership', () => {
+  it('places daily work and master data before reports without changing route ownership', () => {
     expect(menuItems.map((item) => item.key)).toEqual([
       'dashboard',
       'orders',
       'inventory',
+      'master-data',
       'containers',
       'reports',
-      'master-data',
       'system',
     ])
+    expect(
+      menuItems.find((item) => item.key === 'inventory')?.children?.map((item) => item.key)
+    ).toEqual(['stock-in', 'stock-out', 'inventory-query', 'inventory-logs', 'cost-history'])
     for (const [path, label] of [
       ['/admin/inventory/logs', '库存流水'],
       ['/admin/inventory/cost-history', '成本变动记录'],

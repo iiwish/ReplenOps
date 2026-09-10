@@ -151,6 +151,27 @@ test('offers retry on server errors and keeps the sidebar usable', async ({ page
   await expect(page.getByRole('columnheader', { name: '入库单号' })).toBeVisible()
 })
 
+for (const path of ['/admin/inventory/cost-history', '/admin/inventory/logs']) {
+  test(`clears the loading state after filtering ${path}`, async ({ page }) => {
+    await page.goto(path)
+    const gate = deferred<void>()
+    await page.route(`**${path}?*`, async (route) => {
+      if (route.request().headers()['rsc'] === '1') await gate.promise
+      await route.continue()
+    })
+    try {
+      await page.locator('.ant-picker').hover()
+      await page.locator('.ant-picker-clear').click()
+      await expect(page.locator('.ant-spin-spinning')).toBeVisible()
+    } finally {
+      gate.resolve()
+    }
+    await expect(page).toHaveURL(/dateRange=all/)
+    await expect(page.locator('.ant-spin-spinning')).toHaveCount(0)
+    await expect(page.locator('.ant-table-body table')).toBeVisible()
+  })
+}
+
 test('respects manual group collapse through filtering, navigation, history and reload', async ({
   page,
 }) => {

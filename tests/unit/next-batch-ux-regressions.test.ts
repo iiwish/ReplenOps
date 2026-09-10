@@ -106,11 +106,35 @@ describe('next-batch UX regression guards', () => {
     expect(menu).toContain("label: '报货时间'")
     expect(menu).not.toContain("key: 'system-general'")
     expect(systemPage).toContain('SystemBrandEditor')
+    expect(systemPage).not.toContain('管理系统名称和品牌标识。')
+    expect(systemPage).not.toContain('<h1')
     expect(schedulePage).toContain("requirePageAccess('/admin/system-config/ordering-schedule')")
+    expect(schedulePage).not.toContain('设置门店允许提交订单的时间窗口。')
+    expect(schedulePage).not.toContain('<h1')
     expect(brandEditor).toContain('系统名称')
     expect(brandEditor).toContain('系统 Logo')
     expect(brandEditor).toContain('更换 Logo')
     expect(action).toContain("requireActionPermission('system:manage')")
+  })
+
+  it('confirms monthly stock-out exports and applies report filters automatically', () => {
+    const report = readSource('src/app/admin/reports/stock-out/MonthlyStockOutReportClient.tsx')
+
+    expect(report).toContain('title="确认导出"')
+    expect(report).toContain('setExportModalOpen(true)')
+    expect(report).toContain('setTimeout(() =>')
+    expect(report).toContain('scheduleFilterApply({ keyword: value })')
+    expect(report).not.toContain('>查询<')
+    expect(report).not.toContain('重置筛选')
+  })
+
+  it('keeps inventory analysis focused on the chart and data tables', () => {
+    const report = readSource('src/app/admin/reports/inventory/page.tsx')
+
+    expect(report).not.toContain('刷新')
+    expect(report).not.toContain('导出CSV')
+    expect(report).not.toContain('dataSource={data?.inventory || []}')
+    expect(report.indexOf('<ReportChart')).toBeLessThan(report.indexOf('预警商品明细'))
   })
 
   it('blocks self-disable and keeps destructive user operations in a menu', () => {
@@ -141,7 +165,7 @@ describe('next-batch UX regression guards', () => {
     expect(orderList).toContain('<Pagination')
     expect(orderList).toContain('showSizeChanger')
     expect(orderList).toContain("pageSizeOptions={['10', '20', '50', '100']}")
-    expect(adminLayout).toContain("const isOrdersPage = targetPathname === '/admin/orders'")
+    expect(adminLayout).toContain("const isOrdersPage = visiblePathname === '/admin/orders'")
     expect(adminLayout).toContain("padding: '12px 24px 8px'")
     expect(orderList).not.toContain('deleteOrder')
     expect(orderService).toContain("if (order.status !== 'REJECTED')")

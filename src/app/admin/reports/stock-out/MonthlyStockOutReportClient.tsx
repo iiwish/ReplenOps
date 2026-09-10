@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -11,15 +11,15 @@ import {
   Col,
   DatePicker,
   Input,
+  Modal,
   Row,
   Segmented,
   Select,
   Statistic,
   Tag,
-  Tooltip,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DownloadOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { formatShanghaiDateTime, getShanghaiMonth } from '@/lib/shanghai-time'
 import type {
@@ -53,39 +53,40 @@ export default function MonthlyStockOutReportClient({
   const [status, setStatus] = useState(filters.status)
   const [warehouseId, setWarehouseId] = useState(filters.warehouseId)
   const [storeId, setStoreId] = useState(filters.storeId)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const filterTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const buildParams = () => {
-    const params = new URLSearchParams({ month })
-    if (keyword.trim()) params.set('keyword', keyword.trim())
-    if (status) params.set('status', status)
-    if (warehouseId) params.set('warehouseId', warehouseId)
-    if (storeId) params.set('storeId', storeId)
+  const buildParams = (overrides: Partial<MonthlyStockOutReportFilters> = {}) => {
+    const next = { month, keyword, status, warehouseId, storeId, ...overrides }
+    const params = new URLSearchParams({ month: next.month })
+    if (next.keyword?.trim()) params.set('keyword', next.keyword.trim())
+    if (next.status) params.set('status', next.status)
+    if (next.warehouseId) params.set('warehouseId', next.warehouseId)
+    if (next.storeId) params.set('storeId', next.storeId)
     return params
   }
 
-  const applyFilters = () => {
-    router.push(`/admin/reports/stock-out?${buildParams().toString()}` as Route)
+  const scheduleFilterApply = (overrides: Partial<MonthlyStockOutReportFilters> = {}) => {
+    if (filterTimer.current) clearTimeout(filterTimer.current)
+    filterTimer.current = setTimeout(() => {
+      router.push(`/admin/reports/stock-out?${buildParams(overrides).toString()}` as Route)
+      filterTimer.current = null
+    }, 350)
   }
 
   const applyMonth = (value: string) => {
     setMonth(value)
-    const params = buildParams()
-    params.set('month', value)
-    router.push(`/admin/reports/stock-out?${params.toString()}` as Route)
+    scheduleFilterApply({ month: value })
   }
 
-  const resetFilters = () => {
-    const previousMonth = getShanghaiMonth(-1)
-    setMonth(previousMonth)
-    setKeyword('')
-    setStatus(undefined)
-    setWarehouseId(undefined)
-    setStoreId(undefined)
-    router.push(`/admin/reports/stock-out?month=${previousMonth}` as Route)
-  }
+  useEffect(() => {
+    return () => {
+      if (filterTimer.current) clearTimeout(filterTimer.current)
+    }
+  }, [])
 
-  const handleExport = async () => {
+  const confirmExport = async () => {
     setExporting(true)
     try {
       const response = await fetch(`/api/reports/stock-out/export?${buildParams().toString()}`)
@@ -105,6 +106,7 @@ export default function MonthlyStockOutReportClient({
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       message.success('导出成功')
+      setExportModalOpen(false)
     } catch (error) {
       console.error('导出月度出库报表失败:', error)
       message.error('导出失败')
@@ -210,7 +212,11 @@ export default function MonthlyStockOutReportClient({
               onChange={(value) => value && applyMonth(value.format('YYYY-MM'))}
             />
           </div>
-          <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={exporting}
+            onClick={() => setExportModalOpen(true)}
+          >
             导出 Excel
           </Button>
         </div>
@@ -221,7 +227,10 @@ export default function MonthlyStockOutReportClient({
             allowClear
             placeholder="全部状态"
             value={status}
-            onChange={setStatus}
+            onChange={(value) => {
+              setStatus(value)
+              scheduleFilterApply({ status: value })
+            }}
             options={[
               { value: 'COMPLETED', label: '已出库' },
               { value: 'CANCELLED', label: '已撤销' },
@@ -234,7 +243,10 @@ export default function MonthlyStockOutReportClient({
             optionFilterProp="label"
             placeholder="全部仓库"
             value={warehouseId}
-            onChange={setWarehouseId}
+            onChange={(value) => {
+              setWarehouseId(value)
+              scheduleFilterApply({ warehouseId: value })
+            }}
             options={options.warehouses.map((item) => ({
               value: item.id,
               label: `${item.name}${item.isDeleted ? '（已删除）' : ''}`,
@@ -247,7 +259,10 @@ export default function MonthlyStockOutReportClient({
             optionFilterProp="label"
             placeholder="全部门店"
             value={storeId}
-            onChange={setStoreId}
+            onChange={(value) => {
+              setStoreId(value)
+              scheduleFilterApply({ storeId: value })
+            }}
             options={options.stores.map((item) => ({
               value: item.id,
               label: `${item.name}${item.isDeleted ? '（已删除）' : ''}`,
@@ -259,17 +274,12 @@ export default function MonthlyStockOutReportClient({
             prefix={<SearchOutlined className="text-gray-400" />}
             placeholder="出库单号或订单号"
             value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            onPressEnter={applyFilters}
+            onChange={(event) => {
+              const value = event.target.value
+              setKeyword(value)
+              scheduleFilterApply({ keyword: value })
+            }}
           />
-          <div className="flex items-center gap-2">
-            <Button type="primary" icon={<SearchOutlined />} onClick={applyFilters}>
-              查询
-            </Button>
-            <Tooltip title="重置筛选">
-              <Button aria-label="重置筛选" icon={<ReloadOutlined />} onClick={resetFilters} />
-            </Tooltip>
-          </div>
         </div>
       </div>
 
@@ -311,6 +321,20 @@ export default function MonthlyStockOutReportClient({
           scroll={{ x: 1450 }}
         />
       </div>
+
+      <Modal
+        open={exportModalOpen}
+        title="确认导出"
+        okText="确认导出"
+        cancelText="取消"
+        confirmLoading={exporting}
+        onOk={() => void confirmExport()}
+        onCancel={() => setExportModalOpen(false)}
+      >
+        <p>
+          将导出 <strong>{month}</strong> 月的出库报表，包含当前筛选条件下的数据，是否继续？
+        </p>
+      </Modal>
     </div>
   )
 }

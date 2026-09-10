@@ -49,11 +49,6 @@ export const menuItems: MenuItemConfig[] = [
     icon: <InboxOutlined />,
     children: [
       {
-        key: 'inventory-query',
-        label: '库存查询',
-        path: '/admin/inventory/query',
-      },
-      {
         key: 'stock-in',
         label: '入库管理',
         path: '/admin/stock-in',
@@ -62,6 +57,11 @@ export const menuItems: MenuItemConfig[] = [
         key: 'stock-out',
         label: '出库管理',
         path: '/admin/stock-out',
+      },
+      {
+        key: 'inventory-query',
+        label: '库存查询',
+        path: '/admin/inventory/query',
       },
       {
         key: 'inventory-logs',
@@ -76,31 +76,6 @@ export const menuItems: MenuItemConfig[] = [
       },
     ],
     roles: ADMIN_ROLES,
-  },
-  {
-    key: 'containers',
-    label: '包装物',
-    icon: <ContainerOutlined />,
-    path: '/admin/containers',
-    roles: ADMIN_ROLES,
-  },
-  {
-    key: 'reports',
-    label: '报表分析',
-    icon: <BarChartOutlined />,
-    roles: REPORT_ROLES,
-    children: [
-      {
-        key: 'inventory-report',
-        label: '库存分析',
-        path: '/admin/reports/inventory',
-      },
-      {
-        key: 'stock-out-report',
-        label: '月度出库报表',
-        path: '/admin/reports/stock-out',
-      },
-    ],
   },
   {
     key: 'master-data',
@@ -129,6 +104,31 @@ export const menuItems: MenuItemConfig[] = [
         label: '门店档案',
         path: '/admin/stores',
         roles: WAREHOUSE_ROLES,
+      },
+    ],
+  },
+  {
+    key: 'containers',
+    label: '包装物',
+    icon: <ContainerOutlined />,
+    path: '/admin/containers',
+    roles: ADMIN_ROLES,
+  },
+  {
+    key: 'reports',
+    label: '报表分析',
+    icon: <BarChartOutlined />,
+    roles: REPORT_ROLES,
+    children: [
+      {
+        key: 'inventory-report',
+        label: '库存分析',
+        path: '/admin/reports/inventory',
+      },
+      {
+        key: 'stock-out-report',
+        label: '月度出库报表',
+        path: '/admin/reports/stock-out',
       },
     ],
   },

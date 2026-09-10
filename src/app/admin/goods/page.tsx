@@ -1,12 +1,14 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import GoodsListClient from './GoodsListClient'
 import { goodsService } from '@/services/goods.service'
+import type { GoodsStatusFilter } from '@/services/goods.service'
 import { canPerformAction } from '@/lib/action-permissions'
 
 interface SearchParams {
   page?: string
   search?: string
   categoryId?: string
+  status?: string
 }
 
 export default async function GoodsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -17,6 +19,10 @@ export default async function GoodsPage({ searchParams }: { searchParams: Promis
   const page = parseInt(params.page || '1', 10)
   const search = params.search
   const categoryId = params.categoryId
+  const status: GoodsStatusFilter =
+    params.status === 'active' || params.status === 'inactive' || params.status === 'all'
+      ? params.status
+      : 'active'
 
   // 获取商品列表数据
   const result = await goodsService.list({
@@ -24,6 +30,7 @@ export default async function GoodsPage({ searchParams }: { searchParams: Promis
     pageSize: 20,
     search,
     categoryId,
+    status,
   })
 
   // 获取分类列表（用于筛选）
@@ -37,6 +44,9 @@ export default async function GoodsPage({ searchParams }: { searchParams: Promis
         id: String(category.id),
       }))}
       canWrite={canPerformAction(user, 'goods:write')}
+      initialSearch={search}
+      initialCategoryId={categoryId}
+      initialStatus={status}
     />
   )
 }

@@ -96,7 +96,16 @@ export default function AppHeader({
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
           <Space style={{ cursor: 'pointer' }}>
             <Avatar icon={<UserOutlined />} />
-            <span>{userDisplayName || userName}</span>
+            <span
+              style={{
+                maxWidth: 120,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {userDisplayName || userName}
+            </span>
           </Space>
         </Dropdown>
       </Space>

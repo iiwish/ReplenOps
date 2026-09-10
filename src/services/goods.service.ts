@@ -10,7 +10,10 @@ export interface ListGoodsParams {
   pageSize?: number
   search?: string // 搜索关键词（名称或编码）
   categoryId?: string // 分类筛选
+  status?: GoodsStatusFilter
 }
+
+export type GoodsStatusFilter = 'all' | 'active' | 'inactive'
 
 // 创建商品 DTO
 export interface CreateGoodsDto {
@@ -193,7 +196,7 @@ export class GoodsService {
    * 获取商品列表（分页）
    */
   async list(params: ListGoodsParams = {}): Promise<PaginatedGoodsResult> {
-    const { page = 1, pageSize = 20, search, categoryId } = params
+    const { page = 1, pageSize = 20, search, categoryId, status } = params
 
     // 构建查询条件
     const where: Prisma.GoodsWhereInput = {
@@ -203,6 +206,12 @@ export class GoodsService {
     // 分类筛选
     if (categoryId) {
       where.categoryId = Number.parseInt(categoryId, 10)
+    }
+
+    if (status === 'active') {
+      where.isActive = true
+    } else if (status === 'inactive') {
+      where.isActive = false
     }
 
     // 如果有搜索关键词，按名称或编码搜索

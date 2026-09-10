@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { deleteGoods, getNextGoodsCode, toggleGoodsStatus } from '@/actions/goods-actions'
-import type { PaginatedGoodsResult } from '@/services/goods.service'
+import type { GoodsStatusFilter, PaginatedGoodsResult } from '@/services/goods.service'
 import ActionIconButton from '@/components/admin/ActionIconButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 import GoodsFormClient from './GoodsFormClient'
@@ -24,6 +24,9 @@ interface GoodsListClientProps {
   initialData: PaginatedGoodsResult
   categories: Array<{ id: string; code: string; name: string }>
   canWrite: boolean
+  initialSearch?: string
+  initialCategoryId?: string
+  initialStatus: GoodsStatusFilter
 }
 
 type GoodsRecord = PaginatedGoodsResult['data'][number]
@@ -34,11 +37,15 @@ export default function GoodsListClient({
   initialData,
   categories,
   canWrite,
+  initialSearch,
+  initialCategoryId,
+  initialStatus,
 }: GoodsListClientProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [searchKeyword, setSearchKeyword] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string>()
+  const [searchKeyword, setSearchKeyword] = useState(initialSearch ?? '')
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(initialCategoryId)
+  const [status, setStatus] = useState<GoodsStatusFilter>(initialStatus)
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<GoodsFormMode>('create')
   const [editingGoods, setEditingGoods] = useState<GoodsRecord | null>(null)
@@ -87,28 +94,40 @@ export default function GoodsListClient({
     router.refresh()
   }
 
-  // 搜索处理
-  const handleSearch = (value: string) => {
+  const buildParams = (
+    overrides: {
+      page?: number
+      search?: string
+      categoryId?: string
+      status?: GoodsStatusFilter
+    } = {}
+  ) => {
+    const nextSearch = 'search' in overrides ? overrides.search : searchKeyword
+    const nextCategoryId = 'categoryId' in overrides ? overrides.categoryId : selectedCategory
+    const resolvedStatus = 'status' in overrides ? overrides.status : status
     const params = new URLSearchParams()
-    if (value) {
-      params.set('search', value)
-    }
-    if (selectedCategory) {
-      params.set('categoryId', selectedCategory)
-    }
+    if (overrides.page && overrides.page > 1) params.set('page', overrides.page.toString())
+    if (nextSearch) params.set('search', nextSearch)
+    if (nextCategoryId) params.set('categoryId', nextCategoryId)
+    if (resolvedStatus) params.set('status', resolvedStatus)
+    return params
+  }
+
+  const handleSearch = (value: string) => {
+    setSearchKeyword(value)
+    const params = buildParams({ search: value })
     router.push(`/admin/goods?${params.toString()}`)
   }
 
-  // 分类筛选处理
   const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value)
-    const params = new URLSearchParams()
-    if (value) {
-      params.set('categoryId', value)
-    }
-    if (searchKeyword) {
-      params.set('search', searchKeyword)
-    }
+    setSelectedCategory(value || undefined)
+    const params = buildParams({ categoryId: value || undefined })
+    router.push(`/admin/goods?${params.toString()}`)
+  }
+
+  const handleStatusChange = (value: GoodsStatusFilter) => {
+    setStatus(value)
+    const params = buildParams({ status: value })
     router.push(`/admin/goods?${params.toString()}`)
   }
 
@@ -272,26 +291,21 @@ export default function GoodsListClient({
 
   return (
     <div className="admin-list-page">
-      <div className="mb-4 flex shrink-0 flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="m-0 text-2xl font-semibold">商品档案</h1>
-          <p className="mb-0 mt-1 text-sm text-gray-500">查询商品、价格与启用状态。</p>
-        </div>
-        {canWrite && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            loading={codeLoading}
-            onClick={() => void handleOpenCreateModal()}
-          >
-            新增商品
-          </Button>
-        )}
-      </div>
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Space>
+        <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
+            <Select<GoodsStatusFilter>
+              aria-label="商品状态"
+              placeholder="全部状态"
+              style={{ width: 140 }}
+              value={status}
+              onChange={handleStatusChange}
+              options={[
+                { label: '全部状态', value: 'all' },
+                { label: '启用', value: 'active' },
+                { label: '禁用', value: 'inactive' },
+              ]}
+            />
             <Select
               placeholder="请选择分类"
               allowClear
@@ -315,7 +329,17 @@ export default function GoodsListClient({
               onChange={(e) => setSearchKeyword(e.target.value)}
               onSearch={handleSearch}
             />
-          </Space>
+          </div>
+          {canWrite && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              loading={codeLoading}
+              onClick={() => void handleOpenCreateModal()}
+            >
+              新增商品
+            </Button>
+          )}
         </div>
 
         {/* 表格 */}
@@ -337,14 +361,7 @@ export default function GoodsListClient({
               showSizeChanger: false,
               showTotal: (total) => `共 ${total} 条`,
               onChange: (page) => {
-                const params = new URLSearchParams()
-                params.set('page', page.toString())
-                if (searchKeyword) {
-                  params.set('search', searchKeyword)
-                }
-                if (selectedCategory) {
-                  params.set('categoryId', selectedCategory)
-                }
+                const params = buildParams({ page })
                 router.push(`/admin/goods?${params.toString()}`)
               },
             }}

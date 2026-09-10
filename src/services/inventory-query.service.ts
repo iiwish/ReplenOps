@@ -109,8 +109,6 @@ export class InventoryQueryService {
       where.quantity = { gt: 0 }
     } else if (stockStatus === 'zero_stock') {
       where.quantity = 0
-    } else if (stockStatus === 'low_stock') {
-      where.quantity = { gt: 0 }
     }
 
     let total: number
@@ -169,7 +167,7 @@ export class InventoryQueryService {
         availableQuantity,
         avgCost,
         stockAmount: quantity * avgCost,
-        isLowStock: quantity > 0 && availableQuantity < minStock,
+        isLowStock: availableQuantity < minStock,
         minStock,
         updatedAt: item.updatedAt,
       }

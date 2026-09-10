@@ -1,13 +1,13 @@
 'use client'
 
 import type { Route } from 'next'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
-  Card,
   Button,
   Select,
   DatePicker,
+  Modal,
   Space,
   Tag,
   Typography,
@@ -16,8 +16,6 @@ import {
   Tooltip,
 } from 'antd'
 import {
-  FilterOutlined,
-  ReloadOutlined,
   FileExcelOutlined,
   EditOutlined,
 } from '@ant-design/icons'
@@ -81,8 +79,9 @@ export default function InventoryLogListClient({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [loading, setLoading] = useState(false)
+  const [loading, startTransition] = useTransition()
   const [adjustmentOpen, setAdjustmentOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   useEffect(() => {
     if (!canAdjustInventory || !initialAdjustmentOpen) return
@@ -123,6 +122,8 @@ export default function InventoryLogListClient({
     if (currentFilters.dateRange) {
       params.set('startDate', currentFilters.dateRange[0].format('YYYY-MM-DD'))
       params.set('endDate', currentFilters.dateRange[1].format('YYYY-MM-DD'))
+    } else {
+      params.set('dateRange', 'all')
     }
     if (currentFilters.operatorId) {
       params.set('operatorId', currentFilters.operatorId)
@@ -131,39 +132,30 @@ export default function InventoryLogListClient({
     return params.toString()
   }
 
-  // 应用筛选
-  const handleFilter = () => {
-    setLoading(true)
-    const query = buildQueryString()
-    router.push(`/admin/inventory/logs${query ? `?${query}` : ''}` as Route)
-  }
-
-  // 重置筛选
-  const handleReset = () => {
-    setFilters({
-      warehouseId: undefined,
-      goodsId: undefined,
-      changeTypes: [],
-      dateRange: null,
-      operatorId: undefined,
+  // 变更筛选后立即更新列表，避免额外的确认操作。
+  const applyFilters = (nextFilters: typeof filters) => {
+    setFilters(nextFilters)
+    const query = buildQueryString(nextFilters)
+    startTransition(() => {
+      router.push(`/admin/inventory/logs${query ? `?${query}` : ''}` as Route)
     })
-    setLoading(true)
-    router.push('/admin/inventory/logs' as Route)
   }
 
-  // 刷新
-  const handleRefresh = () => {
-    setLoading(true)
-    router.refresh()
-    setTimeout(() => setLoading(false), 500)
+  const openExportModal = () => {
+    setExportModalOpen(true)
   }
 
-  const handleExport = () => {
+  const confirmExport = () => {
     const query = buildQueryString()
     const link = document.createElement('a')
     link.href = `/api/inventory/logs/export${query ? `?${query}` : ''}`
     link.click()
+    setExportModalOpen(false)
   }
+
+  const exportDateRangeLabel = filters.dateRange
+    ? `${filters.dateRange[0].format('YYYY-MM-DD')} 至 ${filters.dateRange[1].format('YYYY-MM-DD')}`
+    : '全部日期'
 
   const openAdjustment = () => {
     setAdjustmentOpen(true)
@@ -182,21 +174,22 @@ export default function InventoryLogListClient({
   }
 
   const handleAdjustmentCompleted = async () => {
-    closeAdjustment()
-    setLoading(true)
-    router.refresh()
-    setTimeout(() => setLoading(false), 500)
+    startTransition(() => {
+      closeAdjustment()
+      router.refresh()
+    })
   }
 
   // 分页处理
   const handlePageChange = (page: number, pageSize?: number) => {
-    setLoading(true)
     const params = new URLSearchParams(buildQueryString())
     params.set('page', page.toString())
     if (pageSize) {
       params.set('pageSize', pageSize.toString())
     }
-    router.push(`/admin/inventory/logs?${params.toString()}` as Route)
+    startTransition(() => {
+      router.push(`/admin/inventory/logs?${params.toString()}` as Route)
+    })
   }
 
   // 渲染变动数量（带颜色）
@@ -330,135 +323,107 @@ export default function InventoryLogListClient({
 
   return (
     <div className="admin-list-page p-6">
-      <Card
-        className="admin-list-card"
-        title="库存流水"
-        extra={
-          <Space>
-            <Button
-              icon={<FileExcelOutlined />}
-              onClick={handleExport}
-            >
-              导出
-            </Button>
-            {canAdjustInventory && (
-              <Button type="primary" icon={<EditOutlined />} onClick={openAdjustment}>
-                调整库存
+      <div className="mb-4 border-b border-gray-100 pb-4">
+        <Row gutter={[16, 16]} align="bottom">
+          <Col xs={24} sm={12} lg={4}>
+            <Select
+              aria-label="仓库"
+              placeholder="选择仓库"
+              allowClear
+              style={{ width: '100%' }}
+              value={filters.warehouseId}
+              onChange={(value) => applyFilters({ ...filters, warehouseId: value })}
+              options={warehouses.map((w) => ({
+                label: w.name,
+                value: w.id,
+              }))}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <Select
+              aria-label="变动类型"
+              mode="multiple"
+              placeholder="选择变动类型"
+              allowClear
+              style={{ width: '100%' }}
+              value={filters.changeTypes}
+              onChange={(value) => applyFilters({ ...filters, changeTypes: value })}
+              options={Object.entries(CHANGE_TYPE_CONFIG).map(([key, config]) => ({
+                label: config.label,
+                value: key,
+              }))}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={7}>
+            <RangePicker
+              aria-label="时间范围"
+              style={{ width: '100%' }}
+              value={filters.dateRange}
+              onChange={(dates) =>
+                applyFilters({
+                  ...filters,
+                  dateRange: dates as [Dayjs, Dayjs] | null,
+                })
+              }
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={4}>
+            <Select
+              aria-label="操作人"
+              placeholder="选择操作人"
+              allowClear
+              style={{ width: '100%' }}
+              value={filters.operatorId}
+              onChange={(value) => applyFilters({ ...filters, operatorId: value })}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={operators.map((op) => ({
+                label: op.username,
+                value: op.id,
+              }))}
+            />
+          </Col>
+          <Col
+            xs={24}
+            sm={24}
+            lg={5}
+            style={{ display: 'flex', justifyContent: 'flex-end' }}
+          >
+            <Space wrap>
+              <Button type="primary" icon={<FileExcelOutlined />} onClick={openExportModal}>
+                导出
               </Button>
-            )}
-            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-              刷新
-            </Button>
-          </Space>
-        }
-      >
-        {/* 筛选器 */}
-        <Card size="small" title={<><FilterOutlined /> 筛选条件</>} style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 16]}>
-            <Col span={6}>
-              <div>
-                <div style={{ marginBottom: 4 }}>仓库</div>
-                <Select
-                  placeholder="选择仓库"
-                  allowClear
-                  style={{ width: '100%' }}
-                  value={filters.warehouseId}
-                  onChange={(value) =>
-                    setFilters({ ...filters, warehouseId: value })
-                  }
-                  options={warehouses.map((w) => ({
-                    label: w.name,
-                    value: w.id,
-                  }))}
-                />
-              </div>
-            </Col>
-            <Col span={6}>
-              <div>
-                <div style={{ marginBottom: 4 }}>变动类型</div>
-                <Select
-                  mode="multiple"
-                  placeholder="选择变动类型"
-                  allowClear
-                  style={{ width: '100%' }}
-                  value={filters.changeTypes}
-                  onChange={(value) =>
-                    setFilters({ ...filters, changeTypes: value })
-                  }
-                  options={Object.entries(CHANGE_TYPE_CONFIG).map(([key, config]) => ({
-                    label: config.label,
-                    value: key,
-                  }))}
-                />
-              </div>
-            </Col>
-            <Col span={8}>
-              <div>
-                <div style={{ marginBottom: 4 }}>时间范围</div>
-                <RangePicker
-                  style={{ width: '100%' }}
-                  value={filters.dateRange}
-                  onChange={(dates) =>
-                    setFilters({ ...filters, dateRange: dates as [Dayjs, Dayjs] | null })
-                  }
-                />
-              </div>
-            </Col>
-            <Col span={4}>
-              <div>
-                <div style={{ marginBottom: 4 }}>操作人</div>
-                <Select
-                  placeholder="选择操作人"
-                  allowClear
-                  style={{ width: '100%' }}
-                  value={filters.operatorId}
-                  onChange={(value) =>
-                    setFilters({ ...filters, operatorId: value })
-                  }
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                  options={operators.map((op) => ({
-                    label: op.username,
-                    value: op.id,
-                  }))}
-                />
-              </div>
-            </Col>
-          </Row>
-          <Row style={{ marginTop: 16 }}>
-            <Col span={24}>
-              <Space>
-                <Button type="primary" icon={<FilterOutlined />} onClick={handleFilter}>
-                  应用筛选
+              {canAdjustInventory && (
+                <Button type="primary" icon={<EditOutlined />} onClick={openAdjustment}>
+                  调整库存
                 </Button>
-                <Button onClick={handleReset}>重置</Button>
-              </Space>
-            </Col>
-          </Row>
-        </Card>
+              )}
+            </Space>
+          </Col>
+        </Row>
+      </div>
 
         {/* 表格 */}
-        <div className="admin-list-table-frame">
-          <AdminListTable
-            dataSource={initialData.data}
-            columns={columns}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              current: initialData.page,
-              pageSize: initialData.pageSize,
-              total: initialData.total,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 条记录`,
-              onChange: handlePageChange,
-            }}
-            scroll={{ x: 1400 }}
-          />
-        </div>
-      </Card>
+      <div className="admin-list-table-frame">
+        <AdminListTable
+          dataSource={initialData.data}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: initialData.page,
+            pageSize: initialData.pageSize,
+            total: initialData.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+            onChange: handlePageChange,
+          }}
+          scroll={{ x: 1400 }}
+        />
+      </div>
 
       <InventoryAdjustmentModal
         open={adjustmentOpen}
@@ -466,6 +431,19 @@ export default function InventoryLogListClient({
         onCancel={closeAdjustment}
         onCompleted={handleAdjustmentCompleted}
       />
+
+      <Modal
+        open={exportModalOpen}
+        title="确认导出"
+        okText="确认导出"
+        cancelText="取消"
+        onOk={confirmExport}
+        onCancel={() => setExportModalOpen(false)}
+      >
+        <p>
+          将导出 <Text strong>{exportDateRangeLabel}</Text> 的库存流水记录，是否继续？
+        </p>
+      </Modal>
     </div>
   )
 }
