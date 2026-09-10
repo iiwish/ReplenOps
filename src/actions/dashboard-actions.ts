@@ -1,7 +1,6 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
-import { dashboardService } from '@/services/dashboard.service'
+import { dashboardService, type AdminDashboardData } from '@/services/dashboard.service'
 import { getCurrentUser } from '@/lib/session.server'
 
 interface ActionResponse<T = unknown> {
@@ -21,7 +20,7 @@ export async function getTodayStats(storeId?: string): Promise<ActionResponse> {
       }
     }
 
-    const stats = await dashboardService.getTodayStats(storeId)
+    const stats = await dashboardService.getTodayStats(storeId, user)
 
     return {
       success: true,
@@ -45,7 +44,7 @@ export async function getTodoList(storeId?: string): Promise<ActionResponse> {
       }
     }
 
-    const todoList = await dashboardService.getTodoList(storeId)
+    const todoList = await dashboardService.getTodoList(storeId, user)
 
     return {
       success: true,
@@ -83,24 +82,7 @@ export async function getOrderTrend(days: number = 7, storeId?: string): Promise
   }
 }
 
-export async function getAdminDashboardData(): Promise<
-  ActionResponse<{
-    todayStats: {
-      orderCount: number
-      pendingCount: number
-      lowStockCount: number
-      containerToReturnCount: number
-    }
-    orderTrend: Array<{
-      date: string
-      count: number
-    }>
-    totalOrders: number
-    totalCompletedOrders: number
-    totalGoods: number
-    totalStores: number
-  }>
-> {
+export async function getAdminDashboardData(): Promise<ActionResponse<AdminDashboardData>> {
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -110,50 +92,11 @@ export async function getAdminDashboardData(): Promise<
       }
     }
 
-    const [todayStats, orderTrend, totalOrders, totalCompletedOrders, totalGoods, totalStores] =
-      await Promise.all([
-        dashboardService.getTodayStats(),
-        dashboardService.getOrderTrend(14),
-        prisma.order.count({
-          where: {
-            isDeleted: false,
-          },
-        }),
-        prisma.order.count({
-          where: {
-            status: 'COMPLETED',
-            isDeleted: false,
-          },
-        }),
-        prisma.goods.count({
-          where: {
-            isActive: true,
-            isDeleted: false,
-          },
-        }),
-        prisma.store.count({
-          where: {
-            isActive: true,
-            isDeleted: false,
-          },
-        }),
-      ])
+    const data = await dashboardService.getAdminDashboardData(user)
 
     return {
       success: true,
-      data: {
-        todayStats: {
-          orderCount: todayStats.orderCount,
-          pendingCount: todayStats.pendingCount,
-          lowStockCount: todayStats.lowStockCount,
-          containerToReturnCount: todayStats.containerToReturnCount,
-        },
-        orderTrend,
-        totalOrders,
-        totalCompletedOrders,
-        totalGoods,
-        totalStores,
-      },
+      data,
     }
   } catch (error) {
     return {

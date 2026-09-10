@@ -4,6 +4,8 @@ import {
   getShanghaiDate,
   getShanghaiDateRange,
   getShanghaiMonth,
+  getShanghaiMonthDateRange,
+  getShanghaiYesterdayMonthDateRange,
   getShanghaiMonthRange,
 } from '@/lib/shanghai-time'
 
@@ -31,6 +33,20 @@ describe('Shanghai report time boundaries', () => {
 
     expect(getShanghaiMonth(0, utcBeforeShanghaiMidnight)).toBe('2026-07')
     expect(getShanghaiMonth(-1, utcBeforeShanghaiMidnight)).toBe('2026-06')
+  })
+
+  it('returns calendar dates for a Shanghai month', () => {
+    expect(getShanghaiMonthDateRange(0, new Date('2026-09-10T01:00:00.000Z'))).toEqual({
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    })
+  })
+
+  it('returns the complete month containing yesterday in Shanghai time', () => {
+    expect(getShanghaiYesterdayMonthDateRange(new Date('2026-09-01T00:30:00.000Z'))).toEqual({
+      startDate: '2026-08-01',
+      endDate: '2026-08-31',
+    })
   })
 
   it('formats timestamps in Shanghai time', () => {

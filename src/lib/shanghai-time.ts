@@ -18,6 +18,11 @@ export interface RequiredDateRange {
   endExclusive: Date
 }
 
+export interface CalendarDateRange {
+  startDate: string
+  endDate: string
+}
+
 export interface ShanghaiClock {
   dayOfWeek: number
   minutesSinceMidnight: number
@@ -83,6 +88,22 @@ export function getShanghaiMonth(offset = 0, now = new Date()): string {
   const year = monthStart.getUTCFullYear()
   const month = String(monthStart.getUTCMonth() + 1).padStart(2, '0')
   return `${year}-${month}`
+}
+
+export function getShanghaiMonthDateRange(offset = 0, now = new Date()): CalendarDateRange {
+  const month = getShanghaiMonth(offset, now)
+  const year = Number(month.slice(0, 4))
+  const monthNumber = Number(month.slice(5, 7))
+  const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
+
+  return {
+    startDate: `${month}-01`,
+    endDate: `${month}-${String(lastDay).padStart(2, '0')}`,
+  }
+}
+
+export function getShanghaiYesterdayMonthDateRange(now = new Date()): CalendarDateRange {
+  return getShanghaiMonthDateRange(0, new Date(now.getTime() - 24 * 60 * 60 * 1000))
 }
 
 export function getShanghaiDate(now = new Date()): string {

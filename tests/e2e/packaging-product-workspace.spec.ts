@@ -130,7 +130,7 @@ test('shows a single packaging workspace and read-only actions for finance', asy
 
   await page.getByRole('menuitem', { name: '基础资料' }).click()
   await page.getByRole('menuitem', { name: '商品档案' }).click()
-  await expect(page.getByRole('heading', { name: '商品档案' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '商品编码' })).toBeVisible()
   await expect(page.getByRole('button', { name: /新增商品/ })).toHaveCount(0)
 
   await page.getByRole('menuitem', { name: '包装物' }).click()

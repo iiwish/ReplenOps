@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Card, Pagination, Button, message } from 'antd'
+import { useCallback, useRef, useState } from 'react'
+import { Card, Pagination, Button, Modal, message } from 'antd'
 import { ExportOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { AuditLogList } from '@/components/admin/audit-logs/AuditLogList'
 import AuditLogFilters from '@/components/admin/audit-logs/AuditLogFilters'
 import { listAuditLogs, exportAuditLogs } from '@/actions/audit-log-actions'
@@ -21,6 +22,9 @@ export default function AuditLogListClient({
 }: AuditLogListClientProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<PaginatedAuditLogResult>(initialData)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const loadRequestId = useRef(0)
   const [filters, setFilters] = useState<{
     page: number
     pageSize: number
@@ -35,6 +39,7 @@ export default function AuditLogListClient({
   })
 
   const loadData = useCallback(async (newFilters: typeof filters) => {
+    const requestId = ++loadRequestId.current
     setLoading(true)
     try {
       const result = await listAuditLogs({
@@ -47,6 +52,8 @@ export default function AuditLogListClient({
         endDate: newFilters.endDate,
       })
 
+      if (requestId !== loadRequestId.current) return
+
       if (result.success && result.data) {
         setData(result.data)
         setFilters(newFilters)
@@ -54,16 +61,18 @@ export default function AuditLogListClient({
         message.error(result.error || '加载失败')
       }
     } catch (error) {
+      if (requestId !== loadRequestId.current) return
       console.error('加载审计日志失败:', error)
       message.error('加载审计日志失败')
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestId.current) setLoading(false)
     }
   }, [])
 
   const handleFiltersChange = useCallback(
     (newFilters: typeof filters) => {
-      loadData(newFilters)
+      setFilters(newFilters)
+      void loadData(newFilters)
     },
     [loadData]
   )
@@ -79,8 +88,12 @@ export default function AuditLogListClient({
     [filters, loadData]
   )
 
-  const handleExport = async () => {
-    setLoading(true)
+  const openExportModal = () => {
+    setExportModalOpen(true)
+  }
+
+  const confirmExport = async () => {
+    setExporting(true)
     try {
       const result = await exportAuditLogs({
         page: 1,
@@ -106,6 +119,7 @@ export default function AuditLogListClient({
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
         message.success('导出成功')
+        setExportModalOpen(false)
       } else {
         message.error(result.error || '导出失败')
       }
@@ -113,33 +127,31 @@ export default function AuditLogListClient({
       console.error('导出审计日志失败:', error)
       message.error('导出失败')
     } finally {
-      setLoading(false)
+      setExporting(false)
     }
   }
+
+  const exportDateRangeLabel =
+    filters.startDate || filters.endDate
+      ? `${filters.startDate ? dayjs(filters.startDate).format('YYYY-MM-DD') : '不限'} 至 ${filters.endDate ? dayjs(filters.endDate).format('YYYY-MM-DD') : '不限'}`
+      : '全部日期'
+
+  const exportButton = isSuperAdmin ? (
+    <Button type="primary" icon={<ExportOutlined />} onClick={openExportModal} loading={exporting}>
+      导出Excel
+    </Button>
+  ) : null
 
   return (
     <div className="admin-list-page">
       <Card variant="borderless" className="admin-list-card">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          <div className="flex shrink-0 items-center justify-between gap-3">
-            <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>审计日志</h1>
-            {isSuperAdmin && (
-              <Button
-                type="primary"
-                icon={<ExportOutlined />}
-                onClick={handleExport}
-                loading={loading}
-              >
-                导出Excel
-              </Button>
-            )}
-          </div>
-
           <div className="shrink-0">
             <AuditLogFilters
               onFiltersChange={handleFiltersChange}
               loading={loading}
               operators={operators}
+              exportButton={exportButton}
             />
           </div>
 
@@ -158,6 +170,20 @@ export default function AuditLogListClient({
             />
           </div>
         </div>
+        <Modal
+          open={exportModalOpen}
+          title="确认导出"
+          okText="确认导出"
+          cancelText="取消"
+          confirmLoading={exporting}
+          onOk={() => void confirmExport()}
+          onCancel={() => setExportModalOpen(false)}
+        >
+          <p>
+            将导出当前筛选条件下的审计日志，时间范围：
+            <strong>{exportDateRangeLabel}</strong>，是否继续？
+          </p>
+        </Modal>
       </Card>
     </div>
   )

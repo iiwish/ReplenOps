@@ -1,10 +1,10 @@
 'use client'
 
 import type { Route } from 'next'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, Button, Select, DatePicker, Space, Typography, Row, Col, Input } from 'antd'
-import { FilterOutlined, ReloadOutlined, FileExcelOutlined } from '@ant-design/icons'
+import { Button, Select, DatePicker, Modal, Space, Typography, Row, Col, Input } from 'antd'
+import { FileExcelOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PaginatedCostHistoryResult } from '@/services/cost.service'
 import dayjs from 'dayjs'
@@ -40,7 +40,8 @@ const REFERENCE_TYPE_CONFIG: Record<
 
 export default function CostHistoryListClient({ initialData, warehouses, initialFilters }: Props) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [loading, startTransition] = useTransition()
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   // 筛选状态
   const [filters, setFilters] = useState({
@@ -69,45 +70,32 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
     if (currentFilters.dateRange) {
       params.set('startDate', currentFilters.dateRange[0].format('YYYY-MM-DD'))
       params.set('endDate', currentFilters.dateRange[1].format('YYYY-MM-DD'))
+    } else {
+      params.set('dateRange', 'all')
     }
 
     return params.toString()
   }
 
-  // 应用筛选
-  const handleFilter = () => {
-    setLoading(true)
-    const query = buildQueryString()
-    router.push(`/admin/inventory/cost-history${query ? `?${query}` : ''}` as Route)
-  }
-
-  // 重置筛选
-  const handleReset = () => {
-    setFilters({
-      warehouseId: undefined,
-      goodsId: undefined,
-      dateRange: null,
+  // 变更筛选后立即更新列表，避免额外的确认操作。
+  const applyFilters = (nextFilters: typeof filters) => {
+    setFilters(nextFilters)
+    const query = buildQueryString(nextFilters)
+    startTransition(() => {
+      router.push(`/admin/inventory/cost-history${query ? `?${query}` : ''}` as Route)
     })
-    setLoading(true)
-    router.push('/admin/inventory/cost-history' as Route)
-  }
-
-  // 刷新
-  const handleRefresh = () => {
-    setLoading(true)
-    router.refresh()
-    setTimeout(() => setLoading(false), 500)
   }
 
   // 分页处理
   const handlePageChange = (page: number, pageSize?: number) => {
-    setLoading(true)
     const params = new URLSearchParams(buildQueryString())
     params.set('page', page.toString())
     if (pageSize) {
       params.set('pageSize', pageSize.toString())
     }
-    router.push(`/admin/inventory/cost-history?${params.toString()}` as Route)
+    startTransition(() => {
+      router.push(`/admin/inventory/cost-history?${params.toString()}` as Route)
+    })
   }
 
   // 渲染成本变动（带颜色）
@@ -144,12 +132,21 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
     )
   }
 
-  const handleExport = () => {
+  const openExportModal = () => {
+    setExportModalOpen(true)
+  }
+
+  const confirmExport = () => {
     const query = buildQueryString()
     const link = document.createElement('a')
     link.href = `/api/inventory/cost-history/export${query ? `?${query}` : ''}`
     link.click()
+    setExportModalOpen(false)
   }
+
+  const exportDateRangeLabel = filters.dateRange
+    ? `${filters.dateRange[0].format('YYYY-MM-DD')} 至 ${filters.dateRange[1].format('YYYY-MM-DD')}`
+    : '全部日期'
 
   // 表格列定义
   const columns: ColumnsType<(typeof initialData.data)[0]> = [
@@ -243,104 +240,85 @@ export default function CostHistoryListClient({ initialData, warehouses, initial
 
   return (
     <div className="admin-list-page p-6">
-      <Card className="admin-list-card">
-        {/* 标题栏 */}
-        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-          <Col>
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              成本变动记录
-            </Typography.Title>
+      <div className="mb-4 border-b border-gray-100 pb-4">
+        <Row gutter={[16, 16]} align="bottom">
+          <Col xs={24} sm={12} lg={5}>
+            <Select
+              aria-label="仓库"
+              placeholder="全部仓库"
+              allowClear
+              style={{ width: '100%' }}
+              value={filters.warehouseId}
+              onChange={(value) => applyFilters({ ...filters, warehouseId: value })}
+              options={warehouses.map((w) => ({
+                label: w.name,
+                value: w.id,
+              }))}
+            />
           </Col>
-          <Col>
+          <Col xs={24} sm={12} lg={5}>
+            <Input
+              aria-label="商品ID"
+              placeholder="请输入商品ID"
+              allowClear
+              value={filters.goodsId}
+              onChange={(e) => applyFilters({ ...filters, goodsId: e.target.value || undefined })}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <RangePicker
+              aria-label="时间范围"
+              style={{ width: '100%' }}
+              value={filters.dateRange}
+              onChange={(dates) =>
+                applyFilters({
+                  ...filters,
+                  dateRange: dates as [dayjs.Dayjs, dayjs.Dayjs] | null,
+                })
+              }
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={6} style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-                刷新
-              </Button>
-              <Button icon={<FileExcelOutlined />} onClick={handleExport} type="primary">
+              <Button type="primary" icon={<FileExcelOutlined />} onClick={openExportModal}>
                 导出
               </Button>
             </Space>
           </Col>
         </Row>
+      </div>
 
-        {/* 筛选栏 */}
-        <Card size="small" style={{ marginBottom: 16 }}>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div>
-                <Text style={{ display: 'block', marginBottom: 8 }}>仓库</Text>
-                <Select
-                  placeholder="全部仓库"
-                  allowClear
-                  style={{ width: '100%' }}
-                  value={filters.warehouseId}
-                  onChange={(value) => setFilters({ ...filters, warehouseId: value })}
-                  options={warehouses.map((w) => ({
-                    label: w.name,
-                    value: w.id,
-                  }))}
-                />
-              </div>
-            </Col>
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div>
-                <Text style={{ display: 'block', marginBottom: 8 }}>商品ID</Text>
-                <Input
-                  placeholder="请输入商品ID"
-                  allowClear
-                  value={filters.goodsId}
-                  onChange={(e) => setFilters({ ...filters, goodsId: e.target.value || undefined })}
-                />
-              </div>
-            </Col>
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div>
-                <Text style={{ display: 'block', marginBottom: 8 }}>时间范围</Text>
-                <RangePicker
-                  style={{ width: '100%' }}
-                  value={filters.dateRange}
-                  onChange={(dates) =>
-                    setFilters({
-                      ...filters,
-                      dateRange: dates as [dayjs.Dayjs, dayjs.Dayjs] | null,
-                    })
-                  }
-                />
-              </div>
-            </Col>
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
-                <Space>
-                  <Button type="primary" icon={<FilterOutlined />} onClick={handleFilter}>
-                    筛选
-                  </Button>
-                  <Button onClick={handleReset}>重置</Button>
-                </Space>
-              </div>
-            </Col>
-          </Row>
-        </Card>
+      <div className="admin-list-table-frame">
+        <AdminListTable
+          columns={columns}
+          dataSource={initialData.data}
+          rowKey="id"
+          loading={loading}
+          scroll={{ x: 1600 }}
+          pagination={{
+            current: initialData.page,
+            pageSize: initialData.pageSize,
+            total: initialData.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+            onChange: handlePageChange,
+          }}
+        />
+      </div>
 
-        {/* 数据表格 */}
-        <div className="admin-list-table-frame">
-          <AdminListTable
-            columns={columns}
-            dataSource={initialData.data}
-            rowKey="id"
-            loading={loading}
-            scroll={{ x: 1600 }}
-            pagination={{
-              current: initialData.page,
-              pageSize: initialData.pageSize,
-              total: initialData.total,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 条记录`,
-              onChange: handlePageChange,
-            }}
-          />
-        </div>
-      </Card>
+      <Modal
+        open={exportModalOpen}
+        title="确认导出"
+        okText="确认导出"
+        cancelText="取消"
+        onOk={confirmExport}
+        onCancel={() => setExportModalOpen(false)}
+      >
+        <p>
+          将导出 <Text strong>{exportDateRangeLabel}</Text> 的成本变动记录，是否继续？
+        </p>
+      </Modal>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { requirePageAccess } from '@/lib/rbac-server'
 import { costService } from '@/services/cost.service'
 import { stockInService } from '@/services/stock-in.service'
+import { getShanghaiYesterdayMonthDateRange } from '@/lib/shanghai-time'
 import CostHistoryListClient from './CostHistoryListClient'
 
 export const metadata = {
@@ -17,6 +18,7 @@ export default async function CostHistoryPage({
     goodsId?: string
     startDate?: string
     endDate?: string
+    dateRange?: string
   }>
 }) {
   // 权限验证
@@ -26,6 +28,14 @@ export default async function CostHistoryPage({
   const params = await searchParams
   const page = parseInt(params.page || '1', 10)
   const pageSize = parseInt(params.pageSize || '20', 10)
+  const defaultDateRange = getShanghaiYesterdayMonthDateRange()
+  const useDefaultDateRange = params.dateRange !== 'all'
+  const startDate =
+    params.startDate ||
+    (useDefaultDateRange && !params.endDate ? defaultDateRange.startDate : undefined)
+  const endDate =
+    params.endDate ||
+    (useDefaultDateRange && !params.startDate ? defaultDateRange.endDate : undefined)
 
   // 构建查询参数
   const queryParams = {
@@ -33,8 +43,8 @@ export default async function CostHistoryPage({
     pageSize,
     warehouseId: params.warehouseId,
     goodsId: params.goodsId,
-    startDate: params.startDate,
-    endDate: params.endDate,
+    startDate,
+    endDate,
   }
 
   // 获取成本历史列表
@@ -53,8 +63,8 @@ export default async function CostHistoryPage({
       initialFilters={{
         warehouseId: params.warehouseId,
         goodsId: params.goodsId,
-        startDate: params.startDate,
-        endDate: params.endDate,
+        startDate,
+        endDate,
       }}
     />
   )

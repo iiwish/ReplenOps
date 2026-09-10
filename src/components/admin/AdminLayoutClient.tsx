@@ -3,13 +3,18 @@
 import { Layout, theme } from 'antd'
 import type { Route } from 'next'
 import { usePathname, useRouter } from 'next/navigation'
-import { useOptimistic, useState, useTransition } from 'react'
+import { useEffect, useOptimistic, useState, useTransition } from 'react'
 import AppHeader from './AppHeader'
 import AppSidebar from './AppSidebar'
 import AdminPageLoading from './AdminPageLoading'
 import type { UserRole } from '@/types'
 import { requestAppNavigation } from '@/lib/unsaved-changes'
 import type { BrandIdentity } from '@/config/brand'
+import {
+  beginAdminNavigation,
+  finishAdminNavigation,
+  useAdminNavigation,
+} from '@/lib/admin-navigation-state'
 
 const { Content } = Layout
 
@@ -52,15 +57,34 @@ export default function AdminLayoutClient({
   const router = useRouter()
   const pathname = usePathname()
   const [targetPathname, setTargetPathname] = useOptimistic(pathname)
-  const [isPending, startTransition] = useTransition()
-  const isNavigating = isPending
-  const isOrdersPage = targetPathname === '/admin/orders'
-  const isListPage = isOrdersPage || isAdminListPage(targetPathname)
+  const [, startTransition] = useTransition()
+  const navigation = useAdminNavigation()
+  const isNavigating = navigation?.sourcePathname === pathname
+  const visiblePathname = navigation?.targetPathname ?? targetPathname
+
+  useEffect(() => {
+    if (navigation?.targetPathname === pathname) finishAdminNavigation()
+  }, [navigation, pathname])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)')
+    const collapseOnMobile = () => {
+      if (mediaQuery.matches) setCollapsed(true)
+    }
+
+    collapseOnMobile()
+    mediaQuery.addEventListener('change', collapseOnMobile)
+    return () => mediaQuery.removeEventListener('change', collapseOnMobile)
+  }, [])
+
+  const isOrdersPage = visiblePathname === '/admin/orders'
+  const isListPage = isOrdersPage || isAdminListPage(visiblePathname)
 
   const navigate = (path: string) => {
-    if (isNavigating && path === targetPathname) return
+    if (isNavigating && path === navigation?.targetPathname) return
     if (!isNavigating && !requestAppNavigation()) return
 
+    beginAdminNavigation(pathname, path)
     startTransition(() => {
       setTargetPathname(path)
       router.push(path as Route)
@@ -82,7 +106,7 @@ export default function AdminLayoutClient({
       <AppSidebar
         collapsed={collapsed}
         roles={roles}
-        pathname={targetPathname}
+        pathname={visiblePathname}
         onNavigate={navigate}
         brandConfig={brandConfig}
       />
@@ -100,13 +124,16 @@ export default function AdminLayoutClient({
         <AppHeader
           collapsed={collapsed}
           onToggle={() => setCollapsed(!collapsed)}
-          pathname={targetPathname}
+          pathname={visiblePathname}
           userName={userName}
           userDisplayName={userDisplayName}
         />
 
         {/* 内容区域 */}
         <Content
+          data-navigation-state={isNavigating ? 'pending' : 'idle'}
+          data-navigation-source={pathname}
+          data-navigation-target={visiblePathname}
           style={{
             margin: '0 16px',
             ...(isListPage

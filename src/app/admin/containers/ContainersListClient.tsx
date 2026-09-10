@@ -278,12 +278,6 @@ export default function ContainersListClient({ canManage }: { canManage: boolean
   return (
     <div className="admin-list-page">
       <div className="mb-4 flex shrink-0 items-center justify-between gap-3">
-        <div>
-          <h2 className="m-0 text-lg font-semibold">包装物档案</h2>
-          <p className="mb-0 mt-1 text-sm text-gray-500">
-            在包装物上维护少量需要随单计算的商品关联。
-          </p>
-        </div>
         {canManage && (
           <Button
             type="primary"

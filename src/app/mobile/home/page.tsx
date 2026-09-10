@@ -11,7 +11,6 @@ import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { logoutAndRedirect } from '@/lib/auth-client'
 import { getUserStores } from '@/actions/store-actions'
 import type { StoreInfo } from '@/lib/stores/store-selection.store'
-import Link from 'next/link'
 
 interface UserInfo {
   id: string
@@ -213,63 +212,43 @@ export default function HomePage() {
       </div>
 
       <div className="mx-auto max-w-xl space-y-5 px-4">
+        <TodoList items={data.todos} />
+
         <section aria-labelledby="mobile-overview-heading">
           <h2 id="mobile-overview-heading" className="mb-2.5 text-base font-semibold text-gray-950">
             数据概览
           </h2>
           <div className="grid auto-rows-fr grid-cols-2 gap-2.5">
-            <Link
-              href="/mobile/orders"
-              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              <StatCard
-                icon={ShoppingBag}
-                title="今日订单"
-                value={data.stats.orderCount}
-                color="blue"
-                compact
-              />
-            </Link>
-            <Link
-              href="/mobile/orders"
-              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              <StatCard
-                icon={Clock}
-                title="待处理订单"
-                value={data.stats.pendingCount}
-                color="orange"
-                compact
-              />
-            </Link>
-            <Link
-              href="/mobile/orders"
-              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              <StatCard
-                icon={CalendarDays}
-                title="本月订单"
-                value={data.stats.monthlyOrderCount}
-                color="blue"
-                compact
-              />
-            </Link>
-            <Link
-              href="/mobile/orders?status=COMPLETED"
-              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              <StatCard
-                icon={CheckCircle2}
-                title="本月已完成"
-                value={data.stats.monthlyCompletedCount}
-                color="green"
-                compact
-              />
-            </Link>
+            <StatCard
+              icon={ShoppingBag}
+              title="今日订单"
+              value={data.stats.orderCount}
+              color="blue"
+              compact
+            />
+            <StatCard
+              icon={Clock}
+              title="待处理订单"
+              value={data.stats.pendingCount}
+              color="orange"
+              compact
+            />
+            <StatCard
+              icon={CalendarDays}
+              title="本月订单"
+              value={data.stats.monthlyOrderCount}
+              color="blue"
+              compact
+            />
+            <StatCard
+              icon={CheckCircle2}
+              title="本月已完成"
+              value={data.stats.monthlyCompletedCount}
+              color="green"
+              compact
+            />
           </div>
         </section>
-
-        <TodoList items={data.todos} />
       </div>
 
       {refreshing && (

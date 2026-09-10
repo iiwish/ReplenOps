@@ -2,7 +2,7 @@ import { requirePageAccess } from '@/lib/rbac-server'
 import { inventoryLogService } from '@/services/inventory-log.service'
 import { stockInService } from '@/services/stock-in.service'
 import InventoryLogListClient from './InventoryLogListClient'
-import { getShanghaiDateRange } from '@/lib/shanghai-time'
+import { getShanghaiDateRange, getShanghaiYesterdayMonthDateRange } from '@/lib/shanghai-time'
 import { canPerformAction } from '@/lib/action-permissions'
 
 export const metadata = {
@@ -20,6 +20,7 @@ export default async function InventoryLogsPage({
     changeTypes?: string
     startDate?: string
     endDate?: string
+    dateRange?: string
     operatorId?: string
     adjustment?: string
   }>
@@ -31,9 +32,15 @@ export default async function InventoryLogsPage({
   const params = await searchParams
   const page = parseInt(params.page || '1', 10)
   const pageSize = parseInt(params.pageSize || '20', 10)
+  const defaultDateRange = getShanghaiYesterdayMonthDateRange()
+  const useDefaultDateRange = params.dateRange !== 'all'
+  const startDate =
+    params.startDate || (useDefaultDateRange && !params.endDate ? defaultDateRange.startDate : undefined)
+  const endDate =
+    params.endDate || (useDefaultDateRange && !params.startDate ? defaultDateRange.endDate : undefined)
 
   // 构建查询参数
-  const dateRange = getShanghaiDateRange(params.startDate, params.endDate)
+  const dateRange = getShanghaiDateRange(startDate, endDate)
   const queryParams = {
     page,
     pageSize,
@@ -63,8 +70,8 @@ export default async function InventoryLogsPage({
         warehouseId: params.warehouseId,
         goodsId: params.goodsId,
         changeTypes: params.changeTypes ? params.changeTypes.split(',') : [],
-        startDate: params.startDate,
-        endDate: params.endDate,
+        startDate,
+        endDate,
         operatorId: params.operatorId,
       }}
       canAdjustInventory={canPerformAction(user, 'inventory:adjust')}

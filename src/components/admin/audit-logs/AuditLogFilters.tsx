@@ -1,6 +1,8 @@
 'use client'
 
-import { Space, Button, DatePicker, Select, Card, Input, Form } from 'antd'
+import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { DatePicker, Select, Input, Form } from 'antd'
 import dayjs from 'dayjs'
 import type { ListAuditLogsInput } from '@/types/audit-log.types'
 
@@ -12,6 +14,7 @@ export interface AuditLogFiltersProps {
   ) => void
   loading?: boolean
   operators: Array<{ id: string; name: string }>
+  exportButton?: ReactNode
 }
 
 const actionOptions = [
@@ -37,8 +40,10 @@ export default function AuditLogFilters({
   onFiltersChange,
   loading = false,
   operators,
+  exportButton,
 }: AuditLogFiltersProps) {
   const [form] = Form.useForm<FormValues>()
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleFilterChange = () => {
     const values = form.getFieldsValue()
@@ -71,21 +76,36 @@ export default function AuditLogFilters({
     onFiltersChange(filters)
   }
 
-  const handleReset = () => {
-    form.resetFields()
-    onFiltersChange({
-      page: 1,
-      pageSize: 20,
-    })
+  const scheduleFilterChange = () => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+
+    debounceTimer.current = setTimeout(handleFilterChange, 350)
   }
 
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+      }
+    }
+  }, [])
+
   return (
-    <Card title="筛选条件" size="small">
-      <Form form={form} layout="inline" size="small">
-        <Form.Item<FormValues> name="actions" label="操作类型">
+    <div className="flex flex-wrap items-end gap-3">
+      <Form
+        form={form}
+        layout="inline"
+        size="small"
+        className="min-w-0 flex-1"
+        onValuesChange={scheduleFilterChange}
+      >
+        <Form.Item<FormValues> name="actions">
           <Select
+            aria-label="操作类型"
             mode="multiple"
-            placeholder="全部"
+            placeholder="全部操作类型"
             allowClear
             options={actionOptions}
             style={{ width: 150 }}
@@ -93,9 +113,10 @@ export default function AuditLogFilters({
           />
         </Form.Item>
 
-        <Form.Item<FormValues> name="operatorId" label="操作人">
+        <Form.Item<FormValues> name="operatorId">
           <Select
-            placeholder="全部"
+            aria-label="操作人"
+            placeholder="全部操作人"
             allowClear
             showSearch
             optionFilterProp="label"
@@ -107,23 +128,19 @@ export default function AuditLogFilters({
           />
         </Form.Item>
 
-        <Form.Item<FormValues> name="dateRange" label="时间范围">
-          <RangePicker placeholder={['开始日期', '结束日期']} style={{ width: 250 }} />
+        <Form.Item<FormValues> name="dateRange">
+          <RangePicker
+            aria-label="时间范围"
+            placeholder={['开始日期', '结束日期']}
+            style={{ width: 250 }}
+          />
         </Form.Item>
 
-        <Form.Item<FormValues> name="orderId" label="订单号">
-          <Input placeholder="请输入订单号" style={{ width: 180 }} />
-        </Form.Item>
-
-        <Form.Item>
-          <Space>
-            <Button type="primary" onClick={handleFilterChange} loading={loading}>
-              筛选
-            </Button>
-            <Button onClick={handleReset}>重置</Button>
-          </Space>
+        <Form.Item<FormValues> name="orderId">
+          <Input aria-label="订单号" placeholder="请输入订单号" style={{ width: 180 }} />
         </Form.Item>
       </Form>
-    </Card>
+      {exportButton}
+    </div>
   )
 }

@@ -66,5 +66,7 @@ describe('container return navigation', () => {
     expect(containers).not.toContain('forceRender')
     expect(containers).toContain('destroyOnHidden')
     expect(containers).toContain('formState &&')
+    expect(containers).not.toContain('在包装物上维护少量需要随单计算的商品关联。')
+    expect(containers).not.toContain('<h2')
   })
 })

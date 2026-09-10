@@ -9,11 +9,6 @@ export default async function OrderingSchedulePage() {
 
   return (
     <div className="container mx-auto max-w-3xl p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">报货时间</h1>
-        <p className="mt-1 text-sm text-muted-foreground">设置门店允许提交订单的时间窗口。</p>
-      </div>
-
       <section>
         <div className="border-b pb-4">
           <h2 className="text-lg font-semibold">报货时间设置</h2>
