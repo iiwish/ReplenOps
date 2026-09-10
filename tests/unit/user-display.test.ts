@@ -36,4 +36,16 @@ describe('user display names', () => {
     expect(resolveUserDisplayName('legacy-operator', names)).toBe('legacy-operator')
     expect(resolveUserDisplayName(null, names)).toBeNull()
   })
+
+  it('keeps archived users available to historical documents', async () => {
+    userMocks.findMany.mockResolvedValue([
+      { id: 'archived-id', username: 'archived-account', name: '历史操作人' },
+    ])
+    const names = await getUserDisplayNameMap(['archived-id'])
+    expect(resolveUserDisplayName('archived-id', names)).toBe('历史操作人')
+    expect(userMocks.findMany).toHaveBeenCalledWith({
+      where: { OR: [{ id: { in: ['archived-id'] } }, { username: { in: ['archived-id'] } }] },
+      select: { id: true, username: true, name: true },
+    })
+  })
 })
