@@ -54,6 +54,13 @@ describe('user management improvements', () => {
     expect(header).toContain("aria-label={collapsed ? '展开侧栏' : '收起侧栏'}")
   })
 
+  it('does not expose an unsupported admin profile menu action', () => {
+    const header = readSource('src/components/admin/AppHeader.tsx')
+
+    expect(header).not.toContain('个人信息')
+    expect(header).toContain("label: '退出登录'")
+  })
+
   it('formats numeric user codes for display', () => {
     expect(formatUserCode(1)).toBe('U000001')
     expect(formatUserCode(1_000_000)).toBe('U1000000')

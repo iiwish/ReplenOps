@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import type { Route } from 'next'
 import type { UserRole } from '@/types'
 import { ROLE_PERMISSIONS } from '@/lib/rbac'
 import { getCurrentUser, getUserRoles } from '@/lib/session'
@@ -62,6 +63,12 @@ export default async function HomePage() {
   const platformUrls = {
     admin: buildCanonicalPlatformUrl('admin', currentUrl, domainRoutingConfig),
     mobile: buildCanonicalPlatformUrl('mobile', currentUrl, domainRoutingConfig),
+  }
+
+  // 生产环境不展示平台选择页，直接按设备进入对应系统。
+  // 本地和预览环境保留选择页，便于测试双端入口和跨平台切换。
+  if (domainRoutingConfig.appEnv === 'production') {
+    redirect(platformUrls[selectedPlatform] as Route)
   }
 
   return (

@@ -39,18 +39,6 @@ export default function AppHeader({
   // 用户下拉菜单
   const userMenuItems: MenuProps['items'] = [
     {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: '个人信息',
-      onClick: () => {
-        // TODO: 跳转到个人信息页面
-        console.log('个人信息')
-      },
-    },
-    {
-      type: 'divider',
-    },
-    {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
