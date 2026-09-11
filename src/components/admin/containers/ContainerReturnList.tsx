@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import {
   Button,
   DatePicker,
@@ -15,10 +16,10 @@ import {
   Tag,
   message,
 } from 'antd'
-import { CheckOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
+import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 import {
   completeContainerReturn,
@@ -255,34 +256,25 @@ export function ContainerReturnList({
     },
     {
       title: '操作',
-      width: 100,
+      width: 120,
       fixed: 'right',
       render: (_, request) =>
         canWriteStock && request.status === 'PENDING' ? (
-          <Space>
+          <TableActions>
             {reviewAction !== 'reject' && (
-              <ActionIconButton
-                type="primary"
-                size="small"
-                icon={<CheckOutlined />}
-                tooltip="验收"
-                onClick={() => openAccept(request)}
-              />
+              <ActionTextButton label="验收" onClick={() => openAccept(request)} />
             )}
             {reviewAction !== 'accept' && (
-              <ActionIconButton
-                type="text"
+              <ActionTextButton
                 danger
-                size="small"
-                icon={<StopOutlined />}
-                tooltip="驳回"
+                label="驳回"
                 onClick={() => {
                   setRejecting(request)
                   setRejectReason('')
                 }}
               />
             )}
-          </Space>
+          </TableActions>
         ) : (
           '-'
         ),

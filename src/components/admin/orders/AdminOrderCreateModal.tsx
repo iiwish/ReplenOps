@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Empty, Form, Input, InputNumber, Modal, Select, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined } from '@ant-design/icons'
 import { createAdminOrder } from '@/actions/order-actions'
 import type { OrderGoodsOption } from '@/services/goods.service'
 import type { StoreOption } from '@/services/store.service'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import { formatGoodsQuantity } from '@/lib/quantity'
 
 interface FormValues {
@@ -192,17 +192,10 @@ export function AdminOrderCreateModal({
     {
       title: '操作',
       key: 'action',
-      width: 60,
+      width: 104,
       align: 'center',
       render: (_, item) => (
-        <ActionIconButton
-          type="text"
-          size="small"
-          danger
-          icon={<DeleteOutlined />}
-          tooltip="移除商品"
-          onClick={() => handleRemoveItem(item.key)}
-        />
+        <ActionTextButton danger label="移除商品" onClick={() => handleRemoveItem(item.key)} />
       ),
     },
   ]

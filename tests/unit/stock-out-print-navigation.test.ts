@@ -21,7 +21,7 @@ describe('stock-out print navigation', () => {
   it('opens print preview from completed rows instead of opening a new tab', () => {
     const list = readSource('src/app/admin/stock-out/StockOutListClient.tsx')
 
-    expect(list).toContain('PrinterOutlined')
+    expect(list).toContain('label="打印出库单"')
     expect(list).toContain("status === 'COMPLETED'")
     expect(list).toContain('<StockOutPrintModal')
     expect(list).not.toContain('window.open(`/admin/stock-out/${record.id}/print`')

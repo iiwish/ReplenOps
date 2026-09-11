@@ -180,6 +180,17 @@
   }
 }
 
+/* Narrow tables must scroll instead of overlapping their pinned columns. */
+@media (max-width: 640px) {
+  .admin-list-table .ant-table-cell-fix {
+    position: static !important;
+  }
+
+  .admin-list-table .ant-table-cell-fix::after {
+    display: none;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;

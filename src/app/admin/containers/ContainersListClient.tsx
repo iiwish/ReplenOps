@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import {
   Button,
   Modal,
@@ -14,7 +15,7 @@ import {
   Tag,
   Empty,
 } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, MinusCircleOutlined } from '@ant-design/icons'
+import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
   createContainer,
@@ -25,7 +26,7 @@ import {
   listContainers,
 } from '@/actions/container-actions'
 import { CONTAINER_CODE_PATTERN } from '@/lib/container-code-policy'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 
 interface Container {
@@ -249,26 +250,14 @@ export default function ContainersListClient({ canManage }: { canManage: boolean
     ...(canManage
       ? [
           {
+            width: 120,
             title: '操作',
             key: 'action',
             render: (_value: unknown, record: Container) => (
-              <Space>
-                <ActionIconButton
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  tooltip="编辑"
-                  onClick={() => handleEdit(record)}
-                />
-                <ActionIconButton
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  tooltip="删除"
-                  onClick={() => handleDelete(record.id)}
-                />
-              </Space>
+              <TableActions>
+                <ActionTextButton label="编辑" onClick={() => handleEdit(record)} />
+                <ActionTextButton danger label="删除" onClick={() => handleDelete(record.id)} />
+              </TableActions>
             ),
           },
         ]

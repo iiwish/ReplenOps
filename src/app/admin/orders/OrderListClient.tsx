@@ -1,25 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import type { Route } from 'next'
 import { Button, message, Space, DatePicker, Input, Tag, Tabs, Tooltip, Pagination } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { getOrders } from '@/actions/order-actions'
 import Link from 'next/link'
 import dayjs from 'dayjs'
-import {
-  CheckCircleOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SendOutlined,
-} from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   OrderApprovalModal,
   type OrderApprovalResult,
 } from '@/components/admin/orders/OrderApprovalModal'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 import { OrderStockOutModal } from '@/components/admin/orders/OrderStockOutModal'
 import { AdminOrderCreateModal } from '@/components/admin/orders/AdminOrderCreateModal'
@@ -297,30 +292,24 @@ export function OrderListClient({
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 152,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
+        <TableActions>
           <Link href={`/admin/orders/${record.id}`}>
-            <ActionIconButton type="text" size="small" icon={<EyeOutlined />} tooltip="查看" />
+            <ActionTextButton label="查看" />
           </Link>
           {record.status === 'PENDING' && canReviewOrders && (
-            <ActionIconButton
-              type="text"
-              size="small"
-              icon={<CheckCircleOutlined />}
-              tooltip="审批"
+            <ActionTextButton
+              label="审批"
               onClick={() => setApprovalOrder({ id: record.id, code: record.code })}
             />
           )}
           {record.status === 'APPROVED' &&
             canWriteStock &&
             record.stockOut?.status === 'PENDING' && (
-              <ActionIconButton
-                type="text"
-                size="small"
-                icon={<SendOutlined />}
-                tooltip="确认出库"
+              <ActionTextButton
+                label="确认出库"
                 onClick={() =>
                   setStockOutOrder({
                     orderCode: record.code,
@@ -329,7 +318,7 @@ export function OrderListClient({
                 }
               />
             )}
-        </Space>
+        </TableActions>
       ),
     },
   ]

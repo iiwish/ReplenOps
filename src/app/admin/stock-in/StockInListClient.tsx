@@ -1,14 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import { useRouter } from 'next/navigation'
 import type { Dayjs } from 'dayjs'
 import { Button, Input, Space, Tag, App, Card, Select, DatePicker } from 'antd'
 import {
   PlusOutlined,
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
   SearchOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -23,7 +21,7 @@ import {
   cancelStockIn,
 } from '@/actions/stock-in-actions'
 import type { PaginatedStockInResult } from '@/services/stock-in.service'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 import dayjs from 'dayjs'
 
@@ -297,29 +295,20 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
       width: 160,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
-          <ActionIconButton
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            tooltip="查看"
+        <TableActions>
+          <ActionTextButton
+            label="查看"
             onClick={() => router.push(`/admin/stock-in/${record.id}`)}
           />
 
           {record.status === 'PENDING' && (
             <>
-              <ActionIconButton
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                tooltip="编辑"
+              <ActionTextButton
+                label="编辑"
                 onClick={() => router.push(`/admin/stock-in/${record.id}/edit`)}
               />
-              <ActionIconButton
-                type="text"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                tooltip="审批通过"
+              <ActionTextButton
+                label="审批通过"
                 onClick={() => handleApprove(record)}
                 disabled={loading}
               />
@@ -327,40 +316,31 @@ export default function StockInListClient({ initialData, warehouses }: StockInLi
           )}
 
           {record.status === 'APPROVED' && (
-            <ActionIconButton
-              type="text"
-              size="small"
-              icon={<CheckCircleOutlined />}
-              tooltip="确认入库"
+            <ActionTextButton
+              label="确认入库"
               onClick={() => handleComplete(record)}
               disabled={loading}
             />
           )}
 
           {(record.status === 'PENDING' || record.status === 'APPROVED') && (
-            <ActionIconButton
-              type="text"
-              size="small"
+            <ActionTextButton
               danger
-              icon={<CloseCircleOutlined />}
-              tooltip="取消"
+              label="取消"
               onClick={() => handleCancel(record)}
               disabled={loading}
             />
           )}
 
           {(record.status === 'REJECTED' || record.status === 'CANCELLED') && (
-            <ActionIconButton
-              type="text"
-              size="small"
+            <ActionTextButton
               danger
-              icon={<DeleteOutlined />}
-              tooltip="删除"
+              label="删除"
               onClick={() => handleDelete(record)}
               disabled={loading}
             />
           )}
-        </Space>
+        </TableActions>
       ),
     },
   ]

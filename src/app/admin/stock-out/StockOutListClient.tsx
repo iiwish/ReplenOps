@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -8,17 +9,15 @@ import type { Dayjs } from 'dayjs'
 import { Button, Card, DatePicker, Empty, Input, message, Modal, Select, Space, Tag } from 'antd'
 import {
   AuditOutlined,
-  EyeOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   SearchOutlined,
   ExclamationCircleOutlined,
-  PrinterOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { completeStockOut, cancelStockOut } from '@/actions/stock-out-actions'
 import type { PaginatedStockOutResult } from '@/services/stock-out.service'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 import StockOutPrintModal from '@/components/admin/stock-out/StockOutPrintModal'
 import { confirmStockOut } from '@/components/admin/stock-out/confirmStockOut'
@@ -295,50 +294,35 @@ export default function StockOutListClient({
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 160,
       fixed: 'right',
       render: (_, record) => {
         const { status } = record
         return (
-          <Space>
-            <ActionIconButton
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              tooltip="查看"
+          <TableActions>
+            <ActionTextButton
+              label="查看"
               onClick={() => router.push(`/admin/stock-out/${record.id}`)}
             />
             {status === 'COMPLETED' && (
-              <ActionIconButton
-                type="text"
-                size="small"
-                icon={<PrinterOutlined />}
-                tooltip="打印出库单"
-                onClick={() => setPrintStockOutId(record.id)}
-              />
+              <ActionTextButton label="打印出库单" onClick={() => setPrintStockOutId(record.id)} />
             )}
             {canWriteStock && status === 'PENDING' && (
               <>
-                <ActionIconButton
-                  type="text"
-                  size="small"
-                  icon={<CheckCircleOutlined />}
-                  tooltip="确认出库"
+                <ActionTextButton
+                  label="确认出库"
                   onClick={() => handleComplete(record)}
                   loading={loading}
                 />
-                <ActionIconButton
-                  type="text"
-                  size="small"
+                <ActionTextButton
                   danger
-                  icon={<CloseCircleOutlined />}
-                  tooltip="取消"
+                  label="取消"
                   onClick={() => handleCancel(record)}
                   loading={loading}
                 />
               </>
             )}
-          </Space>
+          </TableActions>
         )
       },
     },
