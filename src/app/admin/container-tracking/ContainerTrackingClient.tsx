@@ -1,8 +1,11 @@
 'use client'
 
+import ActionTextButton from '@/components/admin/ActionTextButton'
+import TableActions from '@/components/admin/TableActions'
+
 import { useCallback, useEffect, useState } from 'react'
-import { Table, Button, Modal, message, Segmented, Space, Empty, Tooltip } from 'antd'
-import { AuditOutlined, HistoryOutlined, CheckOutlined, StopOutlined } from '@ant-design/icons'
+import { Table, Button, Modal, message, Segmented, Empty } from 'antd'
+import { AuditOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
@@ -109,43 +112,34 @@ export default function ContainerTrackingPage({
       render: (value: Date | null) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
+      width: 160,
       title: '操作',
       key: 'action',
       render: (_value: unknown, record: TrackingItem) => (
-        <Space>
-          <Tooltip title="查看日志">
-            <Button
-              type="text"
-              size="small"
-              aria-label="查看日志"
-              icon={<HistoryOutlined />}
-              onClick={() => handleShowLogs(record.id)}
-            />
-          </Tooltip>
+        <TableActions>
+          <ActionTextButton
+            label="查看日志"
+            aria-label="查看日志"
+            onClick={() => handleShowLogs(record.id)}
+          />
+
           {canWriteStock && record.pendingReturnQuantity > 0 && (
             <>
-              <Tooltip title="验收">
-                <Button
-                  type="text"
-                  size="small"
-                  aria-label="验收"
-                  icon={<CheckOutlined />}
-                  onClick={() => setReview({ tracking: record, action: 'accept' })}
-                />
-              </Tooltip>
-              <Tooltip title="驳回">
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  aria-label="驳回"
-                  icon={<StopOutlined />}
-                  onClick={() => setReview({ tracking: record, action: 'reject' })}
-                />
-              </Tooltip>
+              <ActionTextButton
+                label="验收"
+                aria-label="验收"
+                onClick={() => setReview({ tracking: record, action: 'accept' })}
+              />
+
+              <ActionTextButton
+                label="驳回"
+                danger
+                aria-label="驳回"
+                onClick={() => setReview({ tracking: record, action: 'reject' })}
+              />
             </>
           )}
-        </Space>
+        </TableActions>
       ),
     },
   ]

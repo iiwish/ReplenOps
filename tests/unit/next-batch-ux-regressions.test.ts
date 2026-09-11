@@ -155,7 +155,7 @@ describe('next-batch UX regression guards', () => {
     const mobileLayout = readSource('src/components/mobile/MobileLayoutClient.tsx')
     const mobileReturnForm = readSource('src/components/mobile/ContainerReturnForm.tsx')
 
-    expect(orderList).toContain('tooltip="确认出库"')
+    expect(orderList).toContain('label="确认出库"')
     expect(orderList).toContain('OrderStockOutModal')
     expect(orderList).toContain('AdminOrderCreateModal')
     expect(orderList).toContain('新建订单')

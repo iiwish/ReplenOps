@@ -4,20 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Alert,
-  App,
-  Button,
-  Col,
-  DatePicker,
-  Input,
-  Modal,
-  Row,
-  Segmented,
-  Select,
-  Statistic,
-  Tag,
-} from 'antd'
+import { Alert, App, Button, DatePicker, Input, Modal, Segmented, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -189,12 +176,30 @@ export default function MonthlyStockOutReportClient({
   const currentMonth = getShanghaiMonth(0)
   const quickMonth =
     month === previousMonth ? 'previous' : month === currentMonth ? 'current' : undefined
+  const summaryItems = [
+    { label: '实际出库单', value: summary.stockOutCount.toLocaleString('zh-CN'), unit: '张' },
+    { label: '涉及门店', value: summary.storeCount.toLocaleString('zh-CN'), unit: '家' },
+    {
+      label: '出库数量',
+      value: summary.totalQuantity.toLocaleString('zh-CN', {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      }),
+    },
+    {
+      label: '出库金额',
+      value: `¥${summary.issueAmount.toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+    },
+  ]
 
   return (
-    <div className="admin-list-page space-y-5 p-6">
-      <div className="shrink-0 border-b border-gray-200 pb-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+    <div className="admin-list-page gap-3 p-3 sm:p-4">
+      <div className="shrink-0 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="shrink-0 text-sm font-medium text-gray-700">统计月份</span>
             <Segmented
               value={quickMonth}
@@ -221,7 +226,7 @@ export default function MonthlyStockOutReportClient({
           </Button>
         </div>
 
-        <div className="mt-3 grid grid-cols-[minmax(120px,0.8fr)_minmax(130px,1fr)_minmax(150px,1.1fr)_minmax(180px,1.5fr)_auto] gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.5fr)]">
           <Select
             className="w-full"
             allowClear
@@ -283,22 +288,25 @@ export default function MonthlyStockOutReportClient({
         </div>
       </div>
 
-      <div className="shrink-0 border-y border-gray-200 bg-white px-4 py-5">
-        <Row gutter={[24, 20]}>
-          <Col xs={12} md={6}>
-            <Statistic title="实际出库单" value={summary.stockOutCount} suffix="张" />
-          </Col>
-          <Col xs={12} md={6}>
-            <Statistic title="涉及门店" value={summary.storeCount} suffix="家" />
-          </Col>
-          <Col xs={12} md={6}>
-            <Statistic title="出库数量" value={summary.totalQuantity} precision={3} />
-          </Col>
-          <Col xs={12} md={6}>
-            <Statistic title="出库金额" value={summary.issueAmount} precision={2} prefix="¥" />
-          </Col>
-        </Row>
-      </div>
+      <dl
+        aria-label="出库汇总"
+        className="m-0 grid shrink-0 grid-cols-1 gap-x-5 gap-y-2 bg-gray-50 px-3 py-2 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        {summaryItems.map((item) => (
+          <div
+            key={item.label}
+            className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 sm:block"
+          >
+            <dt className="text-xs leading-5 text-gray-500">{item.label}</dt>
+            <dd className="m-0 min-w-0 max-w-full break-words text-lg font-medium tabular-nums leading-7 text-gray-900">
+              {item.value}
+              {item.unit && (
+                <span className="ml-1 text-xs font-normal text-gray-500">{item.unit}</span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
       {(summary.revokedCount > 0 || summary.warningCount > 0) && (
         <Alert

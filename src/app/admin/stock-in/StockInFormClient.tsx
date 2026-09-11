@@ -1,9 +1,11 @@
 'use client'
 
+import ActionTextButton from '@/components/admin/ActionTextButton'
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Form, Input, InputNumber, Button, Space, Select, Table, Modal, Tooltip, App } from 'antd'
-import { PlusOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
+import { Form, Input, InputNumber, Button, Space, Select, Table, Modal, App } from 'antd'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { createStockIn, updateStockIn, searchGoods } from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
 import type { TableRowSelection } from 'antd/es/table/interface'
@@ -271,18 +273,14 @@ export default function StockInFormClient({
     {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: 104,
       render: (_, record, index) => (
-        <Tooltip title="移除商品">
-          <Button
-            type="text"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            aria-label={`移除${record.goodsName ?? '商品'}`}
-            onClick={() => handleDeleteItem(index)}
-          />
-        </Tooltip>
+        <ActionTextButton
+          label="移除商品"
+          danger
+          aria-label={`移除${record.goodsName ?? '商品'}`}
+          onClick={() => handleDeleteItem(index)}
+        />
       ),
     },
   ]

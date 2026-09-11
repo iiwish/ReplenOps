@@ -1,20 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import { useRouter } from 'next/navigation'
-import { Button, Input, Space, Tag, Modal, message, Card } from 'antd'
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  CheckCircleOutlined,
-  StopOutlined,
-} from '@ant-design/icons'
+import { Button, Input, Tag, Modal, message, Card } from 'antd'
+import { PlusOutlined, SearchOutlined, CheckCircleOutlined, StopOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { deleteGoodsCategory, toggleGoodsCategoryStatus } from '@/actions/goods-category-actions'
 import type { PaginatedGoodsCategoryResult } from '@/services/goods-category.service'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 import GoodsCategoryFormClient from './GoodsCategoryFormClient'
 
@@ -170,35 +164,23 @@ export default function GoodsCategoryListClient({
           {
             title: '操作',
             key: 'action',
-            width: 120,
+            width: 160,
             fixed: 'right' as const,
             render: (_: unknown, record: GoodsCategoryRecord) => (
-              <Space size="small">
-                <ActionIconButton
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  tooltip="编辑"
-                  onClick={() => handleOpenEditModal(record)}
-                />
-                <ActionIconButton
-                  type="text"
-                  size="small"
-                  icon={record.isActive ? <StopOutlined /> : <CheckCircleOutlined />}
-                  tooltip={record.isActive ? '禁用' : '启用'}
+              <TableActions>
+                <ActionTextButton label="编辑" onClick={() => handleOpenEditModal(record)} />
+                <ActionTextButton
+                  label={record.isActive ? '禁用' : '启用'}
                   onClick={() => handleToggleStatus(record)}
                   disabled={loading}
                 />
-                <ActionIconButton
-                  type="text"
-                  size="small"
+                <ActionTextButton
                   danger
-                  icon={<DeleteOutlined />}
-                  tooltip="删除"
+                  label="删除"
                   onClick={() => handleDelete(record)}
                   disabled={loading}
                 />
-              </Space>
+              </TableActions>
             ),
           },
         ]

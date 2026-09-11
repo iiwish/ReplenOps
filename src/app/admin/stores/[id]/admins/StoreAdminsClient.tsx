@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Modal, Card, Space, Tag, Select, Avatar, Spin, App } from 'antd'
-import { DeleteOutlined, ArrowLeftOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, PlusOutlined, UserOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { addStoreAdmin, removeStoreAdmin } from '@/actions/store-actions'
 import type { StoreAdminInfo } from '@/services/store.service'
 import type { SimpleUserInfo } from '@/types/user'
 import { formatUserCode } from '@/lib/user-code'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 
 interface StoreAdminsClientProps {
@@ -174,12 +174,9 @@ export default function StoreAdminsClient({
       key: 'action',
       width: 80,
       render: (_, record) => (
-        <ActionIconButton
-          type="text"
-          size="small"
+        <ActionTextButton
           danger
-          icon={<DeleteOutlined />}
-          tooltip="移除"
+          label="移除"
           onClick={() => handleRemoveAdmin(record)}
           disabled={loading}
         />

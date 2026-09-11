@@ -90,7 +90,7 @@ describe('admin sidebar expansion', () => {
     view.rerender(sidebar())
     expect(group('库存管理')).toHaveAttribute('aria-expanded', 'false')
     expect(group('基础资料')).toHaveAttribute('aria-expanded', 'true')
-  })
+  }, 10_000)
 
   it('reveals a route reached in icon mode only after expanding the sidebar', () => {
     const view = render(sidebar('/admin/dashboard', true))

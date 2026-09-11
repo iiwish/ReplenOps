@@ -142,7 +142,7 @@ test('shows a single packaging workspace and read-only actions for finance', asy
   await expect(page.getByRole('tab', { name: '包装物设置' })).toHaveCount(0)
   const crateRow = page.getByRole('row').filter({ hasText: containerCodes[0]! })
   await expect(crateRow.getByRole('button', { name: '查看日志' })).toBeVisible()
-  await expect(crateRow.getByRole('button', { name: '查看日志' })).toHaveText('')
+  await expect(crateRow.getByRole('button', { name: '查看日志' })).toHaveText('查看日志')
   await expect(crateRow.getByRole('button', { name: '验收', exact: true })).toHaveCount(0)
   await expect(crateRow.getByRole('button', { name: '驳回', exact: true })).toHaveCount(0)
   await page.getByRole('tab', { name: '归还日志' }).click()

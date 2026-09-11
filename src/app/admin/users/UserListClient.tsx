@@ -1,16 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import TableActions from '@/components/admin/TableActions'
 import { useRouter } from 'next/navigation'
-import { Button, Input, Space, Tag, Dropdown, App, Tooltip } from 'antd'
+import { Button, Input, Space, Tag, Dropdown, App } from 'antd'
 import {
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
   SearchOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  MoreOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { MenuProps } from 'antd'
@@ -19,7 +18,7 @@ import type { PaginatedUserResult } from '@/actions/user-actions'
 import { UserFormModal } from './UserFormModal'
 import type { UserWithRoles } from '@/services/user.service'
 import { formatUserCode } from '@/lib/user-code'
-import ActionIconButton from '@/components/admin/ActionIconButton'
+import ActionTextButton from '@/components/admin/ActionTextButton'
 import AdminListTable from '@/components/admin/AdminListTable'
 
 const { Search } = Input
@@ -229,7 +228,7 @@ export default function UserListClient({
     {
       title: '操作',
       key: 'action',
-      width: 80,
+      width: 120,
       fixed: 'right',
       render: (_, record) => {
         const isCurrentUser = record.id === currentUserId
@@ -253,25 +252,12 @@ export default function UserListClient({
         ]
 
         return (
-          <Space size={4}>
-            <ActionIconButton
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              tooltip="编辑"
-              onClick={() => handleOpenEditModal(record)}
-            />
+          <TableActions>
+            <ActionTextButton label="编辑" onClick={() => handleOpenEditModal(record)} />
             <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-              <Tooltip title="更多操作">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<MoreOutlined />}
-                  aria-label={`更多用户操作：${record.username}`}
-                />
-              </Tooltip>
+              <ActionTextButton label="更多" aria-label={`更多用户操作：${record.username}`} />
             </Dropdown>
-          </Space>
+          </TableActions>
         )
       },
     },
