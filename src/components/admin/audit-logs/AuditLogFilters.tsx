@@ -18,6 +18,9 @@ export interface AuditLogFiltersProps {
 }
 
 const actionOptions = [
+  { label: '企业微信配置', value: 'wecom_config' },
+  { label: '企业微信绑定', value: 'wecom_bind' },
+  { label: '企业微信解绑', value: 'wecom_unbind' },
   { label: '审批通过', value: 'approve' },
   { label: '审批拒绝', value: 'reject' },
   { label: '订单撤销', value: 'revoke' },

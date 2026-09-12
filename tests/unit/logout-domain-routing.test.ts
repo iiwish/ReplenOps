@@ -5,6 +5,8 @@ vi.mock('@/lib/session', () => ({
   revokeSession: vi.fn(),
 }))
 
+vi.mock('@/lib/wecom/http', () => ({ cancelCurrentWecomFlow: vi.fn() }))
+
 const originalNextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
 
 describe('logout domain routing', () => {

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revokeSession } from '@/lib/session'
+import { cancelCurrentWecomFlow } from '@/lib/wecom/http'
 
 export async function POST() {
   try {
     await revokeSession()
+    await cancelCurrentWecomFlow()
 
     return NextResponse.json({
       success: true,
@@ -18,6 +20,7 @@ export async function POST() {
 export async function GET(request: NextRequest) {
   try {
     await revokeSession()
+    await cancelCurrentWecomFlow()
 
     return NextResponse.redirect(new URL('/login', request.url))
   } catch (error) {

@@ -1,16 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { BrandLogo } from '@/components/BrandLogo'
 import { brand, type BrandIdentity } from '@/config/brand'
+import { safeReturnPath } from '@/lib/wecom/redirect'
 
-export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity }) {
+const subscribe = () => () => {}
+const clientReady = () => true
+const serverReady = () => false
+
+export default function LoginForm({
+  brandConfig,
+  binding = false,
+  wecomUrl,
+  initialError,
+}: {
+  brandConfig: BrandIdentity
+  binding?: boolean
+  wecomUrl?: string
+  initialError?: string
+}) {
   const [loading, setLoading] = useState(false)
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError ?? null)
+  const hydrated = useSyncExternalStore(subscribe, clientReady, serverReady)
+  const disabled = loading || !hydrated
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,7 +35,7 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(binding ? '/api/auth/wecom/bind' : '/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -34,8 +51,7 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
       if (data.success) {
         const redirectUrl = new URL(window.location.href)
         const redirectParam = redirectUrl.searchParams.get('redirect')
-        const safeRedirect =
-          redirectParam?.startsWith('/') && !redirectParam.startsWith('//') ? redirectParam : '/'
+        const safeRedirect = safeReturnPath(binding ? data.redirect : redirectParam)
         window.location.replace(new URL(safeRedirect, window.location.origin).toString())
       } else {
         setError(data.error || '登录失败，请重试')
@@ -64,6 +80,7 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
         </div>
 
         <div className="rounded-lg bg-white p-8 shadow-lg">
+          {binding && <h2 className="mb-6 text-lg font-semibold text-gray-900">关联现有账号</h2>}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-gray-700">
@@ -71,13 +88,14 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
               </label>
               <input
                 id="identifier"
+                autoComplete="username"
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="请输入用户名或手机号"
                 required
-                disabled={loading}
+                disabled={disabled}
               />
             </div>
 
@@ -88,20 +106,21 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
               <div className="relative mt-1">
                 <input
                   id="password"
+                  autoComplete="current-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 pr-10 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 disabled:cursor-not-allowed disabled:opacity-50"
                   placeholder="请输入密码"
                   required
-                  disabled={loading}
+                  disabled={disabled}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((visible) => !visible)}
                   aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   title={showPassword ? '隐藏密码' : '显示密码'}
-                  disabled={loading}
+                  disabled={disabled}
                   className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 transition-colors hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {showPassword ? (
@@ -114,14 +133,14 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
             </div>
 
             {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-4">
+              <div role="alert" className="mb-4 rounded-md bg-red-50 p-4">
                 <p className="text-sm text-red-800">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={disabled}
               className="flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-400 disabled:opacity-50"
             >
               {loading ? (
@@ -148,11 +167,29 @@ export default function LoginForm({ brandConfig }: { brandConfig: BrandIdentity 
                   </svg>
                   登录中...
                 </>
+              ) : binding ? (
+                '关联并登录'
               ) : (
                 '登录'
               )}
             </button>
           </form>
+          {wecomUrl && (
+            <a
+              href={wecomUrl}
+              className="mt-5 block text-center text-sm text-blue-700 hover:underline"
+            >
+              企业微信登录
+            </a>
+          )}
+          {binding && (
+            <a
+              href="/api/auth/wecom/cancel"
+              className="mt-5 block text-center text-sm text-gray-600 hover:underline"
+            >
+              取消关联，使用账号登录
+            </a>
+          )}
         </div>
       </div>
     </div>

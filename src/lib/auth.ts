@@ -141,27 +141,33 @@ export class LocalAuth {
     }
   }
 
-  async generateTokens(user: AuthUser, sessionVersion: number): Promise<TokenResponse> {
+  async generateTokens(
+    user: AuthUser,
+    sessionVersion: number,
+    tx?: Prisma.TransactionClient
+  ): Promise<TokenResponse> {
     const sessionId = randomUUID()
     const refreshTokenId = randomUUID()
     const expiresAt = new Date(Date.now() + this.refreshTokenExpiry * 1000)
 
-    await prisma.$transaction([
-      prisma.authSession.deleteMany({
+    const createSession = async (client: Prisma.TransactionClient) => {
+      await client.authSession.deleteMany({
         where: {
           userId: user.id,
           OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { not: null } }],
         },
-      }),
-      prisma.authSession.create({
+      })
+      await client.authSession.create({
         data: {
           id: sessionId,
           userId: user.id,
           refreshTokenHash: hashRefreshTokenId(refreshTokenId),
           expiresAt,
         },
-      }),
-    ])
+      })
+    }
+    if (tx) await createSession(tx)
+    else await prisma.$transaction(createSession)
 
     return this.issueTokens(user, sessionVersion, sessionId, refreshTokenId)
   }

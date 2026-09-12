@@ -34,6 +34,7 @@ model User {
   storeAdmins  StoreAdmin[] // 门店管理员关联
   roles        UserRole[] // 用户角色
   authSessions AuthSession[]
+  externalIdentities ExternalIdentity[]
 
   @@map("users")
 }
@@ -65,6 +66,48 @@ model LoginRateLimit {
 
   @@index([updatedAt])
   @@map("login_rate_limits")
+}
+
+model WecomAuthConfig {
+  id              Int      @id @default(1)
+  publicOrigin    String   @default("") @map("public_origin")
+  corpId          String   @default("") @map("corp_id")
+  agentId         String   @default("") @map("agent_id")
+  encryptedSecret String   @default("") @map("encrypted_secret")
+  enabled         Boolean  @default(false)
+  autoLogin       Boolean  @default(false) @map("auto_login")
+  revision        Int      @default(0)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("wecom_auth_config")
+}
+
+model ExternalIdentity {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  provider       String
+  organizationId String   @map("organization_id")
+  subjectId      String   @map("subject_id")
+  createdBy      String   @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, organizationId, subjectId])
+  @@unique([userId, provider, organizationId])
+  @@map("external_identities")
+}
+
+model WecomAuthChallenge {
+  id          String   @id
+  browserHash String   @map("browser_hash")
+  stage       String
+  revision    Int
+  subjectId   String?  @map("subject_id")
+  returnPath  String   @map("return_path")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("wecom_auth_challenges")
 }
 
 // 用户角色表（多角色支持）

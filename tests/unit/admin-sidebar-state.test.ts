@@ -138,6 +138,7 @@ describe('admin menu organization', () => {
     }
     expect(menuItems.find((item) => item.key === 'system')?.children).toMatchObject([
       { key: 'system-config', label: '系统配置', path: '/admin/system-config' },
+      { key: 'wecom-auth', label: '企业微信登录', path: '/admin/system-config/wecom' },
       {
         key: 'ordering-schedule',
         label: '报货时间',

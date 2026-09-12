@@ -21,6 +21,9 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
 
   const getActionTag = (action: string) => {
     const actionConfig: Record<string, { color: string; label: string }> = {
+      wecom_config: { color: 'blue', label: '企微配置' },
+      wecom_bind: { color: 'green', label: '企微绑定' },
+      wecom_unbind: { color: 'red', label: '企微解绑' },
       approve: { color: 'green', label: '审批' },
       reject: { color: 'red', label: '拒绝' },
       revoke: { color: 'orange', label: '撤销' },
