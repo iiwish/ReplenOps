@@ -42,7 +42,10 @@ test('syncs saved branding to browser tabs, navigation and anonymous login', asy
   const originalConfig = await prisma.systemConfig.findUnique({ where: { id: 1 } })
   const name = `标签页测试-${process.pid}`
   const logo = readFileSync('public/icons/icon-192x192.png')
-  const guest = await browser.newContext({ baseURL: testInfo.project.use.baseURL })
+  const guest = await browser.newContext({
+    baseURL: testInfo.project.use.baseURL,
+    ignoreHTTPSErrors: Boolean(process.env.CI),
+  })
 
   try {
     await page.goto('/admin/system-config')

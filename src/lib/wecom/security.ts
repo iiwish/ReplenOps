@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:crypto'
 import { normalizeAuthOrigin } from './origin'
 
 export class WecomError extends Error {}
@@ -55,7 +55,12 @@ export function authOrigin(publicOrigin?: string): string {
 export { safeReturnPath } from './redirect'
 
 export const randomToken = () => randomBytes(32).toString('base64url')
-export const tokenHash = (value: string) => createHash('sha256').update(value).digest('hex')
+// Browser-bound random challenges are keyed independently from user password hashing.
+export const tokenHash = (value: string) =>
+  createHmac('sha256', encryptionKey())
+    .update('replenops:wecom:challenge:v1:')
+    .update(value)
+    .digest('hex')
 export const validToken = (value: string | undefined): value is string =>
   Boolean(value && /^[\w-]{43}$/.test(value))
 

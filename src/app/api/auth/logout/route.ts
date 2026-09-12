@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { revokeSession } from '@/lib/session'
 import { cancelCurrentWecomFlow } from '@/lib/wecom/http'
 
@@ -17,14 +17,17 @@ export async function POST() {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await revokeSession()
     await cancelCurrentWecomFlow()
 
-    return NextResponse.redirect(new URL('/login', request.url))
+    return new NextResponse(null, { status: 307, headers: { Location: '/login' } })
   } catch (error) {
     console.error('Logout error:', error)
-    return NextResponse.redirect(new URL('/login?error=logout_failed', request.url))
+    return new NextResponse(null, {
+      status: 307,
+      headers: { Location: '/login?error=logout_failed' },
+    })
   }
 }

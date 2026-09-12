@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { cancelCurrentWecomFlow, privateResponse } from '@/lib/wecom/http'
+import { cancelCurrentWecomFlow, localRedirect } from '@/lib/wecom/http'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   await cancelCurrentWecomFlow()
-  return privateResponse(NextResponse.redirect(new URL('/login?local=1', request.url)))
+  return localRedirect('/login?local=1')
 }

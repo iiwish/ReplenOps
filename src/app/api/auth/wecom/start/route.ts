@@ -15,15 +15,19 @@ import {
   safeReturnPath,
   validToken,
 } from '@/lib/wecom/security'
-import { pauseWecomAutoLogin, privateResponse } from '@/lib/wecom/http'
+import {
+  pauseWecomAutoLogin,
+  privateResponse,
+  requestOrigin,
+  localRedirect,
+} from '@/lib/wecom/http'
 
 export async function GET(request: NextRequest) {
   try {
     const returnPath = safeReturnPath(request.nextUrl.searchParams.get('redirect'))
-    if (await getCurrentUser())
-      return privateResponse(NextResponse.redirect(new URL(returnPath, request.url)))
+    if (await getCurrentUser()) return localRedirect(returnPath)
     const origin = await getWecomAuthOrigin()
-    if (request.nextUrl.origin !== origin) {
+    if (requestOrigin(request) !== origin) {
       const canonical = new URL('/api/auth/wecom/start', origin)
       canonical.searchParams.set('redirect', returnPath)
       return privateResponse(NextResponse.redirect(canonical))
@@ -41,7 +45,7 @@ export async function GET(request: NextRequest) {
     const flow = await beginWecom(
       returnPath,
       browser,
-      request.nextUrl.origin,
+      requestOrigin(request),
       jar.get(FLOW_COOKIE)?.value
     )
     jar.set(BROWSER_COOKIE, browser, flowCookieOptions)
@@ -50,8 +54,6 @@ export async function GET(request: NextRequest) {
     return privateResponse(NextResponse.redirect(flow.url))
   } catch {
     await pauseWecomAutoLogin()
-    return privateResponse(
-      NextResponse.redirect(new URL('/login?wecomError=1&local=1', request.url))
-    )
+    return localRedirect('/login?wecomError=1&local=1')
   }
 }
