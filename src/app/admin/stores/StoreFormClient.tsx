@@ -36,6 +36,7 @@ export default function StoreFormClient({
       // 将表单数据转换为 FormData
       const formData = new FormData()
       Object.entries(values).forEach(([key, value]) => {
+        if (mode === 'edit' && key === 'code') return
         if (value !== undefined && value !== null) {
           formData.append(key, value.toString())
         }
@@ -53,12 +54,10 @@ export default function StoreFormClient({
       } else {
         // 处理验证错误
         if (result.errors) {
-          const fieldErrors = Object.entries(result.errors).map(
-            ([field, errors]) => ({
-              name: field,
-              errors,
-            })
-          )
+          const fieldErrors = Object.entries(result.errors).map(([field, errors]) => ({
+            name: field,
+            errors,
+          }))
           form.setFields(fieldErrors)
         } else {
           message.error(result.message || '操作失败')
@@ -72,83 +71,77 @@ export default function StoreFormClient({
   }
 
   return (
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={initialValues}
-        onFinish={handleSubmit}
-        style={{ maxWidth: 600 }}
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={initialValues}
+      onFinish={handleSubmit}
+      style={{ maxWidth: 600 }}
+    >
+      <Form.Item
+        label="门店编码"
+        name="code"
+        rules={
+          mode === 'edit'
+            ? []
+            : [
+                { required: true, message: '请输入门店编码' },
+                {
+                  pattern: /^ST\d{4}$/,
+                  message: '门店编码格式错误，应为 ST + 4位数字（如 ST0001）',
+                },
+              ]
+        }
+        tooltip={
+          mode === 'edit' ? '门店编码已锁定；历史编码保留原值' : '格式：ST + 4位数字，如 ST0001'
+        }
       >
-        <Form.Item
-          label="门店编码"
-          name="code"
-          rules={[
-            { required: true, message: '请输入门店编码' },
-            {
-              pattern: /^ST\d{4}$/,
-              message: '门店编码格式错误，应为 ST + 4位数字（如 ST0001）',
-            },
-          ]}
-          tooltip="格式：ST + 4位数字，如 ST0001"
-        >
-          <Input
-            placeholder="如：ST0001"
-            disabled={mode === 'edit'}
-            maxLength={6}
-          />
-        </Form.Item>
+        <Input placeholder="如：ST0001" disabled={mode === 'edit'} maxLength={6} />
+      </Form.Item>
 
-        <Form.Item
-          label="门店名称"
-          name="name"
-          rules={[
-            { required: true, message: '请输入门店名称' },
-            { min: 2, message: '门店名称至少2个字符' },
-            { max: 50, message: '门店名称最多50个字符' },
-          ]}
-        >
-          <Input placeholder="请输入门店名称" maxLength={50} />
-        </Form.Item>
+      <Form.Item
+        label="门店名称"
+        name="name"
+        rules={[
+          { required: true, message: '请输入门店名称' },
+          { min: 2, message: '门店名称至少2个字符' },
+          { max: 50, message: '门店名称最多50个字符' },
+        ]}
+      >
+        <Input placeholder="请输入门店名称" maxLength={50} />
+      </Form.Item>
 
-        <Form.Item label="地址" name="address">
-          <Input.TextArea
-            placeholder="请输入门店地址"
-            rows={3}
-            maxLength={200}
-            showCount
-          />
-        </Form.Item>
+      <Form.Item label="地址" name="address">
+        <Input.TextArea placeholder="请输入门店地址" rows={3} maxLength={200} showCount />
+      </Form.Item>
 
-        <Form.Item
-          label="联系人"
-          name="contactName"
-        >
-          <Input placeholder="请输入联系人姓名" maxLength={20} />
-        </Form.Item>
+      <Form.Item label="联系人" name="contactName">
+        <Input placeholder="请输入联系人姓名" maxLength={20} />
+      </Form.Item>
 
-        <Form.Item
-          label="联系电话"
-          name="contactPhone"
-          rules={[
-            {
-              pattern: /^1[3-9]\d{9}$/,
-              message: '请输入正确的手机号码',
-            },
-          ]}
-        >
-          <Input placeholder="请输入手机号码" maxLength={11} />
-        </Form.Item>
+      <Form.Item
+        label="联系电话"
+        name="contactPhone"
+        rules={[
+          {
+            pattern: /^1[3-9]\d{9}$/,
+            message: '请输入正确的手机号码',
+          },
+        ]}
+      >
+        <Input placeholder="请输入手机号码" maxLength={11} />
+      </Form.Item>
 
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {mode === 'create' ? '创建' : '保存'}
-            </Button>
-            <Button onClick={onCancel} disabled={loading}>
-              取消
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit" loading={loading}>
+            {mode === 'create' ? '创建' : '保存'}
+          </Button>
+          <Button onClick={onCancel} disabled={loading}>
+            取消
+          </Button>
+        </Space>
+      </Form.Item>
+    </Form>
   )
 }
