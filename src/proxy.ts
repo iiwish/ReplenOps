@@ -128,13 +128,7 @@ function applyRefreshedSession(
 }
 
 async function verifyTokenAndGetUser(token: string): Promise<AuthUser | null> {
-  try {
-    const user = await verifyToken(token)
-    return user
-  } catch (error) {
-    console.error('Token verification failed:', error)
-    return null
-  }
+  return verifyToken(token)
 }
 
 function getUserRolesFromAuthUser(user: AuthUser | null): UserRole[] {
@@ -182,7 +176,8 @@ export async function proxy(request: NextRequest) {
     return registerDisabledResponse()
   }
 
-  if (isPublicRoute(pathname)) {
+  const optionalSession = pathname === '/'
+  if (isPublicRoute(pathname) && pathname !== '/api/auth/session' && !optionalSession) {
     return NextResponse.next()
   }
 
@@ -192,35 +187,38 @@ export async function proxy(request: NextRequest) {
   let refreshedToken: Awaited<ReturnType<typeof refreshAccessToken>> = null
   let refreshedExpiresAt = 0
 
-  if (!accessToken) {
-    return authRequiredResponse(request)
-  }
-
   const now = Date.now()
-  const shouldRefresh =
-    refreshToken && expiresAt && (expiresAt - now < 5 * 60 * 1000 || expiresAt <= now)
-
-  if (shouldRefresh) {
-    try {
+  let user: AuthUser | null = null
+  try {
+    user = accessToken ? await verifyTokenAndGetUser(accessToken) : null
+    const shouldRefresh =
+      refreshToken &&
+      (!user || !expiresAt || !Number.isFinite(expiresAt) || expiresAt - now < 5 * 60 * 1000)
+    if (shouldRefresh) {
       const newToken = await refreshAccessToken(refreshToken)
 
       if (!newToken) {
-        return authRequiredResponse(request)
+        return optionalSession ? NextResponse.next() : authRequiredResponse(request)
       }
 
       accessToken = newToken.access_token
       refreshedToken = newToken
       refreshedExpiresAt = now + newToken.expires_in * 1000
-    } catch (error) {
-      console.error('Token refresh failed:', error)
-      return authRequiredResponse(request)
+      user = await verifyTokenAndGetUser(accessToken)
     }
+  } catch (error) {
+    console.error('Session verification or refresh failed:', error)
+    return NextResponse.json(
+      { error: '会话服务暂时不可用，请稍后重试' },
+      {
+        status: 503,
+        headers: { 'Cache-Control': 'no-store', 'Retry-After': '5' },
+      }
+    )
   }
 
-  const user = await verifyTokenAndGetUser(accessToken)
-
   if (!user) {
-    return authRequiredResponse(request)
+    return optionalSession ? NextResponse.next() : authRequiredResponse(request)
   }
 
   const roles = getUserRolesFromAuthUser(user)

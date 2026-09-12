@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { verifyToken, refreshAccessToken } from './auth-edge'
+import { verifyToken } from './auth-edge'
 import { localAuth, type AuthUser } from './auth'
 import type { UserRole } from '@/types'
 import { createDomainRoutingConfig, getCookieDomain } from './domain-routing'
@@ -75,41 +75,7 @@ export async function getSession(): Promise<Session | null> {
     return null
   }
 
-  const now = Date.now()
-
-  const shouldRefresh =
-    refreshToken && (expiresAtNumber - now < 5 * 60 * 1000 || expiresAtNumber <= now)
-
-  if (shouldRefresh) {
-    try {
-      const newToken = await refreshAccessToken(refreshToken)
-      if (!newToken) {
-        return null
-      }
-
-      await setSession(
-        newToken.access_token,
-        newToken.refresh_token || refreshToken,
-        newToken.expires_in
-      )
-
-      const user = await verifyToken(newToken.access_token)
-      if (!user) {
-        return null
-      }
-
-      return {
-        accessToken: newToken.access_token,
-        refreshToken: newToken.refresh_token || refreshToken,
-        expiresAt: now + newToken.expires_in * 1000,
-        user,
-      }
-    } catch (error) {
-      console.error('Failed to refresh token:', error)
-      return null
-    }
-  }
-
+  // Proxy renews and forwards cookies before rendering; this reader must remain side-effect free.
   const user = await verifyToken(accessToken)
   if (!user) {
     return null

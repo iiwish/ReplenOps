@@ -175,6 +175,70 @@ describe('proxy domain routing', () => {
     expect(await response.json()).toEqual({ success: false, error: '注册接口不可用' })
   })
 
+  it.each(['/api/auth/session', '/'])(
+    'renews cookies at the request boundary for %s',
+    async (path) => {
+      const response = await proxy(
+        request(
+          `http://localhost:3001${path}`,
+          `replenops_access_token=old; replenops_refresh_token=refresh; replenops_expires_at=${Date.now() - 1000}`
+        )
+      )
+      expect(authMocks.refreshAccessToken).toHaveBeenCalledWith('refresh')
+      expect(response.headers.get('set-cookie')).toContain('rotated-refresh-token')
+      expect(response.headers.get('x-middleware-request-cookie')).toContain('rotated-access-token')
+    }
+  )
+
+  it('recovers a missing access cookie using a valid refresh token', async () => {
+    const response = await proxy(
+      request('http://localhost:3001/mobile', 'replenops_refresh_token=refresh')
+    )
+    expect(response.status).toBe(200)
+    expect(authMocks.refreshAccessToken).toHaveBeenCalledWith('refresh')
+    expect(response.headers.get('set-cookie')).toContain('rotated-access-token')
+  })
+
+  it('returns a retryable failure instead of logging out on a refresh outage', async () => {
+    authMocks.refreshAccessToken.mockRejectedValue(new Error('database unavailable'))
+    const response = await proxy(
+      request(
+        'http://localhost:3001/api/auth/session',
+        `replenops_access_token=old; replenops_refresh_token=refresh; replenops_expires_at=${Date.now() - 1000}`
+      )
+    )
+    expect(response.status).toBe(503)
+    expect(response.headers.get('location')).toBeNull()
+  })
+
+  it.each(['missing', 'invalid', 'future'])(
+    'renews expired access despite %s expiry metadata',
+    async (metadata) => {
+      authMocks.verifyToken.mockResolvedValueOnce(null)
+      const marker =
+        metadata === 'missing'
+          ? ''
+          : `; replenops_expires_at=${metadata === 'future' ? Date.now() + 3_600_000 : 'invalid'}`
+      const response = await proxy(
+        request(
+          'http://localhost:3001/api/auth/session',
+          `replenops_access_token=expired; replenops_refresh_token=refresh${marker}`
+        )
+      )
+      expect(response.status).toBe(200)
+      expect(authMocks.refreshAccessToken).toHaveBeenCalledWith('refresh')
+      expect(response.headers.get('set-cookie')).toContain('rotated-access-token')
+    }
+  )
+
+  it('returns 503 rather than 401 when verification cannot reach the database', async () => {
+    authMocks.verifyToken.mockRejectedValue(new Error('database unavailable'))
+    const response = await proxy(
+      request('http://localhost:3001/api/auth/session', 'replenops_access_token=access')
+    )
+    expect(response.status).toBe(503)
+  })
+
   it('allows store_admin to read ordering schedule status for mobile reminders', async () => {
     const sessionCookie = [
       'replenops_access_token=valid-access-token',

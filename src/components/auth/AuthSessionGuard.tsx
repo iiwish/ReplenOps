@@ -29,6 +29,7 @@ export function AuthSessionGuard() {
     const originalFetch = window.fetch.bind(window)
     let lastCheckedAt = 0
     let redirecting = false
+    let pendingCheck: Promise<void> | null = null
 
     const handleSessionEnded = () => {
       if (redirecting) return
@@ -40,7 +41,8 @@ export function AuthSessionGuard() {
       const response = await originalFetch(...args)
 
       if (response.status === 401 && isSameOriginRequest(args[0])) {
-        handleSessionEnded()
+        // Confirm against the session endpoint; never replay a potentially mutating request.
+        await checkSession(true)
       }
 
       return response
@@ -56,17 +58,25 @@ export function AuthSessionGuard() {
       if (response.status === 401) handleSessionEnded()
     }
 
-    const checkSession = async () => {
-      if (redirecting || document.visibilityState === 'hidden') return
+    const checkSession = async (force = false) => {
+      if (redirecting || (!force && document.visibilityState === 'hidden')) return
+      if (pendingCheck) return pendingCheck
 
-      try {
-        if (navigator.locks) {
-          await navigator.locks.request(SESSION_LOCK_NAME, requestSession)
-        } else {
-          await requestSession()
+      pendingCheck = (async () => {
+        try {
+          if (navigator.locks) {
+            await navigator.locks.request(SESSION_LOCK_NAME, requestSession)
+          } else {
+            await requestSession()
+          }
+        } catch (error) {
+          console.error('会话状态检查失败:', error)
         }
-      } catch (error) {
-        console.error('会话状态检查失败:', error)
+      })()
+      try {
+        await pendingCheck
+      } finally {
+        pendingCheck = null
       }
     }
 

@@ -2,6 +2,7 @@ import { hash } from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { expect, test } from '@playwright/test'
 import type { APIResponse } from '@playwright/test'
+import { signAuthToken, verifyAuthTokenClaims } from '../../src/lib/auth-token'
 
 const prisma = new PrismaClient()
 const adminUsername = `e2e-admin-${process.pid}`
@@ -102,4 +103,114 @@ test('denies user administration to other admin-capable roles', async ({ request
     headers: { cookie: sessionCookie(response) },
   })
   expect(users.status()).toBe(403)
+})
+
+test('renews expired access during concurrent page and session requests', async ({
+  context,
+  page,
+}) => {
+  const login = await context.request.post('/api/auth/login', {
+    data: { identifier: adminUsername, password: adminPassword },
+  })
+  expect(login.ok()).toBe(true)
+  const cookies = await context.cookies()
+  const access = cookies.find((cookie) => cookie.name === 'replenops_access_token')!
+  const expiry = cookies.find((cookie) => cookie.name === 'replenops_expires_at')!
+  const claims = await verifyAuthTokenClaims(access.value, 'access')
+  await context.addCookies([
+    { ...access, value: await signAuthToken(claims!, 'access', -1) },
+    { ...expiry, value: String(Date.now() - 1000) },
+  ])
+  const [session, , refresh] = await Promise.all([
+    context.request.get('/api/auth/session'),
+    page.goto('/admin/users'),
+    context.request.post('/api/auth/refresh'),
+  ])
+  expect(session.status()).toBe(200)
+  expect(refresh.status()).toBe(200)
+  await expect(page).toHaveURL(/\/admin\/users/)
+  const renewed = (await context.cookies()).find(
+    (cookie) => cookie.name === 'replenops_access_token'
+  )!
+  expect(await verifyAuthTokenClaims(renewed.value, 'access')).not.toBeNull()
+  expect((await context.request.get('/api/users')).status()).toBe(200)
+})
+
+test('confirms a business 401 without leaving a valid session or replaying writes', async ({
+  context,
+  page,
+}) => {
+  expect(
+    (
+      await context.request.post('/api/auth/login', {
+        data: { identifier: adminUsername, password: adminPassword },
+      })
+    ).ok()
+  ).toBe(true)
+  const initialCheck = page.waitForResponse((response) =>
+    response.url().endsWith('/api/auth/session')
+  )
+  await page.goto('/admin/users')
+  await expect(page).toHaveURL(/\/admin\/users/)
+  await initialCheck
+  let calls = 0
+  await page.route('**/api/auth-test-write', (route) => {
+    calls += 1
+    return route.fulfill({ status: 401, json: { error: 'test failure' } })
+  })
+  const sessionCheck = page.waitForResponse((response) =>
+    response.url().endsWith('/api/auth/session')
+  )
+  const status = await page.evaluate(
+    async () => (await fetch('/api/auth-test-write', { method: 'POST' })).status
+  )
+  expect((await sessionCheck).status()).toBe(200)
+  expect(status).toBe(401)
+  expect(calls).toBe(1)
+  await expect(page).toHaveURL(/\/admin\/users/)
+})
+
+test('background renewal preserves an open form and still detects revocation', async ({
+  context,
+  page,
+}) => {
+  expect(
+    (
+      await context.request.post('/api/auth/login', {
+        data: { identifier: adminUsername, password: adminPassword },
+      })
+    ).ok()
+  ).toBe(true)
+  await page.clock.install()
+  const initialCheck = page.waitForResponse((response) =>
+    response.url().endsWith('/api/auth/session')
+  )
+  await page.goto('/admin/users')
+  await initialCheck
+  await page.getByRole('button', { name: '新增用户' }).click()
+  const draft = page
+    .getByRole('dialog', { name: '新增用户' })
+    .getByRole('textbox', { name: '登录名' })
+  await draft.fill('unsaved-session-draft')
+
+  const cookies = await context.cookies()
+  const access = cookies.find((cookie) => cookie.name === 'replenops_access_token')!
+  const expiry = cookies.find((cookie) => cookie.name === 'replenops_expires_at')!
+  const claims = await verifyAuthTokenClaims(access.value, 'access')
+  await context.addCookies([
+    { ...access, value: await signAuthToken(claims!, 'access', -1) },
+    { ...expiry, value: String(Date.now() - 1000) },
+  ])
+  const renewal = page.waitForResponse((response) => response.url().endsWith('/api/auth/session'))
+  await page.clock.fastForward(4 * 60 * 1000)
+  expect((await renewal).status()).toBe(200)
+  await expect(draft).toHaveValue('unsaved-session-draft')
+  await expect(page).toHaveURL(/\/admin\/users/)
+
+  await prisma.authSession.update({
+    where: { id: claims!.sessionId },
+    data: { revokedAt: new Date() },
+  })
+  await page.clock.fastForward(4 * 60 * 1000)
+  await expect(page).toHaveURL(/\/login\?redirect=/)
 })
