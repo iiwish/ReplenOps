@@ -34,6 +34,7 @@ export default function WarehouseFormClient({
     setLoading(true)
     const formData = new FormData()
     Object.entries(values).forEach(([key, value]) => {
+      if (mode === 'edit' && key === 'code') return
       if (value !== undefined && value !== null) {
         formData.append(key, String(value))
       }
@@ -74,61 +75,69 @@ export default function WarehouseFormClient({
   }
 
   return (
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={initialValues}
-        onFinish={handleFinish}
+    <Form form={form} layout="vertical" initialValues={initialValues} onFinish={handleFinish}>
+      <Form.Item
+        name="code"
+        label="仓库编码"
+        rules={
+          mode === 'edit'
+            ? []
+            : [
+                { required: true, message: '请输入仓库编码' },
+                {
+                  pattern: /^WH\d{4}$/,
+                  message: '仓库编码格式错误，应为 WH + 4位数字（如 WH0001）',
+                },
+              ]
+        }
+        tooltip={
+          mode === 'edit' ? '仓库编码已锁定；历史编码保留原值' : '格式：WH + 4位数字，如 WH0001'
+        }
       >
-        <Form.Item
-          name="code"
-          label="仓库编码"
-          rules={[{ required: true, message: '请输入仓库编码' }]}
-        >
-          <Input placeholder="如：WH0001" />
-        </Form.Item>
+        <Input placeholder="如：WH0001" disabled={mode === 'edit'} maxLength={6} />
+      </Form.Item>
 
-        <Form.Item
-          name="name"
-          label="仓库名称"
-          rules={[{ required: true, message: '请输入仓库名称' }]}
-        >
-          <Input placeholder="请输入仓库名称" />
-        </Form.Item>
+      <Form.Item
+        name="name"
+        label="仓库名称"
+        rules={[{ required: true, message: '请输入仓库名称' }]}
+      >
+        <Input placeholder="请输入仓库名称" />
+      </Form.Item>
 
-        <Form.Item name="address" label="地址">
-          <Input.TextArea placeholder="请输入仓库地址" rows={3} showCount maxLength={200} />
-        </Form.Item>
+      <Form.Item name="address" label="地址">
+        <Input.TextArea placeholder="请输入仓库地址" rows={3} showCount maxLength={200} />
+      </Form.Item>
 
-        <Form.Item
-          name="contactName"
-          label="联系人"
-          rules={[{ required: true, message: '请输入联系人' }]}
-        >
-          <Input placeholder="请输入联系人姓名" />
-        </Form.Item>
+      <Form.Item
+        name="contactName"
+        label="联系人"
+        rules={[{ required: true, message: '请输入联系人' }]}
+      >
+        <Input placeholder="请输入联系人姓名" />
+      </Form.Item>
 
-        <Form.Item
-          name="contactPhone"
-          label="联系电话"
-          rules={[
-            { required: true, message: '请输入联系电话' },
-            { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' },
-          ]}
-        >
-          <Input placeholder="请输入手机号码" />
-        </Form.Item>
+      <Form.Item
+        name="contactPhone"
+        label="联系电话"
+        rules={[
+          { required: true, message: '请输入联系电话' },
+          { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' },
+        ]}
+      >
+        <Input placeholder="请输入手机号码" />
+      </Form.Item>
 
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {loading ? '提交中…' : mode === 'create' ? '创建' : '更新'}
-            </Button>
-            <Button htmlType="button" onClick={onCancel}>
-              取 消
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+      <Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit" loading={loading}>
+            {loading ? '提交中…' : mode === 'create' ? '创建' : '更新'}
+          </Button>
+          <Button htmlType="button" onClick={onCancel}>
+            取 消
+          </Button>
+        </Space>
+      </Form.Item>
+    </Form>
   )
 }
