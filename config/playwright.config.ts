@@ -4,7 +4,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 const projectRoot = path.resolve(__dirname, '..')
 const port = process.env.PLAYWRIGHT_PORT ?? '3001'
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL ?? `${process.env.CI ? 'https' : 'http'}://localhost:${port}`
 
 // Synthetic credentials stay in the test process and its local web server, never in .env.
 const wecomTestEnv = {
@@ -25,6 +26,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     headless: true,
+    ignoreHTTPSErrors: Boolean(process.env.CI),
   },
   projects: [
     {
@@ -40,7 +42,10 @@ export default defineConfig({
   ],
   webServer: {
     env: wecomTestEnv,
-    command: process.env.CI ? `PORT=${port} npm run start` : `npm run dev -- --port ${port}`,
+    command: process.env.CI
+      ? `PLAYWRIGHT_PORT=${port} node scripts/e2e-https.mjs`
+      : `npm run dev -- --port ${port}`,
+    ignoreHTTPSErrors: Boolean(process.env.CI),
     cwd: projectRoot,
     url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,

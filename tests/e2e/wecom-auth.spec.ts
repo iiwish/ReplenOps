@@ -199,7 +199,11 @@ test('enterprise client starts authorization, but logout and emergency login do 
   browser,
   baseURL,
 }) => {
-  const context = await browser.newContext({ baseURL, userAgent: 'Mozilla/5.0 wxwork/4.1' })
+  const context = await browser.newContext({
+    baseURL,
+    ignoreHTTPSErrors: Boolean(process.env.CI),
+    userAgent: 'Mozilla/5.0 wxwork/4.1',
+  })
   const page = await context.newPage()
   try {
     const login = await context.request.get('/login?redirect=%2Fmobile%2Fhome', { maxRedirects: 0 })
@@ -268,7 +272,10 @@ test('administrator edits the public origin with live validation and immediate r
     animations: 'disabled',
   })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  const guest = await page.context().browser()!.newContext({ baseURL: publicOrigin })
+  const guest = await page
+    .context()
+    .browser()!
+    .newContext({ baseURL: publicOrigin, ignoreHTTPSErrors: Boolean(process.env.CI) })
   try {
     const start = await guest.request.get('/api/auth/wecom/start', { maxRedirects: 0 })
     expect(start.headers().location).toBe(

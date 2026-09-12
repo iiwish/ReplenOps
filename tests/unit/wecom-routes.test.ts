@@ -66,6 +66,16 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('WeCom HTTP and permission boundaries', () => {
+  it('uses the preserved Host behind a proxy and ignores untrusted forwarded hosts', async () => {
+    const { requestOrigin, localRedirect } = await import('@/lib/wecom/http')
+    const request = new NextRequest('https://127.0.0.1:3202/api/auth/wecom/callback', {
+      headers: { host: 'ops.example.test', 'x-forwarded-host': 'attacker.example' },
+    })
+    expect(requestOrigin(request)).toBe(origin)
+    expect(localRedirect('/login?local=1').headers.get('location')).toBe('/login?local=1')
+    expect(() => localRedirect('//attacker.example')).toThrow()
+  })
+
   it('never exchanges a code when OAuth state does not match the browser cookie', async () => {
     const { GET } = await import('@/app/api/auth/wecom/callback/route')
     const response = await GET(
@@ -85,7 +95,7 @@ describe('WeCom HTTP and permission boundaries', () => {
       new NextRequest(`${origin}/api/auth/wecom/callback?state=${flow}&code=code`)
     )
     expect(mocks.complete).toHaveBeenCalledWith(flow, browser, 'code', origin)
-    expect(response.headers.get('location')).toBe(`${origin}/login/wecom-bind`)
+    expect(response.headers.get('location')).toBe('/login/wecom-bind')
     expect(setter).toHaveBeenCalledWith(
       FLOW_COOKIE,
       token,

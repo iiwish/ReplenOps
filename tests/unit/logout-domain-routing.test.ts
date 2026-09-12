@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/session', () => ({
   revokeSession: vi.fn(),
@@ -26,15 +25,15 @@ describe('logout domain routing', () => {
 
   it('keeps admin-domain GET logout redirects on the current host', async () => {
     const { GET } = await import('@/app/api/auth/logout/route')
-    const response = await GET(new NextRequest('https://admin.test.example.com/api/auth/logout'))
+    const response = await GET()
 
-    expect(response.headers.get('location')).toBe('https://admin.test.example.com/login')
+    expect(response.headers.get('location')).toBe('/login')
   })
 
   it('keeps mobile-domain GET logout redirects on the current host', async () => {
     const { GET } = await import('@/app/api/auth/logout/route')
-    const response = await GET(new NextRequest('https://mobile.test.example.com/api/auth/logout'))
+    const response = await GET()
 
-    expect(response.headers.get('location')).toBe('https://mobile.test.example.com/login')
+    expect(response.headers.get('location')).toBe('/login')
   })
 })
