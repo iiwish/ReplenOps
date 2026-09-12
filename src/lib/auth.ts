@@ -1,7 +1,8 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
+import { getJwtSecret } from './jwt-secret'
 import {
   signAuthToken,
   verifyAuthTokenClaims,
@@ -43,6 +44,12 @@ type AuthSessionRecord = Prisma.AuthSessionGetPayload<{
 
 function hashRefreshTokenId(tokenId: string): string {
   return createHash('sha256').update(tokenId).digest('hex')
+}
+
+const REFRESH_GRACE_MS = 30_000
+
+function nextRefreshTokenId(tokenId: string): string {
+  return createHmac('sha256', getJwtSecret()).update(`refresh-rotation:${tokenId}`).digest('hex')
 }
 
 export class LocalAuth {
@@ -173,40 +180,58 @@ export class LocalAuth {
     const claims = await verifyAuthTokenClaims(token, 'refresh')
     if (!claims) return null
 
-    const session = await this.findSession(claims.sessionId)
-    if (!session || !this.sessionMatchesClaims(session, claims)) return null
-    if (session.refreshTokenHash !== hashRefreshTokenId(claims.jti)) {
-      await prisma.authSession.updateMany({
-        where: { id: session.id, revokedAt: null },
-        data: { revokedAt: new Date() },
+    return prisma.$transaction(async (tx) => {
+      // Serialize rotation across processes, not just requests in one JS runtime.
+      await tx.$queryRaw`SELECT "id" FROM "auth_sessions" WHERE "id" = ${claims.sessionId} FOR UPDATE`
+      const session = await tx.authSession.findUnique({
+        where: { id: claims.sessionId },
+        include: { user: { include: { roles: true } } },
       })
-      return null
-    }
+      if (!session || !this.sessionMatchesClaims(session, claims)) return null
 
-    const nextRefreshTokenId = randomUUID()
-    const rotated = await prisma.authSession.updateMany({
-      where: {
-        id: session.id,
-        refreshTokenHash: session.refreshTokenHash,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      data: { refreshTokenHash: hashRefreshTokenId(nextRefreshTokenId) },
+      const now = Date.now()
+      const withinGrace =
+        session.refreshRotatedAt !== null &&
+        now - session.refreshRotatedAt.getTime() < REFRESH_GRACE_MS
+      const presentedHash = hashRefreshTokenId(claims.jti)
+      let tokenId = claims.jti
+
+      if (presentedHash !== session.refreshTokenHash) {
+        tokenId = nextRefreshTokenId(claims.jti)
+        if (
+          !withinGrace ||
+          presentedHash !== session.previousRefreshTokenHash ||
+          hashRefreshTokenId(tokenId) !== session.refreshTokenHash
+        ) {
+          await tx.authSession.update({
+            where: { id: session.id },
+            data: { revokedAt: new Date() },
+          })
+          return null
+        }
+      } else if (!withinGrace) {
+        tokenId = nextRefreshTokenId(claims.jti)
+        await tx.authSession.update({
+          where: { id: session.id },
+          data: {
+            previousRefreshTokenHash: session.refreshTokenHash,
+            refreshTokenHash: hashRefreshTokenId(tokenId),
+            refreshRotatedAt: new Date(now),
+          },
+        })
+      }
+
+      // Reuse the same generation during grace so out-of-order responses remain usable.
+      const refreshExpiresIn = Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)
+      if (refreshExpiresIn <= 0) return null
+      return this.issueTokens(
+        this.toAuthUser(session.user),
+        session.user.sessionVersion,
+        session.id,
+        tokenId,
+        refreshExpiresIn
+      )
     })
-
-    if (rotated.count !== 1) return null
-
-    const refreshExpiresIn = Math.max(
-      1,
-      Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)
-    )
-    return this.issueTokens(
-      this.toAuthUser(session.user),
-      session.user.sessionVersion,
-      session.id,
-      nextRefreshTokenId,
-      refreshExpiresIn
-    )
   }
 
   async revokeToken(token: string): Promise<void> {

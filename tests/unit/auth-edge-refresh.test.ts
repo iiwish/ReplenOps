@@ -16,7 +16,7 @@ describe('refresh request deduplication', () => {
     vi.clearAllMocks()
   })
 
-  it('returns the same rotation result for concurrent uses of one refresh token', async () => {
+  it('checks database state on every refresh instead of caching authorization', async () => {
     const tokens = {
       access_token: 'next-access',
       refresh_token: 'next-refresh',
@@ -34,6 +34,8 @@ describe('refresh request deduplication', () => {
 
     expect(first).toBe(tokens)
     expect(second).toBe(tokens)
-    expect(authMocks.verifyRefreshToken).toHaveBeenCalledTimes(1)
+    expect(authMocks.verifyRefreshToken).toHaveBeenCalledTimes(2)
+    authMocks.verifyRefreshToken.mockResolvedValue(null)
+    await expect(refreshAccessToken('same-refresh-token')).resolves.toBeNull()
   })
 })

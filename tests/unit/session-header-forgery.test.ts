@@ -59,4 +59,23 @@ describe('session header trust boundary', () => {
     expect(session?.user.roles).toEqual(['STORE_ADMIN'])
     expect(sessionMocks.verifyToken).toHaveBeenCalledWith('signed-access-token')
   })
+
+  it('reads an expiring session without rotating tokens or writing cookies', async () => {
+    sessionMocks.cookies.mockResolvedValue({
+      get: (name: string) => {
+        const values: Record<string, string> = {
+          replenops_access_token: 'signed-access-token',
+          replenops_refresh_token: 'refresh-token',
+          replenops_expires_at: String(Date.now() + 60_000),
+        }
+        return values[name] ? { value: values[name] } : undefined
+      },
+      set: () => {
+        throw new Error('Cookies cannot be modified in a Server Component')
+      },
+    })
+    const { getSession } = await import('@/lib/session')
+    expect((await getSession())?.user.id).toBe('user-1')
+    expect(sessionMocks.refreshAccessToken).not.toHaveBeenCalled()
+  })
 })
