@@ -1,7 +1,54 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getLoginUrl, getSessionEndReason, isProtectedPath } from '@/lib/auth-client'
 
 describe('client authentication navigation', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('preserves explicit logout intent when a session check races with logout', async () => {
+    vi.resetModules()
+    const auth = await import('@/lib/auth-client')
+    const replace = vi.fn()
+    const setItem = vi.fn()
+    vi.stubGlobal('window', {
+      location: { pathname: '/mobile/profile', search: '', hash: '', replace },
+    })
+    vi.stubGlobal('localStorage', { setItem })
+    let resolve!: (response: Response) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((done) => {
+            resolve = done
+          })
+      )
+    )
+    const logout = auth.logoutAndRedirect()
+    auth.endClientSession()
+    expect(replace).toHaveBeenLastCalledWith('/login?redirect=%2Fmobile%2Fhome')
+    expect(setItem).toHaveBeenCalledWith(
+      'replenops:auth-ended',
+      expect.stringContaining('"reason":"logout"')
+    )
+    resolve(new Response(null, { status: 200 }))
+    await logout
+    auth.endClientSession()
+    expect(replace).toHaveBeenLastCalledWith('/login?redirect=%2Fmobile%2Fhome')
+  })
+
+  it('clears explicit logout intent when logout fails', async () => {
+    vi.resetModules()
+    const auth = await import('@/lib/auth-client')
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: { pathname: '/mobile/profile', search: '', hash: '', replace },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    await expect(auth.logoutAndRedirect()).rejects.toThrow('offline')
+    auth.redirectToLogin()
+    expect(replace).toHaveBeenCalledWith('/login?redirect=%2Fmobile%2Fprofile')
+  })
+
   it('recognizes protected application routes without matching similar public paths', () => {
     expect(isProtectedPath('/admin/orders')).toBe(true)
     expect(isProtectedPath('/mobile/home')).toBe(true)

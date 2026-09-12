@@ -60,6 +60,10 @@ export const PUBLIC_API_ROUTES = [
   '/api/auth/logout',
   '/api/auth/refresh',
   '/api/auth/session',
+  '/api/auth/wecom/start',
+  '/api/auth/wecom/callback',
+  '/api/auth/wecom/bind',
+  '/api/auth/wecom/cancel',
 ]
 
 export const ADMIN_API_ROUTES = [

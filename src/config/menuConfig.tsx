@@ -144,6 +144,11 @@ export const menuItems: MenuItemConfig[] = [
         path: '/admin/system-config',
       },
       {
+        key: 'wecom-auth',
+        label: '企业微信登录',
+        path: '/admin/system-config/wecom',
+      },
+      {
         key: 'ordering-schedule',
         label: '报货时间',
         path: '/admin/system-config/ordering-schedule',

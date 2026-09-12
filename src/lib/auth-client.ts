@@ -2,6 +2,7 @@
 
 const AUTH_EVENT_KEY = 'replenops:auth-ended'
 type SessionEndReason = 'expired' | 'logout'
+let explicitLogout = false
 
 export function isProtectedPath(pathname: string): boolean {
   return (
@@ -35,10 +36,11 @@ export function announceSessionEnded(reason: SessionEndReason = 'expired'): void
 
 export function redirectToLogin(reason: SessionEndReason = 'expired'): void {
   if (!isProtectedPath(window.location.pathname)) return
-  window.location.replace(getLoginUrl(window.location, reason))
+  window.location.replace(getLoginUrl(window.location, explicitLogout ? 'logout' : reason))
 }
 
 export function endClientSession(reason: SessionEndReason = 'expired'): void {
+  reason = explicitLogout ? 'logout' : reason
   announceSessionEnded(reason)
   redirectToLogin(reason)
 }
@@ -62,11 +64,14 @@ export function isSessionEndedStorageEvent(event: StorageEvent): boolean {
 }
 
 export async function logoutAndRedirect(): Promise<void> {
-  const response = await fetch('/api/auth/logout', { method: 'POST' })
-
-  if (!response.ok) {
-    throw new Error('Logout request failed')
+  // Preserve the user's destination when an in-flight session check returns 401.
+  explicitLogout = true
+  try {
+    const response = await fetch('/api/auth/logout', { method: 'POST' })
+    if (!response.ok) throw new Error('Logout request failed')
+    endClientSession('logout')
+  } catch (error) {
+    explicitLogout = false
+    throw error
   }
-
-  endClientSession('logout')
 }
