@@ -83,9 +83,7 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
               </td>
             </tr>
           ))}
-        </tbody>
-        <tfoot>
-          <tr>
+          <tr className="stock-out-print-total">
             <td className="border border-black px-2 py-2 font-semibold" colSpan={5}>
               合计
             </td>
@@ -97,10 +95,10 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
               ¥{formatAmount(totalAmount)}
             </td>
           </tr>
-        </tfoot>
+        </tbody>
       </table>
 
-      <section className="mt-12 grid grid-cols-3 gap-12 text-sm">
+      <section className="stock-out-print-signatures mt-12 grid grid-cols-3 gap-12 text-sm">
         <div className="border-t border-black pt-2">配货人：</div>
         <div className="border-t border-black pt-2">复核人：</div>
         <div className="border-t border-black pt-2">领用人：</div>

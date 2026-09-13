@@ -206,13 +206,24 @@
   }
 
   body:has(.stock-out-print-page) .ant-layout,
-  body:has(.stock-out-print-page) main {
+  body:has(.stock-out-print-page) main,
+  body:has(.stock-out-print-page) main > div {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
+    transition: none !important;
   }
 
   .stock-out-print-page {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
     max-width: none !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -220,10 +231,31 @@
 
   .stock-out-print-page thead {
     display: table-header-group;
+    break-inside: avoid;
   }
 
   .stock-out-print-page tr {
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .stock-out-print-page td:nth-child(3),
+  .stock-out-print-page td:nth-child(4) {
+    overflow-wrap: anywhere;
+  }
+
+  .stock-out-print-page th,
+  .stock-out-print-page td.text-right {
+    white-space: nowrap;
+  }
+
+  .stock-out-print-total {
+    break-before: avoid;
+  }
+
+  .stock-out-print-signatures {
+    break-inside: avoid;
+    break-before: avoid;
   }
 
   body:has(.stock-out-print-modal) .ant-layout-sider,
@@ -243,6 +275,7 @@
 
   body:has(.stock-out-print-modal) .ant-modal-wrap {
     position: static !important;
+    height: auto !important;
     overflow: visible !important;
   }
 
@@ -251,14 +284,25 @@
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    animation: none !important;
+    opacity: 1 !important;
   }
 
-  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-content {
+  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-content,
+  body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-container {
+    position: static !important;
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
     padding: 0 !important;
     box-shadow: none !important;
   }
 
   body:has(.stock-out-print-modal) .stock-out-print-modal .ant-modal-body {
+    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
     padding: 0 !important;
@@ -268,13 +312,5 @@
     max-width: none !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
-  }
-
-  body:has(.stock-out-print-modal) .stock-out-print-page thead {
-    display: table-header-group;
-  }
-
-  body:has(.stock-out-print-modal) .stock-out-print-page tr {
-    break-inside: avoid;
   }
 }
