@@ -367,6 +367,32 @@ export async function deleteStockIn(id: string): Promise<ActionResponse> {
 }
 
 /**
+ * 批量读取入库商品在所选仓库的现有库存。
+ */
+export async function getGoodsStock(
+  warehouseId: string,
+  goodsIds: string[]
+): Promise<ActionResponse<Record<string, number>>> {
+  try {
+    await requireActionPermission('stock:write')
+    const idSchema = z
+      .string()
+      .regex(/^[1-9]\d*$/)
+      .refine((id) => Number(id) <= 2147483647)
+    const params = z
+      .object({
+        warehouseId: idSchema,
+        goodsIds: z.array(idSchema).max(200),
+      })
+      .parse({ warehouseId, goodsIds })
+    const data = await stockInService.getGoodsStock(params.warehouseId, params.goodsIds)
+    return { success: true, data }
+  } catch {
+    return { success: false, message: '读取现有库存失败，请重试' }
+  }
+}
+
+/**
  * 搜索商品（用于商品选择器）
  */
 export async function searchGoods(
