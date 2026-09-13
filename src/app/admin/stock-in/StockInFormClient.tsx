@@ -6,7 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Form, Input, InputNumber, Button, Space, Select, Table, Modal, App } from 'antd'
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
-import { createStockIn, updateStockIn, searchGoods } from '@/actions/stock-in-actions'
+import {
+  createStockIn,
+  updateStockIn,
+  searchGoods,
+  getGoodsStock,
+} from '@/actions/stock-in-actions'
 import type { ColumnsType } from 'antd/es/table'
 import type { TableRowSelection } from 'antd/es/table/interface'
 import { useUnsavedChangesWarning } from '@/hooks/use-unsaved-changes-warning'
@@ -86,6 +91,7 @@ export default function StockInFormClient({
   const [goodsPage, setGoodsPage] = useState(1)
   const [goodsHasMore, setGoodsHasMore] = useState(true)
   const [selectedGoods, setSelectedGoods] = useState<Record<string, GoodsOption>>({})
+  const [stockRefresh, setStockRefresh] = useState(0)
   const goodsRequestId = useRef(0)
   const defaultWarehouseId = initialValues?.warehouseId ?? warehouses[0]?.id
   const initialSnapshot = useMemo(
@@ -93,6 +99,51 @@ export default function StockInFormClient({
     [defaultWarehouseId, initialValues]
   )
   const warehouseId = Form.useWatch('warehouseId', form) ?? defaultWarehouseId
+  const stockGoodsKey = JSON.stringify(
+    [
+      ...new Set([...items.map((item) => item.goodsId), ...goodsOptions.map((goods) => goods.id)]),
+    ].sort()
+  )
+  const stockKey = JSON.stringify([warehouseId, stockGoodsKey, stockRefresh])
+  const [stock, setStock] = useState<{
+    key: string
+    quantities: Record<string, number>
+    failed: boolean
+  }>()
+
+  useEffect(() => {
+    if (!warehouseId) return
+    let cancelled = false
+    const goodsIds: string[] = JSON.parse(stockGoodsKey)
+    async function loadStock() {
+      try {
+        const quantities: Record<string, number> = {}
+        for (let offset = 0; offset < goodsIds.length; offset += 200) {
+          const result = await getGoodsStock(warehouseId, goodsIds.slice(offset, offset + 200))
+          if (cancelled) return
+          if (!result.success || !result.data) throw new Error('Stock unavailable')
+          Object.assign(quantities, result.data)
+        }
+        if (!cancelled) setStock({ key: stockKey, quantities, failed: false })
+      } catch {
+        if (!cancelled) {
+          setStock({ key: stockKey, quantities: {}, failed: true })
+          message.error('读取现有库存失败，请重新选择仓库或打开商品选择器重试')
+        }
+      }
+    }
+    void loadStock()
+    return () => {
+      cancelled = true
+    }
+  }, [warehouseId, stockGoodsKey, stockKey, message])
+
+  const renderStock = (goodsId: string) => {
+    if (!warehouseId) return '-'
+    if (stock?.key !== stockKey) return '加载中'
+    if (stock.failed) return '加载失败'
+    return stock.quantities[goodsId]?.toLocaleString('zh-CN', { maximumFractionDigits: 3 }) ?? '-'
+  }
   const remark = Form.useWatch('remark', form)
   const isDirty =
     !hasSubmitted && createFormSnapshot(warehouseId, remark, items) !== initialSnapshot
@@ -230,6 +281,13 @@ export default function StockInFormClient({
       dataIndex: 'goodsUnit',
       key: 'goodsUnit',
       width: 80,
+    },
+    {
+      title: '现有库存',
+      key: 'currentStock',
+      width: 110,
+      align: 'right',
+      render: (_, record) => renderStock(record.goodsId),
     },
     {
       title: '数量',
@@ -412,8 +470,10 @@ export default function StockInFormClient({
             <Button
               type="primary"
               icon={<PlusOutlined />}
+              disabled={!warehouseId}
               onClick={() => {
                 setSelectedGoods({})
+                setStockRefresh((current) => current + 1)
                 setGoodsModalVisible(true)
               }}
             >
@@ -426,10 +486,10 @@ export default function StockInFormClient({
             rowKey={(record) => record.key || record.goodsId}
             pagination={false}
             locale={{ emptyText: '暂无商品' }}
-            scroll={{ x: 900 }}
+            scroll={{ x: 1040 }}
             summary={() => (
               <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={5} align="right">
+                <Table.Summary.Cell index={0} colSpan={6} align="right">
                   <strong>总金额</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1} align="right">
@@ -524,6 +584,13 @@ export default function StockInFormClient({
                     width: 80,
                   },
                   {
+                    title: '现有库存',
+                    key: 'currentStock',
+                    width: 110,
+                    align: 'right',
+                    render: (_, record: GoodsOption) => renderStock(record.id),
+                  },
+                  {
                     title: '默认入库价',
                     dataIndex: 'defaultInPrice',
                     key: 'defaultInPrice',
@@ -538,6 +605,7 @@ export default function StockInFormClient({
                 pagination={false}
                 loading={goodsLoading && goodsOptions.length === 0}
                 size="small"
+                scroll={{ x: 680 }}
               />
             ) : (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>

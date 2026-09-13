@@ -881,6 +881,26 @@ export class StockInService {
   }
 
   /**
+   * 当前仓库的实物库存；没有有效库存记录时为零。
+   */
+  async getGoodsStock(warehouseId: string, goodsIds: string[]): Promise<Record<string, number>> {
+    if (goodsIds.length === 0) return {}
+
+    const inventories = await prisma.inventory.findMany({
+      where: {
+        warehouseId: Number(warehouseId),
+        goodsId: { in: goodsIds.map(Number) },
+        isDeleted: false,
+      },
+      select: { goodsId: true, quantity: true },
+    })
+    const quantities = new Map(
+      inventories.map((item) => [String(item.goodsId), Number(item.quantity)])
+    )
+    return Object.fromEntries(goodsIds.map((id) => [id, quantities.get(id) ?? 0]))
+  }
+
+  /**
    * 搜索商品（用于商品选择器）
    */
   async searchGoods(keyword: string, page = 1, pageSize = 20) {
