@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { OrderStatus, Prisma } from '@prisma/client'
 import type { AuthUser } from '@/lib/auth'
 import { lockOrderInventory, releaseOrderInventory } from './inventory-lock.service'
+import { orderingInventoryWhere } from './ordering-stock-policy'
 import {
   assertCanOperateStore,
   assertCanReadStore,
@@ -662,13 +663,13 @@ export class OrderService {
 
       // Restore against inventory after this order's locks have been released.
       const inventories = await tx.inventory.findMany({
-        where: { goodsId: { in: goodsIds }, isDeleted: false },
+        where: { goodsId: { in: goodsIds }, ...orderingInventoryWhere },
       })
       const inventoryMap = new Map<number, number>()
       for (const inv of inventories) {
         inventoryMap.set(
           inv.goodsId,
-          (inventoryMap.get(inv.goodsId) || 0) + inv.availableQuantity.toNumber()
+          Math.max(inventoryMap.get(inv.goodsId) || 0, inv.availableQuantity.toNumber())
         )
       }
       return orderItems.map((item) => ({

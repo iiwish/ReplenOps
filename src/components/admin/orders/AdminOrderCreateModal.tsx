@@ -148,7 +148,7 @@ export function AdminOrderCreateModal({
       ),
     },
     {
-      title: '可用库存',
+      title: '单仓可订',
       key: 'availableQty',
       width: 120,
       render: (_, item) => (
@@ -249,7 +249,7 @@ export function AdminOrderCreateModal({
               notFoundContent="暂无可添加商品"
               options={availableGoods.map((item) => ({
                 value: item.id,
-                label: `${item.name} · ${item.code} · 库存 ${formatGoodsQuantity(item.availableQty, item.measureType)}${item.unit}`,
+                label: `${item.name} · ${item.code} · 单仓可订 ${formatGoodsQuantity(item.availableQty, item.measureType)}${item.unit}`,
               }))}
               onChange={handleAddGoods}
             />

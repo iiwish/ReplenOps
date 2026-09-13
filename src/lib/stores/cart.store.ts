@@ -59,7 +59,8 @@ const mergePersistedCart = (persistedState: unknown, currentState: CartStore): C
 interface CartStore {
   items: CartItem[]
   hasHydrated: boolean
-  addItem: (item: CartItem) => void
+  syncAvailability: (goods: Array<{ id: string; availableQty: number }>) => void
+  addItem: (item: CartItem, options?: { notifySuccess?: boolean }) => void
   removeItem: (goodsId: string) => void
   updateQuantity: (goodsId: string, quantity: number) => boolean
   clear: () => void
@@ -73,12 +74,21 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       hasHydrated: false,
+      syncAvailability: (goods) => {
+        const availability = new Map(goods.map((item) => [item.id, item.availableQty]))
+        set({
+          items: get().items.map((item) => ({
+            ...item,
+            availableQty: availability.get(item.goodsId) ?? 0,
+          })),
+        })
+      },
 
       setHasHydrated: (hasHydrated) => {
         set({ hasHydrated })
       },
 
-      addItem: (item) => {
+      addItem: (item, options) => {
         const items = get().items
         const existing = items.find((i) => i.goodsId === item.goodsId)
         const normalizedItem = { ...item, quantity: normalizeQuantity(item.quantity) }
@@ -103,10 +113,12 @@ export const useCartStore = create<CartStore>()(
             ),
           })
 
-          toast({
-            title: '已添加到购物车',
-            description: `${normalizedItem.name} x ${normalizedItem.quantity}`,
-          })
+          if (options?.notifySuccess !== false) {
+            toast({
+              title: '已添加到购物车',
+              description: `${normalizedItem.name} x ${normalizedItem.quantity}`,
+            })
+          }
         } else {
           // 检查库存
           if (normalizedItem.quantity > normalizedItem.availableQty) {
@@ -120,10 +132,12 @@ export const useCartStore = create<CartStore>()(
 
           set({ items: [...items, normalizedItem] })
 
-          toast({
-            title: '已添加到购物车',
-            description: `${normalizedItem.name} x ${normalizedItem.quantity}`,
-          })
+          if (options?.notifySuccess !== false) {
+            toast({
+              title: '已添加到购物车',
+              description: `${normalizedItem.name} x ${normalizedItem.quantity}`,
+            })
+          }
         }
       },
 
@@ -139,8 +153,8 @@ export const useCartStore = create<CartStore>()(
 
         const normalizedQuantity = normalizeQuantity(quantity)
 
-        // 检查库存
-        if (normalizedQuantity > item.availableQty) {
+        // 库存刷新后允许逐步减量，仍禁止超库存加量。
+        if (normalizedQuantity > item.availableQty && normalizedQuantity >= item.quantity) {
           toast({
             title: '库存不足',
             description: `当前可用库存：${item.availableQty} ${item.unit}`,

@@ -1,6 +1,7 @@
 import { hash } from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { expect, test } from '@playwright/test'
+import { getShanghaiClock } from '../../src/lib/shanghai-time'
 
 const prisma = new PrismaClient()
 const suffix = String(process.pid)
@@ -13,6 +14,7 @@ const orderCode = `O-20260906-09259-${suffix}`
 const shippedCode = `SO-POLISH-${suffix}`
 let pendingId: number
 let completedId: number
+let categoryId: number
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 
@@ -34,6 +36,7 @@ test.beforeAll(async () => {
   const category = await prisma.goodsCategory.create({
     data: { code: categoryCode, name: '移动验收分类' },
   })
+  categoryId = category.id
   const goods = await prisma.goods.create({
     data: {
       code: goodsCode,
@@ -49,6 +52,25 @@ test.beforeAll(async () => {
   await prisma.inventory.create({
     data: { goodsId: goods.id, warehouseId: warehouse.id, quantity: 10, availableQuantity: 10 },
   })
+  for (let index = 0; index < 7; index += 1) {
+    await prisma.goods.create({
+      data: {
+        code: `${goodsCode}-${index}`,
+        name: `验收商品${index}号`,
+        spec: index === 1 ? '1000克/袋' : null,
+        unit: '袋',
+        categoryId: category.id,
+        partnerPrice: 18.5,
+        inventories: {
+          create: {
+            warehouseId: warehouse.id,
+            quantity: index === 6 ? 0 : 38,
+            availableQuantity: index === 6 ? 0 : 38,
+          },
+        },
+      },
+    })
+  }
   const completed = await prisma.order.create({
     data: {
       code: orderCode,
@@ -96,8 +118,8 @@ test.afterAll(async () => {
     },
   })
   await prisma.order.deleteMany({ where: { id: { in: [pendingId, completedId] } } })
-  await prisma.inventory.deleteMany({ where: { goods: { code: goodsCode } } })
-  await prisma.goods.deleteMany({ where: { code: goodsCode } })
+  await prisma.inventory.deleteMany({ where: { goods: { category: { code: categoryCode } } } })
+  await prisma.goods.deleteMany({ where: { category: { code: categoryCode } } })
   await prisma.goodsCategory.deleteMany({ where: { code: categoryCode } })
   await prisma.warehouse.deleteMany({ where: { code: `MPW${suffix}` } })
   await prisma.storeAdmin.deleteMany({ where: { store: { code: storeCode } } })
@@ -161,8 +183,136 @@ test('docks withdraw above navigation and restores the items to the order page c
   await page.getByRole('button', { name: '清除搜索', exact: true }).tap()
   await expect(search).toHaveValue('')
   await expect(search).toBeFocused()
+  await search.blur()
+  await expect(page.getByText('订单已撤回', { exact: true })).toBeHidden({ timeout: 10000 })
+  await page.getByRole('button', { name: '移动验收分类', exact: true }).tap()
+  await page.getByRole('button', { name: '加购 验收商品0号', exact: true }).tap()
+  await expect(page.getByText('已添加到购物车', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '加购 验收商品6号', exact: true })).toBeDisabled()
+  const goodsCard = page
+    .locator(`#category-${categoryId}`)
+    .getByRole('heading', { name: '巧克力块1000g', exact: true })
+    .locator('xpath=ancestor::div[contains(@class, "shadow-sm")][1]')
+  for (const width of [320, 360, 390, 430, 1280]) {
+    await page.setViewportSize({ width, height: 740 })
+    await goodsCard.getByRole('button', { name: '增加数量' }).tap()
+    await expect(goodsCard.getByRole('textbox', { name: '商品数量' })).toHaveValue('3')
+    await goodsCard.getByRole('button', { name: '减少数量' }).tap()
+    await expect(goodsCard.getByRole('textbox', { name: '商品数量' })).toHaveValue('2')
+    const bounds = await goodsCard.boundingBox()
+    expect(bounds!.height).toBeLessThanOrEqual(90)
+    const increase = await goodsCard.getByRole('button', { name: '增加数量' }).boundingBox()
+    expect(increase!.x + increase!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width)
+    expect(increase!.x).toBeGreaterThanOrEqual(bounds!.x)
+    const cart = await page
+      .getByRole('button', { name: '查看', exact: true })
+      .locator('../..')
+      .boundingBox()
+    const scroller = await page.locator('section .mobile-scroll').boundingBox()
+    expect(scroller!.y + scroller!.height).toBeLessThanOrEqual(cart!.y + 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: info.outputPath(`goods-layout-${width}.png`) })
+  }
+  await page.setViewportSize({ width: 360, height: 740 })
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '20px'
+  })
+  const enlargedCard = await goodsCard.boundingBox()
+  const enlargedControl = await goodsCard.getByRole('button', { name: '增加数量' }).boundingBox()
+  expect(enlargedControl!.x + enlargedControl!.width).toBeLessThanOrEqual(
+    enlargedCard!.x + enlargedCard!.width
+  )
+  await page.screenshot({ path: info.outputPath('goods-layout-large-font.png') })
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = ''
+  })
+  await page.locator('section .mobile-scroll').evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  const lastCard = page
+    .getByRole('heading', { name: '验收商品6号', exact: true })
+    .locator('xpath=ancestor::div[contains(@class, "shadow-sm")][1]')
+  const lastBounds = await lastCard.boundingBox()
+  const listBounds = await page.locator('section .mobile-scroll').boundingBox()
+  expect(
+    Math.abs(lastBounds!.y + lastBounds!.height - listBounds!.y - listBounds!.height)
+  ).toBeLessThan(12)
   await page.goto('/mobile/order/cart')
   await expect(page).toHaveURL(/\/mobile\/order$/)
+})
+
+test('names stock shortages, preserves quantities, and distinguishes cross-warehouse orders', async ({
+  page,
+}, info) => {
+  const dayOfWeek = getShanghaiClock().dayOfWeek
+  const schedule = await prisma.orderingSchedule.findUnique({ where: { dayOfWeek } })
+  const extra = await prisma.warehouse.create({ data: { code: `MPX${suffix}`, name: '多仓验收' } })
+  try {
+    await prisma.orderingSchedule.upsert({
+      where: { dayOfWeek },
+      create: { dayOfWeek, isActive: true, startTime: '00:00', endTime: '23:59' },
+      update: { isActive: true, startTime: '00:00', endTime: '23:59' },
+    })
+    await prisma.order.deleteMany({ where: { id: pendingId } })
+    const goods = await prisma.goods.findUniqueOrThrow({ where: { code: goodsCode } })
+    await page.goto('/mobile/order')
+    await page
+      .locator(`#category-${categoryId}`)
+      .getByRole('button', { name: '加购 巧克力块1000g', exact: true })
+      .tap()
+    const card = page
+      .locator(`#category-${categoryId}`)
+      .getByRole('heading', { name: '巧克力块1000g', exact: true })
+      .locator('xpath=ancestor::div[contains(@class, "shadow-sm")][1]')
+    await card.getByRole('button', { name: '增加数量' }).tap()
+    await prisma.inventory.updateMany({
+      where: { goodsId: goods.id },
+      data: { availableQuantity: 1, quantity: 1 },
+    })
+    await page.getByRole('button', { name: '结算', exact: true }).tap()
+    await page.getByRole('button', { name: '确认结算', exact: true }).tap()
+    await expect(page.getByRole('alert')).toContainText(`巧克力块1000g（${goodsCode}）`)
+    await expect(page.getByRole('alert')).toContainText('订购 2 包，单仓最多可订 1 包，缺少 1 包')
+    await page.screenshot({ path: info.outputPath('stock-shortage.png') })
+    await page.getByRole('button', { name: '返回修改', exact: true }).tap()
+    await expect(card.getByRole('textbox', { name: '商品数量' })).toHaveValue('2')
+    await expect(card).toContainText('单仓可订 1 包')
+    await card.getByRole('button', { name: '减少数量' }).tap()
+    await prisma.inventory.updateMany({
+      where: { goodsId: goods.id },
+      data: { availableQuantity: 0, quantity: 0 },
+    })
+    await prisma.inventory.create({
+      data: { warehouseId: extra.id, goodsId: goods.id, quantity: 3, availableQuantity: 3 },
+    })
+    await page.reload()
+    await page.getByRole('button', { name: '加购 验收商品0号', exact: true }).tap()
+    await page.getByRole('button', { name: '结算', exact: true }).tap()
+    await page.getByRole('button', { name: '确认结算', exact: true }).tap()
+    await expect(page.getByRole('alert')).toContainText('无法同仓配齐')
+    await expect(page.getByRole('alert')).toContainText('验收商品0号')
+    await expect(page.getByRole('alert')).toContainText('巧克力块1000g')
+    await page.screenshot({ path: info.outputPath('stock-cross-warehouse.png') })
+    expect(
+      await prisma.order.count({ where: { store: { code: storeCode }, status: 'PENDING' } })
+    ).toBe(0)
+    expect(
+      await prisma.inventory.count({ where: { goodsId: goods.id, lockedQuantity: { gt: 0 } } })
+    ).toBe(0)
+  } finally {
+    await prisma.inventory.deleteMany({ where: { warehouseId: extra.id } })
+    await prisma.warehouse.delete({ where: { id: extra.id } })
+    if (schedule)
+      await prisma.orderingSchedule.update({
+        where: { dayOfWeek },
+        data: {
+          isActive: schedule.isActive,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+        },
+      })
+    else await prisma.orderingSchedule.delete({ where: { dayOfWeek } })
+  }
 })
 
 test('has compact list cards and no duplicate home quick entry section', async ({ page }, info) => {

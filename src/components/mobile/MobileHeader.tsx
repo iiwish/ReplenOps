@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 
 interface MobileHeaderProps {
   title: string
+  compact?: boolean
   showBack?: boolean
   showMenu?: boolean
   onBack?: () => void
@@ -14,6 +15,7 @@ interface MobileHeaderProps {
 
 export default function MobileHeader({
   title,
+  compact = false,
   showBack = true,
   showMenu = false,
   onBack,
@@ -30,8 +32,8 @@ export default function MobileHeader({
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background">
-      <div className="safe-area-top flex h-14 items-center justify-between px-4">
+    <header className="safe-area-top sticky top-0 z-40 shrink-0 border-b bg-background">
+      <div className={`flex items-center justify-between px-4 ${compact ? 'h-11' : 'h-14'}`}>
         {/* 左侧返回按钮 */}
         {showBack ? (
           <Button

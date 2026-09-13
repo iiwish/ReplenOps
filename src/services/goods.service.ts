@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { getSingleWarehouseAvailableQty, orderingInventoryWhere } from './ordering-stock-policy'
 import { assertGoodsUnitChangeAllowed } from '@/lib/goods-snapshot'
 import { archivedCodeError, restorationData, softDeletionData } from '@/lib/master-data-lifecycle'
 import { getNextGoodsCode } from '@/lib/goods-code-policy'
@@ -728,7 +729,7 @@ export class GoodsService {
         partnerPrice: true,
         category: { select: { name: true } },
         inventories: {
-          where: { isDeleted: false },
+          where: orderingInventoryWhere,
           select: { availableQuantity: true },
         },
       },
@@ -742,10 +743,7 @@ export class GoodsService {
       unit: item.unit,
       measureType: item.measureType,
       partnerPrice: Number(item.partnerPrice),
-      availableQty: item.inventories.reduce(
-        (total, inventory) => total + Number(inventory.availableQuantity),
-        0
-      ),
+      availableQty: getSingleWarehouseAvailableQty(item.inventories),
       categoryName: item.category.name,
     }))
   }

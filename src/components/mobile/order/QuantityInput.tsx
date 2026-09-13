@@ -85,7 +85,7 @@ export function QuantityInput({
   // 紧凑尺寸用于商品卡片，保留常规尺寸供购物车和确认页使用
   const buttonSize =
     size === 'sm'
-      ? 'h-7 w-7 min-h-0 min-w-0'
+      ? 'h-8 w-8 min-h-0 min-w-0 shrink-0'
       : size === 'lg'
         ? 'h-10 w-10 min-h-[52px] min-w-[52px]'
         : 'h-8 w-8 min-h-[44px] min-w-[44px]'
@@ -94,7 +94,7 @@ export function QuantityInput({
   const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'
 
   return (
-    <div className={`flex items-center ${size === 'sm' ? 'gap-1' : 'gap-2'}`}>
+    <div className={`flex shrink-0 items-center ${size === 'sm' ? 'gap-1' : 'gap-2'}`}>
       <Button
         size="icon"
         variant="outline"
@@ -109,6 +109,7 @@ export function QuantityInput({
       <input
         type="text"
         inputMode={measureType === 'INT' ? 'numeric' : 'decimal'}
+        aria-label="商品数量"
         value={displayValue}
         onChange={handleInputChange}
         onBlur={handleInputBlur}

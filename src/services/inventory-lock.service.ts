@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { describeOrderingShortage, orderingInventoryWhere } from './ordering-stock-policy'
 
 export interface InventoryLockItem {
   goodsId: number
@@ -21,11 +22,7 @@ export async function lockOrderInventory(
   const inventories = await tx.inventory.findMany({
     where: {
       goodsId: { in: goodsIds },
-      isDeleted: false,
-      warehouse: {
-        isActive: true,
-        isDeleted: false,
-      },
+      ...orderingInventoryWhere,
     },
     orderBy: [{ warehouseId: 'asc' }, { goodsId: 'asc' }],
   })
@@ -43,7 +40,11 @@ export async function lockOrderInventory(
   )
 
   if (selectedWarehouseId === undefined) {
-    throw new Error('库存不足：没有单一仓库可满足该订单全部商品库存')
+    const goods = await tx.goods.findMany({
+      where: { id: { in: goodsIds } },
+      select: { id: true, name: true, code: true, unit: true },
+    })
+    throw new Error(describeOrderingShortage(items, inventories, goods))
   }
 
   for (const item of items) {
@@ -70,7 +71,13 @@ export async function lockOrderInventory(
     })
 
     if (locked.count !== 1) {
-      throw new Error(`商品 ${item.goodsId} 库存不足,请刷新后重试`)
+      const goods = await tx.goods.findUnique({
+        where: { id: item.goodsId },
+        select: { name: true, code: true },
+      })
+      throw new Error(
+        `${goods ? `${goods.name}（${goods.code}）` : `商品 ${item.goodsId}`} 库存不足：可用库存已变化，未能锁定本次订购数量，请刷新库存后调整重试`
+      )
     }
   }
 

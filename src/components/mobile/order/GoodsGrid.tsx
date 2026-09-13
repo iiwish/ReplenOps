@@ -121,9 +121,9 @@ export const GoodsGrid = forwardRef<GoodsGridHandle, GoodsGridProps>(function Go
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-background">
-      <div className="shrink-0 border-b bg-background px-3 py-2">
-        <div className="flex h-10 items-center gap-2 rounded-md border bg-muted/30 px-3 focus-within:ring-2 focus-within:ring-ring">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+      <div className="shrink-0 border-b bg-background px-2 py-1.5">
+        <div className="flex h-9 items-center gap-2 rounded-md border bg-muted/30 px-2 focus-within:ring-2 focus-within:ring-ring">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <input
             ref={searchInputRef}
@@ -164,13 +164,13 @@ export const GoodsGrid = forwardRef<GoodsGridHandle, GoodsGridProps>(function Go
             id={`category-${category.id}`}
             data-category-id={category.id}
             ref={(el) => setCategoryRef(category.id, el)}
-            className="mb-4 scroll-mt-2"
+            className="scroll-mt-2"
           >
-            <div className="sticky top-0 z-10 border-b bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <h2 className="text-base font-semibold">{category.name}</h2>
+            <div className="sticky top-0 z-10 border-b bg-background px-2 py-1">
+              <h2 className="text-sm font-semibold">{category.name}</h2>
             </div>
 
-            <div className="space-y-2 px-4 py-2">
+            <div className="space-y-1 p-1.5">
               {category.goods.map((goods) => (
                 <GoodsCard key={goods.id} goods={goods} />
               ))}
@@ -183,8 +183,6 @@ export const GoodsGrid = forwardRef<GoodsGridHandle, GoodsGridProps>(function Go
             {searchTerm ? '未找到匹配商品' : '暂无商品数据'}
           </div>
         )}
-
-        <div className="h-28" aria-hidden="true" />
       </div>
     </section>
   )

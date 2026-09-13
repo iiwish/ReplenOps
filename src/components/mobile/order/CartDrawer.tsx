@@ -83,13 +83,19 @@ export function CartDrawer({
                     />
 
                     {/* 商品信息 */}
-                    <div className="flex flex-1 flex-col justify-between">
+                    <div className="flex min-w-0 flex-1 flex-col justify-between">
                       <div>
                         <h4 className="line-clamp-1 text-sm font-medium">{item.name}</h4>
                         {item.spec && <p className="text-xs text-muted-foreground">{item.spec}</p>}
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      <p
+                        className={`text-xs ${item.quantity > item.availableQty ? 'text-red-600' : 'text-muted-foreground'}`}
+                      >
+                        单仓可订 {item.availableQty} {item.unit}
+                        {item.quantity > item.availableQty ? '，请调整数量' : ''}
+                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-bold text-primary">¥{item.price.toFixed(2)}</span>
                         <div className="flex items-center gap-2">
                           <QuantityInput
@@ -102,6 +108,7 @@ export function CartDrawer({
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8 text-destructive"
+                            aria-label={`移除 ${item.name}`}
                             onClick={() => removeItem(item.goodsId)}
                           >
                             <Trash2 className="h-4 w-4" />
