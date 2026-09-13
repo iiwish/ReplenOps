@@ -29,16 +29,16 @@ export function CartFloating({
   const hasItems = visibleItems.length > 0
 
   return (
-    <div className="fixed bottom-[var(--mobile-tab-bar-height)] left-0 right-0 z-20 px-3 pb-2">
+    <div className="z-20 shrink-0 border-t bg-background px-2 py-1.5">
       <div
         className={cn(
-          'relative flex items-center justify-between gap-2 rounded-lg border bg-background p-2 shadow-[0_-6px_18px_rgba(15,23,42,0.12)] transition-all',
+          'relative flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background p-2',
           hasItems && 'border-primary'
         )}
       >
         {/* 购物车图标和信息 */}
         <button onClick={onClick} className="flex min-h-[40px] min-w-0 flex-1 items-center gap-2">
-          <div className="relative">
+          <div className="relative shrink-0">
             <ShoppingCart
               className={cn(
                 'h-5 w-5 transition-colors',
@@ -55,7 +55,7 @@ export function CartFloating({
             )}
           </div>
 
-          <div className="flex-1 text-left">
+          <div className="min-w-0 flex-1 break-all text-left">
             <div className="text-xs text-muted-foreground">
               {hasItems ? `共 ${visibleItems.length} 件商品` : '购物车是空的'}
             </div>

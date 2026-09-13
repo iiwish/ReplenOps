@@ -140,7 +140,7 @@ export default function MobileLayoutClient({ children }: MobileLayoutClientProps
   return (
     <div className="mobile-shell flex h-dvh flex-col bg-background">
       {/* Header - 可选显示 */}
-      {showHeader && <MobileHeader title={getPageTitle()} />}
+      {showHeader && <MobileHeader title={getPageTitle()} compact={isOrderPage} />}
 
       {/* 下单页由分类和商品列表分别滚动，其他页面保持主内容区滚动。 */}
       <main

@@ -61,6 +61,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false)
   const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null)
   const [checkingActiveOrder, setCheckingActiveOrder] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -70,7 +71,8 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   const isSubmittingRef = useRef(false)
 
   const { selectedStoreId } = useStoreSelectionStore()
-  const { items, hasHydrated, clear, getTotalAmount, getTotalQuantity } = useCartStore()
+  const { items, hasHydrated, clear, getTotalAmount, getTotalQuantity, syncAvailability } =
+    useCartStore()
   const visibleItems = hasHydrated ? items : []
   const totalAmount = hasHydrated ? getTotalAmount() : 0
   const totalQuantity = hasHydrated ? getTotalQuantity() : 0
@@ -78,6 +80,10 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
   useEffect(() => {
     void hydrateCartStore()
   }, [])
+
+  useEffect(() => {
+    if (hasHydrated) syncAvailability(categories.flatMap((category) => category.goods))
+  }, [categories, hasHydrated, syncAvailability])
 
   useEffect(() => {
     let cancelled = false
@@ -182,20 +188,10 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
       return
     }
 
-    // 检查所有商品库存是否充足（防超卖）
-    const insufficientStock = visibleItems.find((item) => item.quantity > item.availableQty)
-
-    if (insufficientStock) {
-      toast({
-        title: '库存不足',
-        description: `${insufficientStock.name} 库存不足，当前可用: ${insufficientStock.availableQty} ${insufficientStock.unit}`,
-        variant: 'destructive',
-      })
-      return
-    }
-
+    // 提交时以服务端事务读取的库存为准，不用购物车快照否决订单。
     setCartOpen(false)
     setCreatedOrder(null)
+    setCheckoutError(null)
     setCheckoutDialogOpen(true)
   }
 
@@ -211,6 +207,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
 
     isSubmittingRef.current = true
     setIsSubmitting(true)
+    setCheckoutError(null)
 
     try {
       const result = await createOrder({
@@ -232,19 +229,12 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
           description: `订单号: ${orderData?.code}，等待审批`,
         })
       } else {
-        toast({
-          title: '订单提交失败',
-          description: result.message || '请稍后重试',
-          variant: 'destructive',
-        })
+        setCheckoutError(result.message || '订单提交失败，请稍后重试')
+        router.refresh()
       }
     } catch (error) {
       console.error('提交订单失败:', error)
-      toast({
-        title: '订单提交失败',
-        description: error instanceof Error ? error.message : '网络错误，请稍后重试',
-        variant: 'destructive',
-      })
+      setCheckoutError(error instanceof Error ? error.message : '网络错误，请稍后重试')
     } finally {
       isSubmittingRef.current = false
       setIsSubmitting(false)
@@ -340,17 +330,17 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
           />
-
-          {/* 悬浮购物车 */}
-          <CartFloating
-            onClick={() => setCartOpen(true)}
-            onCheckout={requestCheckout}
-            isSubmitting={isSubmitting}
-            checkoutDisabled={checkoutDisabled}
-            checkoutLabel={checkoutLabel}
-          />
         </div>
       </div>
+
+      {/* 购物车占据实际高度，商品列表不再依赖固定占位避让。 */}
+      <CartFloating
+        onClick={() => setCartOpen(true)}
+        onCheckout={requestCheckout}
+        isSubmitting={isSubmitting}
+        checkoutDisabled={checkoutDisabled}
+        checkoutLabel={checkoutLabel}
+      />
 
       {/* 购物车抽屉 */}
       <CartDrawer
@@ -365,7 +355,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
       <Dialog.Root open={checkoutDialogOpen} onOpenChange={handleCheckoutDialogOpenChange}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/45" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-5 shadow-xl focus:outline-none">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] max-h-[90dvh] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border bg-background p-5 shadow-xl focus:outline-none">
             {createdOrder ? (
               <>
                 <div className="flex items-start gap-3">
@@ -399,6 +389,14 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
                 <Dialog.Description className="mt-1 text-sm text-muted-foreground">
                   确认后将生成订单并进入审批流程。
                 </Dialog.Description>
+                {checkoutError && (
+                  <div
+                    role="alert"
+                    className="mt-3 max-h-40 overflow-y-auto whitespace-pre-line break-words rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                  >
+                    {checkoutError}
+                  </div>
+                )}
                 <dl className="mt-4 space-y-2 border-y py-3 text-sm">
                   <div className="flex items-center justify-between">
                     <dt className="text-muted-foreground">商品数量</dt>
@@ -413,7 +411,7 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
                 </dl>
                 <div className="mt-5 flex justify-end gap-2">
                   <Button variant="outline" onClick={closeCheckoutDialog} disabled={isSubmitting}>
-                    取消
+                    {checkoutError ? '返回修改' : '取消'}
                   </Button>
                   <Button
                     onClick={submitCheckout}

@@ -24,7 +24,7 @@ export function CategorySidebar({
   }
 
   return (
-    <aside className="h-full w-24 shrink-0 border-r bg-muted/30">
+    <aside className="h-full w-[72px] shrink-0 border-r bg-muted/30">
       <ScrollArea className="h-full">
         <div className="py-2">
           {categories.map((category) => {
@@ -35,7 +35,7 @@ export function CategorySidebar({
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
                 className={cn(
-                  'min-h-[44px] w-full px-3 py-3 text-center text-sm transition-colors',
+                  'min-h-[44px] w-full px-1.5 py-2 text-center text-sm transition-colors',
                   'border-l-2 hover:bg-muted',
                   isActive
                     ? 'border-primary bg-background font-medium text-primary'

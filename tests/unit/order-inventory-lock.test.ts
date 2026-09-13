@@ -8,6 +8,7 @@ import { stockOutService } from '@/services/stock-out.service'
 import { goodsService } from '@/services/goods.service'
 import { stockInService } from '@/services/stock-in.service'
 import { getShanghaiClock } from '@/lib/shanghai-time'
+import { getOrderingCatalog } from '@/services/ordering-catalog.service'
 
 const adminUser: AuthUser = {
   id: 'stage2-admin',
@@ -209,6 +210,44 @@ describe('order inventory locking', () => {
       where: { dayOfWeek: orderingDay },
       data: { startTime: '00:00', endTime: '23:59', isActive: true },
     })
+  })
+
+  it('uses active single-warehouse stock for mobile, admin ordering and submission diagnostics', async () => {
+    const fixtures = await seedFixtures(10)
+    for (const [index, available, active, deleted] of [
+      [1, 7, true, false],
+      [2, 100, false, false],
+      [3, 100, true, true],
+      [4, 100, true, false],
+    ] as const) {
+      const warehouse = await prisma.warehouse.create({
+        data: {
+          code: `POLICY-${index}`,
+          name: `Policy ${index}`,
+          isActive: index === 4 ? false : active,
+          isDeleted: index === 4,
+          deletedAt: index === 4 ? new Date() : null,
+        },
+      })
+      await prisma.inventory.create({
+        data: {
+          warehouseId: warehouse.id,
+          goodsId: fixtures.goodsId,
+          quantity: available,
+          availableQuantity: available,
+          isDeleted: deleted,
+        },
+      })
+    }
+    const mobile = (await getOrderingCatalog()).flatMap((category) => category.goods)
+    expect(mobile.find((item) => item.id === String(fixtures.goodsId))?.availableQty).toBe(10)
+    const admin = await goodsService.listActiveOrderOptions()
+    expect(admin.find((item) => item.id === String(fixtures.goodsId))?.availableQty).toBe(10)
+    await expect(createStage2Order(fixtures, 11)).rejects.toThrow(
+      'Stage2 Goods（G-STAGE2）：订购 11 件，单仓最多可订 10 件，缺少 1 件'
+    )
+    expect(await prisma.order.count()).toBe(0)
+    expect((await getInventory(fixtures.goodsId, fixtures.warehouseId)).lockedQuantity).toBe(0)
   })
 
   it('locks inventory when an order is created and does not lock again on approval', async () => {
@@ -591,6 +630,18 @@ describe('order inventory locking', () => {
         totalCost: new Prisma.Decimal(50),
       },
     })
+    await expect(
+      orderService.create({
+        storeId: String(fixtures.storeId),
+        createdBy: adminUser.id,
+        items: [
+          { goodsId: String(fixtures.goodsId), quantity: 2, unitPrice: 8 },
+          { goodsId: String(goods2.id), quantity: 2, unitPrice: 8 },
+        ],
+      })
+    ).rejects.toThrow('无法同仓配齐')
+    expect(await prisma.order.count()).toBe(0)
+    expect((await getInventory(fixtures.goodsId, fixtures.warehouseId)).lockedQuantity).toBe(0)
     const order = await prisma.order.create({
       data: {
         code: 'OR-SPLIT-WAREHOUSE',
