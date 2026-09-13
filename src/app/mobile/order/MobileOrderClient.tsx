@@ -316,7 +316,10 @@ export default function MobileOrderClient({ categories }: MobileOrderClientProps
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* 左侧分类 */}
         <CategorySidebar
-          categories={filteredCategories}
+          categories={categories}
+          matchingCategoryIds={
+            searchTerm.trim() ? filteredCategories.map((category) => category.id) : undefined
+          }
           activeCategory={activeCategory}
           onCategoryClick={handleCategoryClick}
         />
