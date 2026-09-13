@@ -229,8 +229,11 @@ test('docks withdraw above navigation and restores the items to the order page c
   await page.locator('section .mobile-scroll').evaluate((el) => {
     el.scrollTop = el.scrollHeight
   })
+  // 数据库排序规则不同，指定验收商品不一定是列表最后一项。
   const lastCard = page
-    .getByRole('heading', { name: '验收商品6号', exact: true })
+    .locator('section .mobile-scroll')
+    .getByRole('heading', { level: 3 })
+    .last()
     .locator('xpath=ancestor::div[contains(@class, "shadow-sm")][1]')
   const lastBounds = await lastCard.boundingBox()
   const listBounds = await page.locator('section .mobile-scroll').boundingBox()
