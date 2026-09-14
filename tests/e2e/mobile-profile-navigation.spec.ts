@@ -49,6 +49,50 @@ test('profile navigation does not revoke the mobile session', async ({ page }) =
   await page.request.post('/api/auth/logout')
 })
 
+for (const width of [390, 1280]) {
+  test(`profile avatar initials survive navigation and reload at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    const browserErrors: string[] = []
+    page.on('pageerror', (error) => browserErrors.push(error.message))
+    page.on('console', (message) => {
+      if (
+        message.type() === 'error' &&
+        /hydration|did not match|server rendered/i.test(message.text())
+      ) {
+        browserErrors.push(message.text())
+      }
+    })
+
+    const login = await page.request.post('/api/auth/login', {
+      data: { identifier: username, password },
+    })
+    expect(login.ok()).toBe(true)
+
+    const initials = page.getByText(username.substring(0, 2).toUpperCase(), { exact: true })
+    const expectAvatar = async () => {
+      await expect(initials).toBeVisible()
+      await expect(initials).toHaveCSS('width', '64px')
+      await expect(initials).toHaveCSS('height', '64px')
+      await expect(page.getByRole('heading', { name: username, exact: true })).toBeVisible()
+    }
+
+    await page.goto('/mobile/profile')
+    await expectAvatar()
+    await page.getByRole('link', { name: '个人信息', exact: true }).click()
+    await expect(page).toHaveURL(/\/mobile\/profile\/info$/)
+    await expect(page.getByText('账号信息', { exact: true })).toBeVisible()
+    await expectAvatar()
+    await page.reload()
+    await expectAvatar()
+    await page.getByRole('link', { name: '我的', exact: true }).click()
+    await expect(page).toHaveURL(/\/mobile\/profile$/)
+    await expect(page.getByRole('button', { name: '退出登录' })).toBeVisible()
+    await expectAvatar()
+    expect(browserErrors).toEqual([])
+    await page.request.post('/api/auth/logout')
+  })
+}
+
 test('logging out redirects other open application pages to login', async ({ page }) => {
   const login = await page.request.post('/api/auth/login', {
     data: {
