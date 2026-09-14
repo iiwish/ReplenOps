@@ -24,37 +24,41 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
 
   return (
     <div className="stock-out-print-page mx-auto max-w-[210mm] bg-white text-black">
-      <div className="stock-out-print-actions mb-6 flex justify-end">
+      <div className="stock-out-print-actions mb-3 flex justify-end">
         <PrintButton />
       </div>
 
-      <header className="mb-6 border-b-2 border-black pb-4 text-center">
-        <h1 className="text-2xl font-bold">出库单</h1>
-        <p className="mt-2 text-sm">单号：{stockOut.code}</p>
+      <header className="stock-out-print-heading mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-black pb-2">
+        <h1 className="text-xl font-bold">出库单</h1>
+        <p className="break-all text-xs">单号：{stockOut.code}</p>
       </header>
 
-      <section className="mb-5 grid grid-cols-2 gap-x-10 gap-y-2 text-sm">
+      <section className="stock-out-print-info mb-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs leading-4 [overflow-wrap:anywhere]">
         <div>订单号：{stockOut.orderCode}</div>
         <div>门店：{stockOut.storeName}</div>
-        <div>出库仓库：{stockOut.warehouseName}</div>
-        <div>状态：{statusLabels[stockOut.status] ?? stockOut.status}</div>
-        <div>下单时间：{dayjs(stockOut.orderedAt).format('YYYY-MM-DD HH:mm')}</div>
-        <div>下单人：{stockOut.orderCreatedByName}</div>
         <div>
-          审批时间：
-          {stockOut.approvedAt ? dayjs(stockOut.approvedAt).format('YYYY-MM-DD HH:mm') : '-'}
+          出库仓库：{stockOut.warehouseName} · {statusLabels[stockOut.status] ?? stockOut.status}
         </div>
-        <div>审批人：{stockOut.approvedByName || '-'}</div>
-        <div>
+        <div>制单人：{stockOut.createdByName}</div>
+        <div className="col-span-2">
+          下单：{dayjs(stockOut.orderedAt).format('YYYY-MM-DD HH:mm')} ·{' '}
+          {stockOut.orderCreatedByName}
+        </div>
+        <div className="col-span-2">
+          审批：
+          {stockOut.approvedAt ? dayjs(stockOut.approvedAt).format('YYYY-MM-DD HH:mm') : '-'}
+          {' · '}
+          {stockOut.approvedByName || '-'}
+        </div>
+        <div className="col-span-2">
           出库时间：
           {stockOut.completedAt ? dayjs(stockOut.completedAt).format('YYYY-MM-DD HH:mm') : '-'}
         </div>
-        <div>制单人：{stockOut.createdByName}</div>
-        <div className="col-span-2">订单备注：{stockOut.orderRemark || '-'}</div>
-        <div className="col-span-2">出库备注：{stockOut.remark || '-'}</div>
+        {stockOut.orderRemark && <div className="col-span-2">订单备注：{stockOut.orderRemark}</div>}
+        {stockOut.remark && <div className="col-span-2">出库备注：{stockOut.remark}</div>}
       </section>
 
-      <table className="w-full border-collapse text-sm">
+      <table className="stock-out-print-table w-full border-collapse text-xs leading-4 [&_td]:px-1 [&_td]:py-1 [&_th]:px-1 [&_th]:py-1">
         <thead>
           <tr>
             {['序号', '商品编码', '商品名称', '规格', '单位', '数量', '领用单价', '小计'].map(
@@ -98,7 +102,7 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
         </tbody>
       </table>
 
-      <section className="stock-out-print-signatures mt-12 grid grid-cols-3 gap-12 text-sm">
+      <section className="stock-out-print-signatures mt-6 grid grid-cols-3 gap-6 text-xs">
         <div className="border-t border-black pt-2">配货人：</div>
         <div className="border-t border-black pt-2">复核人：</div>
         <div className="border-t border-black pt-2">领用人：</div>

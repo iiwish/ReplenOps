@@ -96,6 +96,8 @@ for (const mode of ['page', 'modal'] as const) {
     await page.evaluate(() => document.fonts.ready)
     // Ant Layout's flex-child width must not collapse after switching to print blocks.
     expect((await content.boundingBox())!.width).toBeGreaterThan(700)
+    expect((await content.locator('tbody tr').first().boundingBox())!.height).toBeLessThanOrEqual(26)
+    await expect(content.locator('.stock-out-print-info')).not.toContainText('出库备注：-')
     if (mode === 'modal') {
       await expect(page.locator('.stock-out-print-modal')).toHaveCSS('opacity', '1')
       await expect(page.locator('.stock-out-print-modal .ant-modal-container')).toHaveCSS(
