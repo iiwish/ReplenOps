@@ -92,7 +92,15 @@ for (const mode of ['page', 'modal'] as const) {
     if (mode === 'modal') await page.getByRole('button', { name: /打印出库单/ }).click()
     const content = page.locator('.stock-out-print-page')
     await expect(content.getByText('P120', { exact: true })).toBeVisible()
+    // Translation extensions can append an empty inline popup outside body.
+    await page.evaluate(() => {
+      const popup = document.createElement('div')
+      popup.id = 'print-extension-popup'
+      popup.style.display = 'inline'
+      document.documentElement.append(popup)
+    })
     await page.emulateMedia({ media: 'print' })
+    await expect(page.locator('#print-extension-popup')).toHaveCSS('display', 'none')
     await page.evaluate(() => document.fonts.ready)
     await expect(page.locator('body')).toHaveCSS('page', 'stock-out')
     const printRules = await page.evaluate(() =>
@@ -134,10 +142,20 @@ for (const mode of ['page', 'modal'] as const) {
     expect(await content.locator('thead').evaluate((el) => getComputedStyle(el).display)).toBe(
       'table-header-group'
     )
+    await content.locator('tbody tr:not(.stock-out-print-total)').evaluateAll((rows) => {
+      rows.slice(18).forEach((row) => row.remove())
+    })
+    await page.pdf({
+      path: info.outputPath(`${mode}-short.pdf`),
+      preferCSSPageSize: true,
+      printBackground: true,
+    })
     // Browsers without margin boxes must retain the original first-page heading.
     await page.evaluate(() => {
       document.documentElement.dataset.printMarginBoxes = 'false'
     })
     await expect(content.locator('.stock-out-print-heading')).toBeVisible()
+    await page.emulateMedia({ media: 'screen' })
+    await expect(page.locator('#print-extension-popup')).toHaveCSS('display', 'inline')
   })
 }

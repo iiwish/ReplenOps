@@ -192,6 +192,11 @@
 }
 
 @media print {
+  /* Extension popups outside body otherwise start an extra unnamed, blank page. */
+  html:has(.stock-out-print-page) > :not(head):not(body) {
+    display: none !important;
+  }
+
   @page {
     size: A4 portrait;
     margin: 12mm;
