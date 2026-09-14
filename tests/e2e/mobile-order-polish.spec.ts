@@ -339,6 +339,28 @@ test('has compact list cards and no duplicate home quick entry section', async (
   await expect(page.getByText('快速入口', { exact: true })).toHaveCount(0)
 })
 
+test('switches order tabs by touch and keyboard with linked panels', async ({ page }) => {
+  await page.goto('/mobile/orders')
+  const all = page.getByRole('tab', { name: /^全部/ })
+  const pending = page.getByRole('tab', { name: /^待审批/ })
+  await expect(all).toHaveAttribute('aria-selected', 'true')
+  await pending.tap()
+  await expect(pending).toHaveAttribute('aria-selected', 'true')
+  await expect(all).toHaveAttribute('aria-selected', 'false')
+  const panel = page.getByRole('tabpanel')
+  await expect(panel).toBeVisible()
+  await expect(panel).toHaveAttribute('id', (await pending.getAttribute('aria-controls'))!)
+  await expect(panel).toHaveAttribute('aria-labelledby', (await pending.getAttribute('id'))!)
+  await pending.focus()
+  await pending.press('ArrowLeft')
+  await expect(all).toBeFocused()
+  await expect(all).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tabpanel')).toHaveAttribute(
+    'id',
+    (await all.getAttribute('aria-controls'))!
+  )
+})
+
 test('returns to home after explicitly logging out and signing in again', async ({ page }) => {
   await page.goto('/mobile/profile')
   await page.getByRole('button', { name: '退出登录', exact: true }).tap()

@@ -20,6 +20,11 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: tailwindcss
         update-types: ['version-update:semver-major']
+      # Node types and test-runtime requirements are reviewed with the Node baseline.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      - dependency-name: jsdom
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
