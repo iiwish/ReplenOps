@@ -343,18 +343,22 @@ test('switches order tabs by touch and keyboard with linked panels', async ({ pa
   await page.goto('/mobile/orders')
   const all = page.getByRole('tab', { name: /^全部/ })
   const pending = page.getByRole('tab', { name: /^待审批/ })
+  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'false')
   await expect(all).toHaveAttribute('aria-selected', 'true')
   await pending.tap()
   await expect(pending).toHaveAttribute('aria-selected', 'true')
   await expect(all).toHaveAttribute('aria-selected', 'false')
   const panel = page.getByRole('tabpanel')
   await expect(panel).toBeVisible()
+  await expect(panel).toHaveAttribute('aria-busy', 'false')
   await expect(panel).toHaveAttribute('id', (await pending.getAttribute('aria-controls'))!)
   await expect(panel).toHaveAttribute('aria-labelledby', (await pending.getAttribute('id'))!)
   await pending.focus()
   await pending.press('ArrowLeft')
   await expect(all).toBeFocused()
   await expect(all).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'false')
+  await expect(all).toBeFocused()
   await expect(page.getByRole('tabpanel')).toHaveAttribute(
     'id',
     (await all.getAttribute('aria-controls'))!

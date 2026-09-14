@@ -290,22 +290,24 @@ export default function OrdersClientPage() {
     return <div className="p-4 text-center text-sm text-muted-foreground">请先在首页选择门店</div>
   }
 
-  if (loading) {
-    return <OrderListSkeleton />
-  }
-
-  if (error && orders.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-        <p className="text-sm text-muted-foreground">{error}</p>
-        <Button
-          variant="outline"
-          onClick={() => void loadOrders(1, false, appliedKeyword, activeStatuses)}
-        >
-          重新加载
-        </Button>
-      </div>
-    )
+  const renderOrderList = (filteredOrders: Order[], emptyMessage: string) => {
+    if (loading) return <OrderListSkeleton />
+    if (error && orders.length === 0) {
+      return (
+        <div className="flex flex-col items-center gap-3 px-4 py-16 text-center" role="alert">
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <Button
+            variant="outline"
+            onClick={() => void loadOrders(1, false, appliedKeyword, activeStatuses)}
+          >
+            重新加载
+          </Button>
+        </div>
+      )
+    }
+    return filteredOrders.length > 0
+      ? filteredOrders.map(renderOrderCard)
+      : renderEmptyState(emptyMessage)
   }
 
   const allOrders = orders
@@ -420,42 +422,30 @@ export default function OrdersClientPage() {
           )}
         </div>
 
-        <TabsContent value="all" className="mt-3 space-y-2.5">
-          {allOrders.length > 0 ? allOrders.map(renderOrderCard) : renderEmptyState('暂无订单')}
+        <TabsContent value="all" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(allOrders, '暂无订单')}
         </TabsContent>
-        <TabsContent value="pending" className="mt-3 space-y-2.5">
-          {pendingOrders.length > 0
-            ? pendingOrders.map(renderOrderCard)
-            : renderEmptyState('暂无待审批订单')}
+        <TabsContent value="pending" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(pendingOrders, '暂无待审批订单')}
         </TabsContent>
-        <TabsContent value="shipping" className="mt-3 space-y-2.5">
-          {shippingOrders.length > 0
-            ? shippingOrders.map(renderOrderCard)
-            : renderEmptyState('暂无待出库订单')}
+        <TabsContent value="shipping" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(shippingOrders, '暂无待出库订单')}
         </TabsContent>
-        <TabsContent value="receipt" className="mt-3 space-y-2.5">
-          {receiptOrders.length > 0
-            ? receiptOrders.map(renderOrderCard)
-            : renderEmptyState('暂无待收货订单')}
+        <TabsContent value="receipt" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(receiptOrders, '暂无待收货订单')}
         </TabsContent>
-        <TabsContent value="completed" className="mt-3 space-y-2.5">
-          {completedOrders.length > 0
-            ? completedOrders.map(renderOrderCard)
-            : renderEmptyState('暂无已完成订单')}
+        <TabsContent value="completed" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(completedOrders, '暂无已完成订单')}
         </TabsContent>
-        <TabsContent value="rejected" className="mt-3 space-y-2.5">
-          {rejectedOrders.length > 0
-            ? rejectedOrders.map(renderOrderCard)
-            : renderEmptyState('暂无已拒绝订单')}
+        <TabsContent value="rejected" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(rejectedOrders, '暂无已拒绝订单')}
         </TabsContent>
-        <TabsContent value="cancelled" className="mt-3 space-y-2.5">
-          {cancelledOrders.length > 0
-            ? cancelledOrders.map(renderOrderCard)
-            : renderEmptyState('暂无已取消订单')}
+        <TabsContent value="cancelled" className="mt-3 space-y-2.5" aria-busy={loading}>
+          {renderOrderList(cancelledOrders, '暂无已取消订单')}
         </TabsContent>
       </Tabs>
 
-      {error && orders.length > 0 && (
+      {!loading && error && orders.length > 0 && (
         <p className="text-center text-xs text-destructive">{error}</p>
       )}
 
@@ -469,8 +459,8 @@ export default function OrdersClientPage() {
             正在加载更多订单...
           </>
         )}
-        {!loadingMore && hasMore && '继续下滑加载更多'}
-        {!hasMore && orders.length > 0 && `已加载全部 ${pagination.total} 条订单`}
+        {!loading && !loadingMore && hasMore && '继续下滑加载更多'}
+        {!loading && !hasMore && orders.length > 0 && `已加载全部 ${pagination.total} 条订单`}
       </div>
     </div>
   )
