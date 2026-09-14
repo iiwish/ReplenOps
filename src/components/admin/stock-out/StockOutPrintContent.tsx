@@ -21,9 +21,15 @@ interface StockOutPrintContentProps {
 export default function StockOutPrintContent({ stockOut }: StockOutPrintContentProps) {
   const totalQuantity = stockOut.items.reduce((sum, item) => sum + item.quantity, 0)
   const totalAmount = stockOut.items.reduce((sum, item) => sum + item.lineAmount, 0)
+  // Encode every character as a CSS escape so document codes cannot inject CSS or HTML.
+  const printCode = Array.from(
+    `单号：${stockOut.code}`,
+    (char) => `\\${char.codePointAt(0)!.toString(16)} `
+  ).join('')
 
   return (
     <div className="stock-out-print-page mx-auto max-w-[210mm] bg-white text-black">
+      <style>{`@media print { @page stock-out { @top-right { content: "${printCode}"; } } }`}</style>
       <div className="stock-out-print-actions mb-3 flex justify-end">
         <PrintButton />
       </div>

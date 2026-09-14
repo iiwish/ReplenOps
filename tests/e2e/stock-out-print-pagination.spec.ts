@@ -21,7 +21,7 @@ test.beforeAll(async () => {
   const warehouse = await prisma.warehouse.create({ data: { code, name: '打印测试仓库' } })
   const category = await prisma.goodsCategory.create({ data: { code, name: '打印测试分类' } })
   const items = []
-  for (let index = 1; index <= 60; index += 1) {
+  for (let index = 1; index <= 120; index += 1) {
     const goods = await prisma.goods.create({
       data: {
         code: `${code}-${index}`,
@@ -48,7 +48,7 @@ test.beforeAll(async () => {
       storeId: store.id,
       createdBy: user.id,
       status: 'COMPLETED',
-      totalAmount: 120,
+      totalAmount: 240,
       remark: '这是用于验证长备注自动换行与打印分页的测试订单。'.repeat(5),
     },
   })
@@ -91,12 +91,26 @@ for (const mode of ['page', 'modal'] as const) {
     await page.goto(`/admin/stock-out/${stockOutId}${mode === 'page' ? '/print' : ''}`)
     if (mode === 'modal') await page.getByRole('button', { name: /打印出库单/ }).click()
     const content = page.locator('.stock-out-print-page')
-    await expect(content.getByText('P060', { exact: true })).toBeVisible()
+    await expect(content.getByText('P120', { exact: true })).toBeVisible()
     await page.emulateMedia({ media: 'print' })
     await page.evaluate(() => document.fonts.ready)
+    await expect(page.locator('body')).toHaveCSS('page', 'stock-out')
+    const printRules = await page.evaluate(() =>
+      Array.from(document.styleSheets)
+        .flatMap((sheet) => Array.from(sheet.cssRules, (rule) => rule.cssText))
+        .join('\n')
+    )
+    expect(printRules).toContain('@page stock-out')
+    expect(printRules).toContain('@bottom-center')
+    expect(printRules).toContain('counter(page)')
+    expect(printRules).toContain('counter(pages)')
+    await expect(content.locator('.stock-out-print-heading')).toHaveCSS('display', 'none')
+    await expect(content.locator('.stock-out-print-heading')).toContainText(code)
     // Ant Layout's flex-child width must not collapse after switching to print blocks.
     expect((await content.boundingBox())!.width).toBeGreaterThan(700)
-    expect((await content.locator('tbody tr').first().boundingBox())!.height).toBeLessThanOrEqual(26)
+    expect((await content.locator('tbody tr').first().boundingBox())!.height).toBeLessThanOrEqual(
+      26
+    )
     await expect(content.locator('.stock-out-print-info')).not.toContainText('出库备注：-')
     if (mode === 'modal') {
       await expect(page.locator('.stock-out-print-modal')).toHaveCSS('opacity', '1')
@@ -116,9 +130,14 @@ for (const mode of ['page', 'modal'] as const) {
     })
     await expect(content.locator('tfoot')).toHaveCount(0)
     await expect(content.getByText('合计', { exact: true })).toHaveCount(1)
-    await expect(content.locator('tbody tr')).toHaveCount(61)
+    await expect(content.locator('tbody tr')).toHaveCount(121)
     expect(await content.locator('thead').evaluate((el) => getComputedStyle(el).display)).toBe(
       'table-header-group'
     )
+    // Browsers without margin boxes must retain the original first-page heading.
+    await page.evaluate(() => {
+      document.documentElement.dataset.printMarginBoxes = 'false'
+    })
+    await expect(content.locator('.stock-out-print-heading')).toBeVisible()
   })
 }

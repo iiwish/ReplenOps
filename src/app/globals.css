@@ -197,6 +197,35 @@
     margin: 12mm;
   }
 
+  @page stock-out {
+    margin: 24mm 12mm 18mm;
+
+    @top-left {
+      content: '出库单';
+      font-size: 20px;
+      font-weight: bold;
+      vertical-align: bottom;
+      padding-bottom: 2mm;
+      margin-bottom: 3mm;
+      border-bottom: 1px solid #000;
+    }
+
+    @top-right {
+      font-size: 12px;
+      vertical-align: bottom;
+      padding-bottom: 2mm;
+      margin-bottom: 3mm;
+      border-bottom: 1px solid #000;
+    }
+
+    @bottom-center {
+      content: '第 ' counter(page) ' 页 / 共 ' counter(pages) ' 页';
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      color: #000;
+    }
+  }
+
   body:has(.stock-out-print-page) .ant-layout-sider,
   body:has(.stock-out-print-page) .ant-layout-header,
   body:has(.stock-out-print-page) .ant-layout-footer,
@@ -220,6 +249,10 @@
     transition: none !important;
   }
 
+  body:has(.stock-out-print-page) {
+    page: stock-out;
+  }
+
   .stock-out-print-page {
     width: 100% !important;
     height: auto !important;
@@ -227,6 +260,11 @@
     max-width: none !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  /* Page margin boxes reserve space and repeat without covering table rows. */
+  html[data-print-margin-boxes='true'] .stock-out-print-heading {
+    display: none;
   }
 
   .stock-out-print-page thead {
