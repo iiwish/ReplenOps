@@ -6,17 +6,36 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     labels: [dependencies]
+    groups:
+      prisma:
+        patterns: [prisma, '@prisma/client']
+      prisma-security:
+        applies-to: security-updates
+        patterns: [prisma, '@prisma/client']
+    # Major upgrades require a coordinated application and migration review.
+    ignore:
+      - dependency-name: prisma
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/client'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
-    labels: [dependencies, ci]
+    labels: [dependencies, github_actions]
+    groups:
+      codeql:
+        patterns: ['github/codeql-action/*']
 
   - package-ecosystem: docker
     directory: /deploy
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
-    labels: [dependencies, docker]
+    labels: [dependencies]
+    # Keep Node on the reviewed runtime major while accepting image updates.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
