@@ -374,3 +374,54 @@ test('returns to home after explicitly logging out and signing in again', async 
   await page.getByRole('button', { name: '登录', exact: true }).tap()
   await expect(page).toHaveURL(/\/mobile\/home$/)
 })
+
+test('selects terminal order states and restores the placeholder and focus', async ({ page }) => {
+  await page.goto('/mobile/orders')
+  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'false')
+  const select = page.getByRole('combobox')
+  await expect(select).toContainText('更多状态')
+  await select.tap()
+  await page.getByRole('option', { name: /^已完成/ }).tap()
+  await expect(page.getByRole('listbox')).toHaveCount(0)
+  await expect(select).toContainText('已完成')
+  await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'false')
+  await expect(page.getByRole('tabpanel')).toContainText(orderCode)
+  await expect(select).toBeFocused()
+  await page.getByRole('tab', { name: /^全部/ }).tap()
+  await expect(select).toContainText('更多状态')
+  await select.focus()
+  await select.press('Enter')
+  await expect(page.getByRole('listbox')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('listbox')).toHaveCount(0)
+  await expect(select).toBeFocused()
+})
+
+test('keeps order data scoped to the selected store', async ({ page }) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { username } })
+  const extra = await prisma.store.create({
+    data: {
+      code: `MPS${suffix}`,
+      name: '移动验收第二门店',
+      storeAdmins: { create: { userId: user.id } },
+    },
+  })
+  try {
+    await page.goto('/mobile/home')
+    await page.getByRole('button', { name: /^当前门店：/ }).tap()
+    await page.getByRole('button', { name: extra.name, exact: true }).tap()
+    await expect(page.getByRole('button', { name: `当前门店：${extra.name}` })).toBeVisible()
+    await page.goto('/mobile/orders')
+    await expect(page.getByRole('tabpanel')).toHaveAttribute('aria-busy', 'false')
+    await expect(page.getByRole('tabpanel')).toContainText('暂无订单')
+    await expect(page.getByRole('link').filter({ hasText: orderCode })).toHaveCount(0)
+    await page.goto('/mobile/home')
+    await page.getByRole('button', { name: /^当前门店：/ }).tap()
+    await page.getByRole('button', { name: '移动验收门店', exact: true }).tap()
+    await page.goto('/mobile/orders')
+    await expect(page.getByRole('tabpanel')).toContainText(orderCode)
+  } finally {
+    await prisma.storeAdmin.deleteMany({ where: { storeId: extra.id } })
+    await prisma.store.delete({ where: { id: extra.id } })
+  }
+})

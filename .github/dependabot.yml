@@ -12,6 +12,11 @@ updates:
       prisma-security:
         applies-to: security-updates
         patterns: [prisma, '@prisma/client']
+      vitest:
+        patterns: [vitest, '@vitest/*']
+      vitest-security:
+        applies-to: security-updates
+        patterns: [vitest, '@vitest/*']
     # Major upgrades require a coordinated application and migration review.
     ignore:
       - dependency-name: prisma
@@ -19,6 +24,12 @@ updates:
       - dependency-name: '@prisma/client'
         update-types: ['version-update:semver-major']
       - dependency-name: tailwindcss
+        update-types: ['version-update:semver-major']
+      - dependency-name: tailwind-merge
+        update-types: ['version-update:semver-major']
+      - dependency-name: vitest
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/*'
         update-types: ['version-update:semver-major']
       # Node types and test-runtime requirements are reviewed with the Node baseline.
       - dependency-name: '@types/node'
