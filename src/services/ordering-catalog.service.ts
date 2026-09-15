@@ -9,6 +9,8 @@ export async function getOrderingCatalog() {
   })
   const goods = await prisma.goods.findMany({
     where: { isDeleted: false, isActive: true },
+    // 门店端按分类浏览订货，分类内保持名称序以稳定商品位置；
+    // 不随建档顺序变动，避免新增商品打乱门店员工的视觉记忆。
     orderBy: { name: 'asc' },
     select: {
       id: true,

@@ -99,50 +99,88 @@ export default function StockInFormClient({
     [defaultWarehouseId, initialValues]
   )
   const warehouseId = Form.useWatch('warehouseId', form) ?? defaultWarehouseId
-  const stockGoodsKey = JSON.stringify(
-    [
-      ...new Set([...items.map((item) => item.goodsId), ...goodsOptions.map((goods) => goods.id)]),
-    ].sort()
+  const stockGoodsKey = useMemo(
+    () =>
+      JSON.stringify(
+        [
+          ...new Set([...items.map((item) => item.goodsId), ...goodsOptions.map((goods) => goods.id)]),
+        ].sort()
+      ),
+    [items, goodsOptions]
   )
-  const stockKey = JSON.stringify([warehouseId, stockGoodsKey, stockRefresh])
+
+  // 库存以「仓库 + 手动刷新」为作用域缓存：只有切换仓库或重新打开商品选择器才整体失效。
+  // 滚动加载更多商品时仅补查尚未请求过的 goodsId，避免每次翻页都重查全部已加载商品。
+  const stockScopeKey = `${warehouseId ?? ''}#${stockRefresh}`
+  const stockCacheRef = useRef<{
+    scopeKey: string
+    quantities: Record<string, number>
+    requested: Set<string>
+  }>({ scopeKey: '', quantities: {}, requested: new Set() })
+  // 作用域变更时递增，用于丢弃上一作用域的在途响应（含快速来回切换仓库的竞态）
+  const stockGenerationRef = useRef(0)
+  const mountedRef = useRef(true)
   const [stock, setStock] = useState<{
-    key: string
+    scopeKey: string
     quantities: Record<string, number>
     failed: boolean
   }>()
 
   useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
     if (!warehouseId) return
-    let cancelled = false
+
+    if (stockCacheRef.current.scopeKey !== stockScopeKey) {
+      stockCacheRef.current = { scopeKey: stockScopeKey, quantities: {}, requested: new Set() }
+      stockGenerationRef.current += 1
+      setStock({ scopeKey: stockScopeKey, quantities: {}, failed: false })
+    }
+
     const goodsIds: string[] = JSON.parse(stockGoodsKey)
+    const cache = stockCacheRef.current
+    const pending = goodsIds.filter((id) => !cache.requested.has(id))
+    if (pending.length === 0) return
+    pending.forEach((id) => cache.requested.add(id))
+
+    const generation = stockGenerationRef.current
+
     async function loadStock() {
       try {
-        const quantities: Record<string, number> = {}
-        for (let offset = 0; offset < goodsIds.length; offset += 200) {
-          const result = await getGoodsStock(warehouseId, goodsIds.slice(offset, offset + 200))
-          if (cancelled) return
+        const fetched: Record<string, number> = {}
+        for (let offset = 0; offset < pending.length; offset += 200) {
+          const result = await getGoodsStock(warehouseId, pending.slice(offset, offset + 200))
+          if (stockGenerationRef.current !== generation || !mountedRef.current) return
           if (!result.success || !result.data) throw new Error('Stock unavailable')
-          Object.assign(quantities, result.data)
+          Object.assign(fetched, result.data)
         }
-        if (!cancelled) setStock({ key: stockKey, quantities, failed: false })
+        if (stockGenerationRef.current !== generation) return
+        cache.quantities = { ...cache.quantities, ...fetched }
+        setStock({ scopeKey: stockScopeKey, quantities: cache.quantities, failed: false })
       } catch {
-        if (!cancelled) {
-          setStock({ key: stockKey, quantities: {}, failed: true })
-          message.error('读取现有库存失败，请重新选择仓库或打开商品选择器重试')
-        }
+        if (stockGenerationRef.current !== generation || !mountedRef.current) return
+        // 交还请求标记，使该批商品可在下次触发时重试
+        pending.forEach((id) => cache.requested.delete(id))
+        setStock({ scopeKey: stockScopeKey, quantities: cache.quantities, failed: true })
+        message.error('读取现有库存失败，请重新选择仓库或打开商品选择器重试')
       }
     }
     void loadStock()
-    return () => {
-      cancelled = true
-    }
-  }, [warehouseId, stockGoodsKey, stockKey, message])
+  }, [warehouseId, stockGoodsKey, stockScopeKey, message])
 
   const renderStock = (goodsId: string) => {
     if (!warehouseId) return '-'
-    if (stock?.key !== stockKey) return '加载中'
-    if (stock.failed) return '加载失败'
-    return stock.quantities[goodsId]?.toLocaleString('zh-CN', { maximumFractionDigits: 3 }) ?? '-'
+    const currentStock = stock?.scopeKey === stockScopeKey ? stock : undefined
+    if (currentStock?.failed) return '加载失败'
+    const quantity = currentStock?.quantities[goodsId]
+    return quantity === undefined
+      ? '加载中'
+      : quantity.toLocaleString('zh-CN', { maximumFractionDigits: 3 })
   }
   const remark = Form.useWatch('remark', form)
   const isDirty =

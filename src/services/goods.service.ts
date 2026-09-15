@@ -229,7 +229,8 @@ export class GoodsService {
     // 查询数据
     const data = await prisma.goods.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      // 最新建档优先；用自增主键而非 createdAt，可走主键索引且同秒创建不会错序
+      orderBy: { id: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
@@ -714,11 +715,14 @@ export class GoodsService {
 
   /**
    * 获取管理员手动创建订单所需的启用商品及可用库存。
+   *
+   * 按 id 倒序返回（最新建档优先），与入库单的商品选择器保持一致，便于选中刚录入的商品。
+   * 不按 name 排序是因为中文名称在数据库 collation 下并非拼音序，用户难以预期。
    */
   async listActiveOrderOptions(): Promise<OrderGoodsOption[]> {
     const goods = await prisma.goods.findMany({
       where: { isDeleted: false, isActive: true },
-      orderBy: [{ name: 'asc' }, { code: 'asc' }],
+      orderBy: { id: 'desc' },
       select: {
         id: true,
         code: true,

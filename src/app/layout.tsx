@@ -42,7 +42,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
+    // 浏览器扩展（如沉浸式翻译）会在 hydration 前往 <html> 注入属性，
+    // suppressHydrationWarning 只抑制该元素自身的属性差异，不会掩盖子树的真实问题。
+    <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <AntdRegistry hashPriority="low">
           <AuthSessionGuard />

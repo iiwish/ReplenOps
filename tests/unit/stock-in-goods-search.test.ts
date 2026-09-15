@@ -20,7 +20,7 @@ describe('stock-in goods search', () => {
     stockInMocks.inventoryFindMany.mockResolvedValue([])
   })
 
-  it('supports an empty keyword and stable pagination', async () => {
+  it('supports an empty keyword, newest first, and stable pagination', async () => {
     const { stockInService } = await import('@/services/stock-in.service')
 
     await stockInService.searchGoods('', 2, 20)
@@ -29,7 +29,7 @@ describe('stock-in goods search', () => {
       expect.objectContaining({
         skip: 20,
         take: 20,
-        orderBy: [{ code: 'asc' }, { id: 'asc' }],
+        orderBy: { id: 'desc' },
         where: expect.objectContaining({
           isDeleted: false,
           isActive: true,
