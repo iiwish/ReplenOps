@@ -4,7 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    # Security updates remain enabled; routine upgrades are reviewed in manual batches.
+    open-pull-requests-limit: 0
     labels: [dependencies]
     groups:
       prisma:
@@ -17,6 +18,9 @@ updates:
       vitest-security:
         applies-to: security-updates
         patterns: [vitest, '@vitest/*']
+      typescript-eslint-security:
+        applies-to: security-updates
+        patterns: ['@typescript-eslint/*', typescript-eslint]
     # Major upgrades require a coordinated application and migration review.
     ignore:
       - dependency-name: prisma
