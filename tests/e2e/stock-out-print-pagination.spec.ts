@@ -34,6 +34,7 @@ test.beforeAll(async () => {
       goodsId: goods.id,
       goodsCodeSnapshot: `P${String(index).padStart(3, '0')}`,
       goodsNameSnapshot: goods.name,
+      categoryNameSnapshot: index % 2 === 0 ? '饼干' : '饮料',
       goodsSpecSnapshot: index % 7 === 0 ? '1000克/袋，独立包装' : '/',
       goodsUnitSnapshot: '袋',
       quantity: 1,
@@ -92,6 +93,20 @@ for (const mode of ['page', 'modal'] as const) {
     if (mode === 'modal') await page.getByRole('button', { name: /打印出库单/ }).click()
     const content = page.locator('.stock-out-print-page')
     await expect(content.getByText('P120', { exact: true })).toBeVisible()
+    await expect(content.getByRole('columnheader', { name: '分类', exact: true })).toBeVisible()
+    const rows = content.locator('tbody tr:not(.stock-out-print-total)')
+    await expect(rows.first().locator('td').nth(2)).toHaveText('P002')
+    expect(await rows.locator('td:nth-child(2)').allTextContents()).toEqual([
+      ...Array<string>(60).fill('饼干'),
+      ...Array<string>(60).fill('饮料'),
+    ])
+    expect(await rows.locator('td:nth-child(3)').allTextContents()).toEqual(
+      expect.arrayContaining(['P002', 'P010', 'P120'])
+    )
+    await expect(content.locator('.stock-out-print-total td').first()).toHaveAttribute(
+      'colspan',
+      '6'
+    )
     // Translation extensions can append an empty inline popup outside body.
     await page.evaluate(() => {
       const popup = document.createElement('div')

@@ -85,6 +85,7 @@ export interface StockOutDetail {
     goodsId: string
     goodsCode: string
     goodsName: string
+    categoryName: string
     goodsSpec: string | null
     goodsUnit: string
     quantity: number
@@ -437,6 +438,7 @@ export class StockOutService {
           goodsId: String(item.goodsId),
           goodsCode: snapshot.goodsCodeSnapshot,
           goodsName: snapshot.goodsNameSnapshot,
+          categoryName: snapshot.categoryNameSnapshot,
           goodsSpec: snapshot.goodsSpecSnapshot,
           goodsUnit: snapshot.goodsUnitSnapshot,
           quantity: item.quantity.toNumber(),

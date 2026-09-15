@@ -20,7 +20,10 @@ describe('stock-out printable detail', () => {
     vi.clearAllMocks()
   })
 
-  it('loads order context, goods specifications, and active detail rows', async () => {
+  it.each([
+    ['耗材', '耗材'],
+    [null, '已调整分类'],
+  ])('resolves category snapshot %s as %s', async (categorySnapshot, expectedCategory) => {
     const now = new Date('2026-08-02T10:00:00.000Z')
     stockOutMocks.findUsers.mockResolvedValue([
       { id: 'store-user', username: 'store-code', name: '门店张三' },
@@ -64,7 +67,7 @@ describe('stock-out printable detail', () => {
           goodsUnitSnapshot: '箱',
           measureTypeSnapshot: 'INT',
           categoryIdSnapshot: 4,
-          categoryNameSnapshot: '耗材',
+          categoryNameSnapshot: categorySnapshot,
           quantity: decimal(2),
           salePrice: decimal(8),
           snapshotCost: decimal(5),
@@ -75,7 +78,7 @@ describe('stock-out printable detail', () => {
             unit: '箱',
             measureType: 'INT',
             categoryId: 4,
-            category: { name: '耗材' },
+            category: { name: '已调整分类' },
           },
         },
       ],
@@ -106,6 +109,7 @@ describe('stock-out printable detail', () => {
         {
           goodsCode: 'GLE00143',
           goodsName: '冰袋',
+          categoryName: expectedCategory,
           goodsSpec: '80袋/箱',
           quantity: 2,
           lineAmount: 16,
