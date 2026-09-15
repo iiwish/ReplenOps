@@ -902,6 +902,9 @@ export class StockInService {
 
   /**
    * 搜索商品（用于商品选择器）
+   *
+   * 按 id 倒序返回，即最新建档的商品排在最前，方便刚录入的商品立刻被选中。
+   * 使用自增主键而非 createdAt：主键天然单调且走主键索引，同秒创建的记录也不会错序。
    */
   async searchGoods(keyword: string, page = 1, pageSize = 20) {
     const goods = await prisma.goods.findMany({
@@ -913,7 +916,7 @@ export class StockInService {
           { code: { contains: keyword, mode: 'insensitive' } },
         ],
       },
-      orderBy: [{ code: 'asc' }, { id: 'asc' }],
+      orderBy: { id: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
