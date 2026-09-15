@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import type { StockOutDetail } from '@/services/stock-out.service'
+import { sortStockOutPrintItems } from '@/lib/stock-out-print-order'
 import { PrintButton } from './PrintButton'
 
 const statusLabels: Record<string, string> = {
@@ -19,6 +20,7 @@ interface StockOutPrintContentProps {
 }
 
 export default function StockOutPrintContent({ stockOut }: StockOutPrintContentProps) {
+  const printItems = sortStockOutPrintItems(stockOut.items)
   const totalQuantity = stockOut.items.reduce((sum, item) => sum + item.quantity, 0)
   const totalAmount = stockOut.items.reduce((sum, item) => sum + item.lineAmount, 0)
   // Encode every character as a CSS escape so document codes cannot inject CSS or HTML.
@@ -67,19 +69,30 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
       <table className="stock-out-print-table w-full border-collapse text-xs leading-4 [&_td]:px-1 [&_td]:py-1 [&_th]:px-1 [&_th]:py-1">
         <thead>
           <tr>
-            {['序号', '商品编码', '商品名称', '规格', '单位', '数量', '领用单价', '小计'].map(
-              (label) => (
-                <th key={label} className="border border-black px-2 py-2 text-center font-semibold">
-                  {label}
-                </th>
-              )
-            )}
+            {[
+              '序号',
+              '分类',
+              '商品编码',
+              '商品名称',
+              '规格',
+              '单位',
+              '数量',
+              '领用单价',
+              '小计',
+            ].map((label) => (
+              <th key={label} className="border border-black px-2 py-2 text-center font-semibold">
+                {label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {stockOut.items.map((item, index) => (
+          {printItems.map((item, index) => (
             <tr key={item.id} className="break-inside-avoid">
               <td className="border border-black px-2 py-2 text-center">{index + 1}</td>
+              <td className="break-words border border-black px-2 py-2">
+                {item.categoryName.trim() || '未分类'}
+              </td>
               <td className="border border-black px-2 py-2">{item.goodsCode}</td>
               <td className="border border-black px-2 py-2">{item.goodsName}</td>
               <td className="border border-black px-2 py-2">{item.goodsSpec || '-'}</td>
@@ -94,7 +107,7 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
             </tr>
           ))}
           <tr className="stock-out-print-total">
-            <td className="border border-black px-2 py-2 font-semibold" colSpan={5}>
+            <td className="border border-black px-2 py-2 font-semibold" colSpan={6}>
               合计
             </td>
             <td className="border border-black px-2 py-2 text-right font-semibold">
