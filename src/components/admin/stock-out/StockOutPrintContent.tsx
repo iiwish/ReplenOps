@@ -90,7 +90,10 @@ export default function StockOutPrintContent({ stockOut }: StockOutPrintContentP
       printMedia.removeEventListener('change', measure)
     }
   }, [stockOut, printItems.length])
-  const visibleChunks = chunks ?? [printItems.map((_, index) => index)]
+  const visibleChunks =
+    chunks && chunks.reduce((count, indexes) => count + indexes.length, 0) === printItems.length
+      ? chunks
+      : [printItems.map((_, index) => index)]
   // Encode every character as a CSS escape so document codes cannot inject CSS or HTML.
   const printCode = Array.from(
     `单号：${stockOut.code}`,
