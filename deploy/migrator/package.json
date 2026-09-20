@@ -1,0 +1,22 @@
+{
+  "name": "replenops-migrator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal dependency set for the database migration and bootstrap image",
+  "scripts": {
+    "db:prepare": "npm run db:deploy && npm run db:seed && npm run db:bootstrap-admin",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:bootstrap-admin": "tsx prisma/bootstrap-admin.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "prisma": "^5.22.0",
+    "tsx": "^4.20.6"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  }
+}

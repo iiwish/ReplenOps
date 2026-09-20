@@ -203,7 +203,7 @@
   }
 
   @page stock-out {
-    margin: 24mm 12mm 18mm;
+    margin: 20mm 12mm 15mm;
 
     @top-left {
       content: '出库单';
@@ -259,7 +259,7 @@
   }
 
   .stock-out-print-page {
-    width: 100% !important;
+    width: 186mm !important;
     height: auto !important;
     overflow: visible !important;
     max-width: none !important;
@@ -294,6 +294,10 @@
 
   .stock-out-print-total {
     break-before: avoid;
+  }
+
+  .stock-out-print-page tbody.stock-out-print-page-break {
+    break-after: page;
   }
 
   .stock-out-print-signatures {

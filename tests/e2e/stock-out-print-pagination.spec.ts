@@ -7,7 +7,7 @@ const code = `PRINT-${process.pid}`
 const username = `print-${process.pid}`
 const password = 'print-e2e-only-password'
 let stockOutId: number
-let orderId: number
+let shortStockOutId: number
 
 test.beforeAll(async () => {
   const user = await prisma.user.create({
@@ -43,34 +43,37 @@ test.beforeAll(async () => {
       profit: 1,
     })
   }
-  const order = await prisma.order.create({
-    data: {
-      code,
-      storeId: store.id,
-      createdBy: user.id,
-      status: 'COMPLETED',
-      totalAmount: 240,
-      remark: '这是用于验证长备注自动换行与打印分页的测试订单。'.repeat(5),
-    },
-  })
-  orderId = order.id
-  const stockOut = await prisma.stockOut.create({
-    data: {
-      code,
-      orderId,
-      warehouseId: warehouse.id,
-      createdBy: user.id,
-      status: 'COMPLETED',
-      completedAt: new Date(),
-      items: { create: items },
-    },
-  })
-  stockOutId = stockOut.id
+  for (const count of [120, 18]) {
+    const documentCode = count === 120 ? code : `${code}-short`
+    const order = await prisma.order.create({
+      data: {
+        code: documentCode,
+        storeId: store.id,
+        createdBy: user.id,
+        status: 'COMPLETED',
+        totalAmount: count * 2,
+        remark: '这是用于验证长备注自动换行与打印分页的测试订单。'.repeat(5),
+      },
+    })
+    const stockOut = await prisma.stockOut.create({
+      data: {
+        code: documentCode,
+        orderId: order.id,
+        warehouseId: warehouse.id,
+        createdBy: user.id,
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        items: { create: items.slice(0, count) },
+      },
+    })
+    if (count === 120) stockOutId = stockOut.id
+    else shortStockOutId = stockOut.id
+  }
 })
 
 test.afterAll(async () => {
-  await prisma.stockOut.deleteMany({ where: { code } })
-  await prisma.order.deleteMany({ where: { code } })
+  await prisma.stockOut.deleteMany({ where: { code: { in: [code, `${code}-short`] } } })
+  await prisma.order.deleteMany({ where: { code: { in: [code, `${code}-short`] } } })
   await prisma.goods.deleteMany({ where: { category: { code } } })
   await prisma.goodsCategory.deleteMany({ where: { code } })
   await prisma.store.deleteMany({ where: { code } })
@@ -107,6 +110,7 @@ for (const mode of ['page', 'modal'] as const) {
       'colspan',
       '6'
     )
+    await page.setViewportSize({ width: 600, height: 900 })
     // Translation extensions can append an empty inline popup outside body.
     await page.evaluate(() => {
       const popup = document.createElement('div')
@@ -131,6 +135,7 @@ for (const mode of ['page', 'modal'] as const) {
     await expect(content.locator('.stock-out-print-heading')).toContainText(code)
     // Ant Layout's flex-child width must not collapse after switching to print blocks.
     expect((await content.boundingBox())!.width).toBeGreaterThan(700)
+    expect((await content.boundingBox())!.width).toBeLessThan(705)
     expect((await content.locator('tbody tr').first().boundingBox())!.height).toBeLessThanOrEqual(
       26
     )
@@ -151,26 +156,51 @@ for (const mode of ['page', 'modal'] as const) {
       preferCSSPageSize: true,
       printBackground: true,
     })
+    // The last section must leave room for both the total and the signature area.
+    const finalPageHeight = await content.evaluate((element) => {
+      const outerHeight = (node: Element | null) => {
+        if (!node) return 0
+        const style = getComputedStyle(node)
+        return (
+          node.getBoundingClientRect().height +
+          (Number.parseFloat(style.marginTop) || 0) +
+          (Number.parseFloat(style.marginBottom) || 0)
+        )
+      }
+      const sections = element.querySelectorAll('tbody')
+      return (
+        outerHeight(sections[sections.length - 1] ?? null) +
+        outerHeight(element.querySelector('thead')) +
+        outerHeight(element.querySelector('.stock-out-print-signatures')) +
+        (sections.length === 1 ? outerHeight(element.querySelector('.stock-out-print-info')) : 0)
+      )
+    })
+    expect(finalPageHeight).toBeLessThanOrEqual((262 * 96) / 25.4)
     await expect(content.locator('tfoot')).toHaveCount(0)
     await expect(content.getByText('合计', { exact: true })).toHaveCount(1)
     await expect(content.locator('tbody tr')).toHaveCount(121)
     expect(await content.locator('thead').evaluate((el) => getComputedStyle(el).display)).toBe(
       'table-header-group'
     )
-    await content.locator('tbody tr:not(.stock-out-print-total)').evaluateAll((rows) => {
-      rows.slice(18).forEach((row) => row.remove())
-    })
+    await page.emulateMedia({ media: 'screen' })
+    await expect(page.locator('#print-extension-popup')).toHaveCSS('display', 'inline')
+    await page.goto(`/admin/stock-out/${shortStockOutId}${mode === 'page' ? '/print' : ''}`)
+    if (mode === 'modal') await page.getByRole('button', { name: /打印出库单/ }).click()
+    await expect(content.locator('tbody tr')).toHaveCount(19)
+    await expect(page.locator('html')).toHaveAttribute('data-print-margin-boxes', 'true')
+    await page.emulateMedia({ media: 'print' })
+    await expect(content.locator('.stock-out-print-heading')).toHaveCSS('display', 'none')
     await page.pdf({
       path: info.outputPath(`${mode}-short.pdf`),
       preferCSSPageSize: true,
       printBackground: true,
     })
+    await expect(content.locator('tbody')).toHaveCount(1)
     // Browsers without margin boxes must retain the original first-page heading.
     await page.evaluate(() => {
       document.documentElement.dataset.printMarginBoxes = 'false'
     })
     await expect(content.locator('.stock-out-print-heading')).toBeVisible()
     await page.emulateMedia({ media: 'screen' })
-    await expect(page.locator('#print-extension-popup')).toHaveCSS('display', 'inline')
   })
 }

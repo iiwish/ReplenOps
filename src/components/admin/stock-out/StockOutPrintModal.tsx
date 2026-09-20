@@ -79,7 +79,8 @@ export default function StockOutPrintModal({
     >
       {isLoading ? (
         <div className="py-16 text-center">
-          <Spin tip="正在加载打印内容" />
+          <Spin />
+          <p className="mt-2 text-sm text-gray-500">正在加载打印内容</p>
         </div>
       ) : displayedStockOut ? (
         <StockOutPrintContent stockOut={displayedStockOut} />
