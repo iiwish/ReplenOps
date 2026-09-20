@@ -1,6 +1,8 @@
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+  // "native" resolves to the build or development platform, so the release images only
+  // carry the engine they actually run. Declaring extra targets would ship unused engines.
+  binaryTargets = ["native"]
 }
 
 datasource db {

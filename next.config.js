@@ -4,6 +4,14 @@ const nextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
 
+  // The wasm build of sharp is only a fallback for platforms without a prebuilt native
+  // binding. Linux targets use the native libvips package, so the wasm copy is dead weight.
+  // The key must be '**': sharp is traced into the non-route entry "next-server", which the
+  // documented '/*' key does not cover.
+  outputFileTracingExcludes: {
+    '**': ['./node_modules/@img/sharp-wasm32/**/*'],
+  },
+
   images: {
     formats: ['image/avif', 'image/webp'],
   },
