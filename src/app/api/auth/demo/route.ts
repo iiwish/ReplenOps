@@ -29,12 +29,10 @@ export async function POST(request: NextRequest) {
   }
 
   const { role } = parsed.data
-  const clientAddress = request.headers.get('x-real-ip')?.trim() || getLoginClientAddress(request.headers)
-  const rateLimitKey = createLoginRateLimitKey(
-    `demo:${role}`,
-    clientAddress
-  )
-  const rateLimit = await authRateLimitService.recordFailure(rateLimitKey)
+  const clientAddress =
+    request.headers.get('x-real-ip')?.trim() || getLoginClientAddress(request.headers)
+  const rateLimitKey = createLoginRateLimitKey(`demo:${role}`, clientAddress)
+  const rateLimit = await authRateLimitService.recordAttempt(rateLimitKey, 60)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { success: false, error: '体验操作过于频繁，请稍后重试' },
