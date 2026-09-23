@@ -1,0 +1,9 @@
+[Unit]
+Description=Renew ReplenOps demo TLS certificate
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/replenops-demo/renew-certificate.sh
+TimeoutStartSec=10min

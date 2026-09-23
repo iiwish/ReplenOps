@@ -27,12 +27,17 @@ RUN node node_modules/prisma/build/index.js generate
 COPY --chown=replenops:nodejs prisma/migrations ./prisma/migrations
 COPY --chown=replenops:nodejs \
   prisma/seed.ts \
+  prisma/demo-seed.ts \
+  prisma/demo-verify.ts \
   prisma/seed-config.ts \
   prisma/bootstrap-admin.ts \
   prisma/bootstrap-admin-core.ts \
   ./prisma/
 USER replenops
 CMD ["npm", "run", "db:prepare"]
+
+FROM migrator AS demo-seeder
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "prisma/demo-seed.ts"]
 
 FROM migrator AS release-migrator
 USER root

@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly ReplenOps demo TLS certificate renewal
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00 Asia/Shanghai
+Persistent=true
+Unit=replenops-demo-cert.service
+
+[Install]
+WantedBy=timers.target

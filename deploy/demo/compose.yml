@@ -1,0 +1,37 @@
+services:
+  app:
+    image: ${DEMO_APP_IMAGE:?Set DEMO_APP_IMAGE}
+    container_name: replenops-demo
+    env_file:
+      - /etc/replenops-demo/app.env
+    ports:
+      - '127.0.0.1:13201:3000'
+    networks:
+      - shared
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+      - /app/.next/cache:rw,noexec,nosuid,size=64m,mode=1777
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 6
+    mem_limit: 512m
+    cpus: 0.75
+    init: true
+    restart: unless-stopped
+
+networks:
+  shared:
+    external: true
+    name: 1panel-network

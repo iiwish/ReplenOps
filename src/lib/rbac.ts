@@ -57,6 +57,7 @@ export type RouteType = 'admin' | 'mobile' | 'api' | 'public'
 export const PUBLIC_API_ROUTES = [
   '/api/health',
   '/api/auth/login',
+  '/api/auth/demo',
   '/api/auth/logout',
   '/api/auth/refresh',
   '/api/auth/session',

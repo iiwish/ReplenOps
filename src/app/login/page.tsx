@@ -33,6 +33,7 @@ export default async function LoginPage({
   return (
     <LoginForm
       brandConfig={brandConfig}
+      demoEnabled={process.env.APP_ENV === 'preview' && process.env.DEMO_MODE === 'true'}
       wecomUrl={options.enabled && isWecom ? startUrl : undefined}
       initialError={params.wecomError ? '企业微信登录未完成，请重试或使用账号密码登录' : undefined}
     />
