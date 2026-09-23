@@ -1,0 +1,10 @@
+[Unit]
+Description=Restore ReplenOps synthetic demo data
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/replenops-demo/reset.env
+ExecStart=/opt/replenops-demo/reset.sh
+TimeoutStartSec=15min

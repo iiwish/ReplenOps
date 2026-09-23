@@ -26,6 +26,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
+    "db:demo-seed": "tsx prisma/demo-seed.ts",
+    "db:demo-verify": "tsx prisma/demo-verify.ts",
     "db:bootstrap-admin": "tsx prisma/bootstrap-admin.ts",
     "db:studio": "prisma studio",
     "test": "vitest run --config config/vitest.config.mts",

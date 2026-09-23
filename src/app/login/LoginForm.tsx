@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useSyncExternalStore } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Store, Warehouse } from 'lucide-react'
 import { BrandLogo } from '@/components/BrandLogo'
 import { brand, type BrandIdentity } from '@/config/brand'
 import { safeReturnPath } from '@/lib/wecom/redirect'
@@ -15,11 +15,13 @@ export default function LoginForm({
   binding = false,
   wecomUrl,
   initialError,
+  demoEnabled = false,
 }: {
   brandConfig: BrandIdentity
   binding?: boolean
   wecomUrl?: string
   initialError?: string
+  demoEnabled?: boolean
 }) {
   const [loading, setLoading] = useState(false)
   const [identifier, setIdentifier] = useState('')
@@ -28,6 +30,26 @@ export default function LoginForm({
   const [error, setError] = useState<string | null>(initialError ?? null)
   const hydrated = useSyncExternalStore(subscribe, clientReady, serverReady)
   const disabled = loading || !hydrated
+
+  const handleDemoLogin = async (role: 'store' | 'warehouse') => {
+    setError(null)
+    setLoading(true)
+    try {
+      const response = await fetch('/api/auth/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      const data: { success?: boolean; redirect?: string; error?: string } = await response.json()
+      if (!response.ok || !data.success || !data.redirect) {
+        throw new Error(data.error || '演示登录失败')
+      }
+      window.location.replace(new URL(data.redirect, window.location.origin).toString())
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : '演示登录失败')
+      setLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -174,6 +196,32 @@ export default function LoginForm({
               )}
             </button>
           </form>
+          {demoEnabled && !binding && (
+            <div className="mt-6 border-t border-gray-200 pt-5">
+              <p className="mb-3 text-sm font-medium text-gray-700">演示体验</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleDemoLogin('store')}
+                  disabled={disabled}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded border border-gray-300 px-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Store className="h-4 w-4" aria-hidden="true" />
+                  门店端
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDemoLogin('warehouse')}
+                  disabled={disabled}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded border border-gray-300 px-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Warehouse className="h-4 w-4" aria-hidden="true" />
+                  仓库端
+                </button>
+              </div>
+              <p className="mt-3 text-xs text-gray-500">演示数据每天 04:00（北京时间）重置。</p>
+            </div>
+          )}
           {wecomUrl && (
             <a
               href={wecomUrl}
