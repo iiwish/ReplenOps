@@ -7,6 +7,7 @@ import { getOrderById } from '@/actions/order-actions'
 import { notFound } from 'next/navigation'
 import { WithdrawOrderButton } from '@/components/mobile/order/WithdrawOrderButton'
 import { ConfirmReceiptButton } from '@/components/mobile/order/ConfirmReceiptButton'
+import { RestoreCancelledOrderButton } from '@/components/mobile/order/RestoreCancelledOrderButton'
 import { formatGoodsQuantity } from '@/lib/quantity'
 
 interface OrderDetailPageProps {
@@ -29,7 +30,7 @@ const STATUS_MAP: Record<
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
-  await requireRoles(MOBILE_ACCESS_ROLES)
+  const { user } = await requireRoles(MOBILE_ACCESS_ROLES)
 
   const { id } = await params
 
@@ -85,7 +86,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const totalMeasureType = order.items.every((item) => item.measureType === 'INT')
     ? 'INT'
     : 'DECIMAL'
-  const hasAction = ['PENDING', 'REJECTED', 'PROCESSING'].includes(order.status)
+  const canRecoverCart =
+    order.status === 'CANCELLED' &&
+    order.stockOut?.status === 'CANCELLED' &&
+    order.stockOut.completedAt === null &&
+    order.createdBy === user.id
+  const hasAction = ['PENDING', 'REJECTED', 'PROCESSING'].includes(order.status) || canRecoverCart
 
   return (
     <div className={hasAction ? 'pb-20' : undefined}>
@@ -151,16 +157,22 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <>
                   <Separator />
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">拒绝人</span>
+                    <span className="text-muted-foreground">
+                      {order.status === 'CANCELLED' ? '取消人' : '拒绝人'}
+                    </span>
                     <span>{order.revokedByName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">拒绝时间</span>
+                    <span className="text-muted-foreground">
+                      {order.status === 'CANCELLED' ? '取消时间' : '拒绝时间'}
+                    </span>
                     <span>{new Date(order.revokedAt).toLocaleString('zh-CN')}</span>
                   </div>
                   {order.revokeReason && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-muted-foreground">拒绝原因</span>
+                      <span className="text-muted-foreground">
+                        {order.status === 'CANCELLED' ? '取消原因' : '拒绝原因'}
+                      </span>
                       <span className="text-destructive">{order.revokeReason}</span>
                     </div>
                   )}
@@ -241,6 +253,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           </div>
         )}
 
+        {canRecoverCart && (
+          <div className="fixed bottom-[var(--mobile-tab-bar-height)] left-0 right-0 z-30 border-t bg-background px-3 py-3">
+            <RestoreCancelledOrderButton orderId={order.id} storeId={order.storeId} />
+          </div>
+        )}
+
         {/* 撤回按钮（PENDING / REJECTED 状态显示） */}
         {(order.status === 'PENDING' || order.status === 'REJECTED') && (
           <div className="fixed bottom-[var(--mobile-tab-bar-height)] left-0 right-0 z-30 border-t bg-background px-3 py-3">
@@ -248,7 +266,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               orderId={order.id}
               orderCode={order.code}
               storeId={order.storeId}
-              orderItems={order.items}
             />
           </div>
         )}

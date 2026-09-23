@@ -425,3 +425,68 @@ test('keeps order data scoped to the selected store', async ({ page }) => {
     await prisma.store.delete({ where: { id: extra.id } })
   }
 })
+
+test('offers cancelled order items on the next mobile visit and restores them once', async ({
+  page,
+}) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { username } })
+  const store = await prisma.store.findUniqueOrThrow({ where: { code: storeCode } })
+  const goods = await prisma.goods.findUniqueOrThrow({ where: { code: goodsCode } })
+  const warehouse = await prisma.warehouse.findUniqueOrThrow({ where: { code: `MPW${suffix}` } })
+  const cancelled = await prisma.order.create({
+    data: {
+      code: `OR-CANCEL-RECOVERY-${suffix}`,
+      storeId: store.id,
+      createdBy: user.id,
+      status: 'CANCELLED',
+      totalAmount: 24,
+      items: { create: { goodsId: goods.id, quantity: 2, unitPrice: 12, totalPrice: 24 } },
+    },
+  })
+  try {
+    await prisma.stockOut.create({
+      data: {
+        code: `SO-CANCEL-RECOVERY-${suffix}`,
+        orderId: cancelled.id,
+        warehouseId: warehouse.id,
+        status: 'CANCELLED',
+      },
+    })
+
+    await page.goto('/mobile/home')
+    const notice = page.getByRole('region', { name: '已取消订单' })
+    await expect(notice).toContainText(cancelled.code)
+    await page.setViewportSize({ width: 320, height: 700 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await notice.getByRole('link', { name: '查看并恢复商品' }).tap()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const restoreButton = page.getByRole('button', { name: '将原商品加入购物车' })
+    const navigation = await page.getByRole('navigation', { name: '底部导航' }).boundingBox()
+    const actionBar = await restoreButton.locator('..').boundingBox()
+    expect(Math.abs(actionBar!.y + actionBar!.height - navigation!.y)).toBeLessThan(2)
+    await restoreButton.tap()
+    await expect(page).toHaveURL(/\/mobile\/order$/)
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          () =>
+            JSON.parse(localStorage.getItem('erp-cart-storage') || '{}').state?.items?.[0]?.quantity
+        )
+      )
+      .toBe(2)
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          (id) => localStorage.getItem(`replenops-cart-recovered-${id}`),
+          String(cancelled.id)
+        )
+      )
+      .toBe('1')
+
+    await page.goto('/mobile/home')
+    await expect(notice).toHaveCount(0)
+  } finally {
+    await prisma.stockOut.deleteMany({ where: { orderId: cancelled.id } })
+    await prisma.order.delete({ where: { id: cancelled.id } })
+  }
+})

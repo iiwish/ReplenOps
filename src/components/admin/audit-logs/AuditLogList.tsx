@@ -30,6 +30,8 @@ export function AuditLogList({ data, loading = false }: AuditLogListProps) {
       adjust: { color: 'blue', label: '调整' },
       APPROVE: { color: 'green', label: '审批' },
       REJECT: { color: 'red', label: '拒绝' },
+      CANCEL: { color: 'red', label: '取消订单' },
+      CANCEL_AFTER_STOCK_OUT_CANCEL: { color: 'red', label: '取消订单' },
       GOODS_CREATE: { color: 'green', label: '创建商品' },
       GOODS_UPDATE: { color: 'blue', label: '修改商品' },
       GOODS_DELETE: { color: 'red', label: '删除商品' },

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { OrderStatus, Prisma } from '@prisma/client'
 import type { AuthUser } from '@/lib/auth'
 import { lockOrderInventory, releaseOrderInventory } from './inventory-lock.service'
-import { orderingInventoryWhere } from './ordering-stock-policy'
+import { getSingleWarehouseAvailableQty, orderingInventoryWhere } from './ordering-stock-policy'
 import {
   assertCanOperateStore,
   assertCanReadStore,
@@ -49,7 +49,7 @@ export interface CreateOrderOptions {
   enforceOrderingSchedule?: boolean
 }
 
-// 撤回订单时用于恢复购物车的商品结构
+// 撤回或取消订单后用于恢复购物车的商品结构
 // goodsId 为 string，与 CartItem / useCartStore 保持一致
 export interface CartRestoreItem {
   goodsId: string
@@ -57,11 +57,18 @@ export interface CartRestoreItem {
   name: string
   spec: string | null
   unit: string
-  measureType: string
+  measureType: 'INT' | 'DECIMAL'
   price: number
   quantity: number
   availableQty: number
   imageUrl: string | null
+}
+
+export interface CancelledOrderCartRecovery {
+  items: CartRestoreItem[]
+  unavailableGoods: string[]
+  stockChanged: boolean
+  priceChanged: boolean
 }
 
 // 订单列表项接口
@@ -287,6 +294,113 @@ export class OrderService {
           status: order.status,
         }
       : null
+  }
+
+  async listCancelledOrdersForCartRecovery(storeId: string, user: AuthUser) {
+    const storeIdInt = Number.parseInt(storeId, 10)
+    if (Number.isNaN(storeIdInt)) throw new Error('门店ID无效')
+    await assertCanOperateStore(user, storeIdInt)
+
+    const orders = await prisma.order.findMany({
+      where: {
+        storeId: storeIdInt,
+        createdBy: user.id,
+        status: 'CANCELLED',
+        isDeleted: false,
+        stockOut: { is: { status: 'CANCELLED', completedAt: null, isDeleted: false } },
+      },
+      select: { id: true, code: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 20,
+    })
+
+    return orders.map((order) => ({ id: String(order.id), code: order.code }))
+  }
+
+  async getCancelledOrderCartRecovery(
+    orderId: string,
+    user: AuthUser
+  ): Promise<CancelledOrderCartRecovery> {
+    const orderIdInt = Number.parseInt(orderId, 10)
+    if (Number.isNaN(orderIdInt)) throw new Error('订单ID无效')
+
+    const order = await prisma.order.findFirst({
+      where: {
+        id: orderIdInt,
+        createdBy: user.id,
+        status: 'CANCELLED',
+        isDeleted: false,
+        stockOut: { is: { status: 'CANCELLED', completedAt: null, isDeleted: false } },
+      },
+      select: {
+        storeId: true,
+        items: {
+          where: { isDeleted: false },
+          select: {
+            quantity: true,
+            unitPrice: true,
+            goodsNameSnapshot: true,
+            goods: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                spec: true,
+                unit: true,
+                measureType: true,
+                partnerPrice: true,
+                imageUrl: true,
+                isActive: true,
+                isDeleted: true,
+                category: { select: { isActive: true, isDeleted: true } },
+                inventories: {
+                  where: orderingInventoryWhere,
+                  select: { availableQuantity: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    if (!order) throw new Error('该订单不可恢复至购物车')
+    await assertCanOperateStore(user, order.storeId)
+
+    const unavailableGoods: string[] = []
+    const items: CartRestoreItem[] = []
+    let stockChanged = false
+    let priceChanged = false
+    for (const item of order.items) {
+      const goods = item.goods
+      if (
+        goods.isDeleted ||
+        !goods.isActive ||
+        goods.category.isDeleted ||
+        !goods.category.isActive
+      ) {
+        unavailableGoods.push(item.goodsNameSnapshot ?? goods.name)
+        continue
+      }
+
+      const availableQty = getSingleWarehouseAvailableQty(goods.inventories)
+      const quantity = item.quantity.toNumber()
+      if (availableQty < quantity) stockChanged = true
+      if (!goods.partnerPrice.equals(item.unitPrice)) priceChanged = true
+      items.push({
+        goodsId: String(goods.id),
+        code: goods.code,
+        name: goods.name,
+        spec: goods.spec,
+        unit: goods.unit,
+        measureType: goods.measureType,
+        price: goods.partnerPrice.toNumber(),
+        quantity,
+        availableQty,
+        imageUrl: goods.imageUrl,
+      })
+    }
+
+    return { items, unavailableGoods, stockChanged, priceChanged }
   }
 
   /**

@@ -146,7 +146,7 @@ export async function completeStockOut(
 }
 
 /**
- * 取消出库单
+ * 取消待出库单及关联订单
  */
 export async function cancelStockOut(
   id: string,
@@ -168,7 +168,7 @@ export async function cancelStockOut(
 
     return {
       success: true,
-      message: '出库单已取消',
+      message: '订单及出库单已取消',
       data: stockOut,
     }
   } catch (error) {
