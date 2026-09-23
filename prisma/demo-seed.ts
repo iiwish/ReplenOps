@@ -559,11 +559,11 @@ async function main(): Promise<void> {
     await createOrder(index % stores.length, 'REJECTED', 14 - index)
   for (let index = 0; index < 6; index += 1)
     await createOrder(index % stores.length, 'CANCELLED', 12 - index, index < 3)
-  await createOrder(0, 'PENDING', 0)
-  await createOrder(1, 'PENDING', 0)
-  await createOrder(2, 'APPROVED', 0)
-  await createOrder(3, 'APPROVED', 0)
-  await createOrder(4, 'PROCESSING', 0)
+  await createOrder(3, 'PENDING', 0)
+  await createOrder(4, 'PENDING', 0)
+  await createOrder(5, 'APPROVED', 0)
+  await createOrder(6, 'APPROVED', 0)
+  await createOrder(7, 'PROCESSING', 0)
 
   for (const [storeIndex, store] of stores.entries()) {
     for (const [containerIndex, container] of containers.entries()) {
