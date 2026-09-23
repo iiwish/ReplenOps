@@ -12,7 +12,7 @@ if ! openssl x509 -in "$certificate" -noout -checkend 2592000 >/dev/null; then
     -v /etc/letsencrypt:/etc/letsencrypt \
     -v /var/lib/letsencrypt:/var/lib/letsencrypt \
     -v "$webroot:/var/www/acme" \
-    certbot/certbot:latest renew --non-interactive --quiet --no-random-sleep-on-renew
+    certbot/certbot:latest renew --cert-name "$domain" --non-interactive --quiet --no-random-sleep-on-renew
 fi
 
 openssl x509 -in "$certificate" -noout -checkend 604800 >/dev/null
