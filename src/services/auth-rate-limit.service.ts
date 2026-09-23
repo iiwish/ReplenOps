@@ -46,6 +46,17 @@ export class AuthRateLimitService {
   }
 
   async recordFailure(key: string, now = new Date()): Promise<RateLimitDecision> {
+    return this.recordAttempt(key, MAX_FAILURES, now)
+  }
+
+  async recordAttempt(
+    key: string,
+    maxAttempts: number,
+    now = new Date()
+  ): Promise<RateLimitDecision> {
+    if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1) {
+      throw new Error('Rate limit must be a positive safe integer')
+    }
     const run = async () =>
       prisma.$transaction(
         async (tx) => {
@@ -61,7 +72,7 @@ export class AuthRateLimitService {
           const windowExpired =
             !existing || now.getTime() - existing.windowStartedAt.getTime() >= WINDOW_MS
           const failures = windowExpired ? 1 : existing.failures + 1
-          const blockedUntil = failures >= MAX_FAILURES ? new Date(now.getTime() + BLOCK_MS) : null
+          const blockedUntil = failures >= maxAttempts ? new Date(now.getTime() + BLOCK_MS) : null
 
           await tx.loginRateLimit.upsert({
             where: { key },

@@ -50,4 +50,12 @@ describe('database-backed login rate limiting', () => {
     await expect(authRateLimitService.check(key)).resolves.toEqual({ allowed: true })
     await expect(prisma.loginRateLimit.findUnique({ where: { key } })).resolves.toBeNull()
   })
+
+  it('supports a separate attempt limit without changing the login failure limit', async () => {
+    await expect(authRateLimitService.recordAttempt(key, 3)).resolves.toEqual({ allowed: true })
+    await expect(authRateLimitService.recordAttempt(key, 3)).resolves.toEqual({ allowed: true })
+    await expect(authRateLimitService.recordAttempt(key, 3)).resolves.toMatchObject({
+      allowed: false,
+    })
+  })
 })
