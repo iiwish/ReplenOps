@@ -654,7 +654,7 @@ export class StockOutService {
   }
 
   /**
-   * 取消出库单
+   * 取消待出库单及关联订单
    */
   async cancel(id: string, reason: string, userId: string) {
     const stockOutId = Number.parseInt(id, 10)
@@ -667,6 +667,7 @@ export class StockOutService {
           order: {
             select: {
               status: true,
+              lockedWarehouseId: true,
             },
           },
         },
@@ -680,15 +681,12 @@ export class StockOutService {
         throw new Error('只有待出库状态才能取消')
       }
 
-      const otherActiveStockOut = await tx.stockOut.findFirst({
-        where: {
-          orderId: stockOut.orderId,
-          id: { not: stockOutId },
-          isDeleted: false,
-          status: { in: ['PENDING', 'PROCESSING'] },
-        },
-        select: { id: true },
-      })
+      if (stockOut.order.status !== 'APPROVED') {
+        throw new Error('关联订单不是待出库状态，无法取消')
+      }
+      if (stockOut.order.lockedWarehouseId !== stockOut.warehouseId) {
+        throw new Error('订单库存锁与出库仓库不一致，无法取消')
+      }
 
       const cancelled = await tx.stockOut.updateMany({
         where: {
@@ -717,19 +715,23 @@ export class StockOutService {
         }))
       )
 
-      // 当前模型是一单一出库单；保留这层判断，避免未来扩展为一对多时把仍有活动出库单的订单错误回退。
-      if (stockOut.order.status === 'APPROVED' && !otherActiveStockOut) {
-        await tx.order.updateMany({
-          where: {
-            id: stockOut.orderId,
-            status: 'APPROVED',
-            isDeleted: false,
-          },
-          data: {
-            status: 'APPROVED',
-            lockedWarehouseId: null,
-          },
-        })
+      const cancelledOrder = await tx.order.updateMany({
+        where: {
+          id: stockOut.orderId,
+          status: 'APPROVED',
+          isDeleted: false,
+        },
+        data: {
+          status: 'CANCELLED',
+          lockedWarehouseId: null,
+          revokedBy: userId,
+          revokedAt: new Date(),
+          revokeReason: reason,
+        },
+      })
+
+      if (cancelledOrder.count !== 1) {
+        throw new Error('订单状态已变化，请刷新后重试')
       }
 
       await tx.approvalLog.create({
@@ -740,6 +742,19 @@ export class StockOutService {
           reason,
           beforeJson: { status: stockOut.status },
           afterJson: { status: 'CANCELLED', reason },
+          operatedBy: userId,
+        },
+      })
+
+      await tx.approvalLog.create({
+        data: {
+          orderId: stockOut.orderId,
+          entityType: 'ORDER',
+          entityId: String(stockOut.orderId),
+          action: 'CANCEL',
+          reason,
+          beforeJson: { status: stockOut.order.status, stockOutId },
+          afterJson: { status: 'CANCELLED', stockOutId },
           operatedBy: userId,
         },
       })

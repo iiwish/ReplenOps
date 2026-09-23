@@ -25,6 +25,9 @@ interface OrderDetail {
   approvedByName?: string | null
   approvedAt?: Date | null
   completedAt?: Date | null
+  revokedByName?: string | null
+  revokedAt?: Date | null
+  revokeReason?: string | null
   stockOut: {
     id: string
     code: string
@@ -212,6 +215,16 @@ export function OrderDetailClient({
               {dayjs(order.approvedAt).format('YYYY-MM-DD HH:mm:ss')}
             </Descriptions.Item>
           )}
+          {order.status === 'CANCELLED' && order.revokedAt && (
+            <Descriptions.Item label="取消时间">
+              {dayjs(order.revokedAt).format('YYYY-MM-DD HH:mm:ss')}
+            </Descriptions.Item>
+          )}
+          {order.status === 'CANCELLED' && order.revokeReason && (
+            <Descriptions.Item label="取消原因" span={2}>
+              {order.revokeReason}
+            </Descriptions.Item>
+          )}
           <Descriptions.Item label="备注" span={2}>
             {order.remark || '-'}
           </Descriptions.Item>
@@ -321,6 +334,25 @@ export function OrderDetailClient({
                         {order.completedAt && (
                           <div className="text-sm text-gray-500">
                             {dayjs(order.completedAt).format('YYYY-MM-DD HH:mm:ss')}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            ...(order.status === 'CANCELLED'
+              ? [
+                  {
+                    color: 'red',
+                    content: (
+                      <div>
+                        <div className="font-semibold">
+                          {order.stockOut?.completedAt ? '已完成订单撤销' : '订单及出库单已取消'}
+                        </div>
+                        {order.revokedAt && (
+                          <div className="text-sm text-gray-500">
+                            {dayjs(order.revokedAt).format('YYYY-MM-DD HH:mm:ss')}
                           </div>
                         )}
                       </div>

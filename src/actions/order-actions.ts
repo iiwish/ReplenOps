@@ -261,6 +261,38 @@ export async function getActiveOrderForStore(storeId: string): Promise<ActionRes
   }
 }
 
+export async function getCancelledOrdersForCartRecovery(storeId: string): Promise<ActionResponse> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) return { success: false, message: '用户未登录' }
+
+    const validatedStoreId = orderIdSchema.parse(storeId)
+    const orders = await orderService.listCancelledOrdersForCartRecovery(validatedStoreId, user)
+    return { success: true, data: orders }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '获取已取消订单失败',
+    }
+  }
+}
+
+export async function getCancelledOrderCartRecovery(orderId: string): Promise<ActionResponse> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) return { success: false, message: '用户未登录' }
+
+    const validatedOrderId = orderIdSchema.parse(orderId)
+    const recovery = await orderService.getCancelledOrderCartRecovery(validatedOrderId, user)
+    return { success: true, data: recovery }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '恢复购物车失败',
+    }
+  }
+}
+
 /**
  * 获取订单详情
  */

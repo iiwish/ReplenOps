@@ -7,6 +7,7 @@ import { StatCard } from '@/components/mobile/dashboard/StatCard'
 import { TodoList } from '@/components/mobile/dashboard/TodoList'
 import { StoreSelector } from '@/components/mobile/dashboard/StoreSelector'
 import { OrderingReminder } from '@/components/mobile/dashboard/OrderingReminder'
+import { CancelledOrderRecoveryNotice } from '@/components/mobile/order/CancelledOrderRecoveryNotice'
 import { useStoreSelectionStore } from '@/lib/stores/store-selection.store'
 import { logoutAndRedirect } from '@/lib/auth-client'
 import { getUserStores } from '@/actions/store-actions'
@@ -210,6 +211,8 @@ export default function HomePage() {
       <div className="mx-auto max-w-xl px-4 pb-2 pt-3">
         <OrderingReminder variant="home" />
       </div>
+
+      <CancelledOrderRecoveryNotice storeId={selectedStoreId} />
 
       <div className="mx-auto max-w-xl space-y-5 px-4">
         <TodoList items={data.todos} />

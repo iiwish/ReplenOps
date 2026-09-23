@@ -33,6 +33,8 @@ interface TestFixtures {
 async function cleanDatabase() {
   await prisma.documentSequence.deleteMany()
   await prisma.containerLog.deleteMany()
+  await prisma.containerReturnItem.deleteMany()
+  await prisma.containerReturn.deleteMany()
   await prisma.containerTracking.deleteMany()
   await prisma.approvalLog.deleteMany()
   await prisma.stockOutItem.deleteMany()
@@ -388,7 +390,7 @@ describe('order inventory locking', () => {
     })
   })
 
-  it('releases locked inventory when a pending stock-out is cancelled', async () => {
+  it('cancels the order and releases locked inventory with a pending stock-out', async () => {
     const fixtures = await seedFixtures(10)
     const order = await createStage2Order(fixtures, 3)
 
@@ -403,14 +405,66 @@ describe('order inventory locking', () => {
     const updatedOrder = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
     const updatedStockOut = await prisma.stockOut.findUniqueOrThrow({ where: { id: stockOut.id } })
 
-    expect(updatedOrder.status).toBe('APPROVED')
+    expect(updatedOrder.status).toBe('CANCELLED')
     expect(updatedOrder.lockedWarehouseId).toBeNull()
     expect(updatedStockOut.status).toBe('CANCELLED')
+    expect(updatedOrder.revokeReason).toBe('门店取消报货')
     expect(inventory).toEqual({
       quantity: 10,
       lockedQuantity: 0,
       availableQuantity: 10,
     })
+
+    expect(
+      await orderService.getActiveOrderForStore(String(fixtures.storeId), adminUser)
+    ).toBeNull()
+    expect(
+      await orderService.listCancelledOrdersForCartRecovery(String(fixtures.storeId), adminUser)
+    ).toEqual([{ id: String(order.id), code: order.code }])
+    const recovery = await orderService.getCancelledOrderCartRecovery(String(order.id), adminUser)
+    expect(recovery.items).toMatchObject([
+      { goodsId: String(fixtures.goodsId), quantity: 3, availableQty: 10 },
+    ])
+    expect(recovery.unavailableGoods).toEqual([])
+    expect(recovery.stockChanged).toBe(false)
+    expect(recovery.priceChanged).toBe(false)
+    const replacement = await createStage2Order(fixtures, 2)
+    expect(replacement.status).toBe('PENDING')
+
+    const cancellationLogs = await prisma.approvalLog.findMany({
+      where: { orderId: order.id, action: 'CANCEL' },
+    })
+    expect(cancellationLogs).toHaveLength(1)
+  })
+
+  it('recovers cancelled order items at current price and stock for the original creator only', async () => {
+    const fixtures = await seedFixtures(10)
+    const order = await createStage2Order(fixtures, 3)
+    await orderApprovalService.approve(String(order.id), adminUser.id)
+    const stockOut = await prisma.stockOut.findUniqueOrThrow({ where: { orderId: order.id } })
+    await stockOutService.cancel(String(stockOut.id), '重新下单', adminUser.id)
+
+    await prisma.goods.update({
+      where: { id: fixtures.goodsId },
+      data: { partnerPrice: new Prisma.Decimal(9) },
+    })
+    await prisma.inventory.update({
+      where: {
+        warehouseId_goodsId: { warehouseId: fixtures.warehouseId, goodsId: fixtures.goodsId },
+      },
+      data: { availableQuantity: new Prisma.Decimal(2) },
+    })
+
+    const recovery = await orderService.getCancelledOrderCartRecovery(String(order.id), adminUser)
+    expect(recovery.items).toMatchObject([{ price: 9, quantity: 3, availableQty: 2 }])
+    expect(recovery.stockChanged).toBe(true)
+    expect(recovery.priceChanged).toBe(true)
+    await expect(
+      orderService.getCancelledOrderCartRecovery(String(order.id), {
+        ...adminUser,
+        id: 'other-user',
+      })
+    ).rejects.toThrow('该订单不可恢复至购物车')
   })
 
   it('releases locked inventory and restores cart items when a store withdraws an order', async () => {

@@ -76,10 +76,10 @@ export default function StockOutDetailClient({
   const handleCancel = () => {
     let cancelReason = ''
     Modal.confirm({
-      title: '取消出库单',
+      title: '取消订单及出库单',
       content: (
         <div>
-          <p>确定要取消出库单 &quot;{stockOut.code}&quot; 吗？</p>
+          <p>确定要取消出库单 &quot;{stockOut.code}&quot; 及关联订单吗？门店可重新下单。</p>
           <Input.TextArea
             placeholder="请填写取消原因（至少2个字符）"
             rows={4}
@@ -215,7 +215,7 @@ export default function StockOutDetailClient({
               确认出库
             </Button>
             <Button onClick={handleCancel} loading={loading}>
-              取消
+              取消订单
             </Button>
           </>
         )}

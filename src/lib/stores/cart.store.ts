@@ -61,6 +61,7 @@ interface CartStore {
   hasHydrated: boolean
   syncAvailability: (goods: Array<{ id: string; availableQty: number }>) => void
   addItem: (item: CartItem, options?: { notifySuccess?: boolean }) => void
+  restoreItems: (restoredItems: CartItem[]) => void
   removeItem: (goodsId: string) => void
   updateQuantity: (goodsId: string, quantity: number) => boolean
   clear: () => void
@@ -139,6 +140,18 @@ export const useCartStore = create<CartStore>()(
             })
           }
         }
+      },
+
+      restoreItems: (restoredItems) => {
+        const merged = new Map(get().items.map((item) => [item.goodsId, item]))
+        for (const item of restoredItems) {
+          const existing = merged.get(item.goodsId)
+          merged.set(item.goodsId, {
+            ...item,
+            quantity: Math.max(existing?.quantity ?? 0, item.quantity),
+          })
+        }
+        set({ items: Array.from(merged.values()) })
       },
 
       removeItem: (goodsId) => {
