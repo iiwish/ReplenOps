@@ -15,8 +15,13 @@ async function main(): Promise<void> {
     prisma.goods.count({ where: { isDeleted: false } }),
     prisma.order.count({ where: { isDeleted: false } }),
     prisma.stockOut.count({ where: { isDeleted: false } }),
-    prisma.inventory.findMany({ select: { quantity: true, lockedQuantity: true, availableQuantity: true } }),
-    prisma.user.findMany({ where: { username: { in: ['demo_store', 'demo_warehouse', 'demo_owner'] } }, select: { username: true, isActive: true, isDeleted: true } }),
+    prisma.inventory.findMany({
+      select: { quantity: true, lockedQuantity: true, availableQuantity: true },
+    }),
+    prisma.user.findMany({
+      where: { username: { in: ['demo_store', 'demo_warehouse', 'demo_owner'] } },
+      select: { username: true, isActive: true, isDeleted: true },
+    }),
   ])
 
   if (stores < 8 || warehouses < 2 || goods < 60 || orders < 70 || stockOuts < 50) {
@@ -45,23 +50,41 @@ async function main(): Promise<void> {
     throw new Error('A demo store has more than one active order')
   }
 
+  const orderReadyStores = await prisma.store.findMany({
+    where: { code: { in: ['ST-DEMO-01', 'ST-DEMO-02', 'ST-DEMO-03'] } },
+    select: { id: true },
+  })
+  if (
+    orderReadyStores.length !== 3 ||
+    activeByStore.some((group) => orderReadyStores.some((store) => store.id === group.storeId))
+  ) {
+    throw new Error('The default demo stores must be ready for a new order')
+  }
+
   const activeOrders = await prisma.order.findMany({
     where: { status: { in: ['APPROVED', 'PROCESSING'] }, isDeleted: false },
-    select: { status: true, lockedWarehouseId: true, stockOut: { select: { status: true, warehouseId: true } } },
+    select: {
+      status: true,
+      lockedWarehouseId: true,
+      stockOut: { select: { status: true, warehouseId: true } },
+    },
   })
   if (
     activeOrders.some(
       (order) =>
         !order.stockOut ||
         (order.status === 'APPROVED' &&
-          (order.stockOut.status !== 'PENDING' || order.lockedWarehouseId !== order.stockOut.warehouseId)) ||
+          (order.stockOut.status !== 'PENDING' ||
+            order.lockedWarehouseId !== order.stockOut.warehouseId)) ||
         (order.status === 'PROCESSING' && order.stockOut.status !== 'COMPLETED')
     )
   ) {
     throw new Error('Demo order and stock-out states are inconsistent')
   }
 
-  console.info(`Demo verified: ${stores} stores, ${warehouses} warehouses, ${goods} goods, ${orders} orders, ${stockOuts} stock-outs`)
+  console.info(
+    `Demo verified: ${stores} stores, ${warehouses} warehouses, ${goods} goods, ${orders} orders, ${stockOuts} stock-outs`
+  )
 }
 
 main()

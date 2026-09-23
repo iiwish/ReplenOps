@@ -19,6 +19,10 @@ test('demo login only offers scoped store and warehouse access', async ({ browse
   await storePage.getByRole('button', { name: '门店端' }).click()
   await storePage.waitForURL(/\/mobile(?:\/|$)/)
   await expect(storePage.getByText('演示门店员').first()).toBeVisible()
+  await storePage.goto('/mobile/order')
+  await expect(storePage.getByRole('searchbox', { name: '搜索商品' })).toBeVisible()
+  await expect(storePage.getByText('东北大米')).toBeVisible()
+  await expect(storePage.getByText('当前门店已有待处理订单')).toHaveCount(0)
   await storeContext.close()
 
   const warehouseContext = await browser.newContext({ baseURL })
