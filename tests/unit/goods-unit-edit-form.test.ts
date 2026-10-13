@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { createElement } from 'react'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { message } from 'antd'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import GoodsFormClient, { type GoodsFormData } from '@/app/admin/goods/GoodsFormClient'
 
@@ -63,8 +64,24 @@ beforeEach(() => {
   actions.update.mockResolvedValue({ success: true, message: '商品更新成功' })
 })
 
-afterEach(() => {
-  cleanup()
+afterEach(async () => {
+  await act(async () => {
+    message.destroy()
+  })
+  if (screen.queryByText('商品更新成功')) {
+    const notice = await waitFor(() => {
+      const exitingNotice = document.querySelector('.ant-message-move-up-leave-active')
+      expect(exitingNotice).not.toBeNull()
+      return exitingNotice!
+    })
+    // jsdom does not dispatch CSS animation completion events.
+    fireEvent.animationEnd(notice)
+    fireEvent(notice, new window.Event('webkitAnimationEnd', { bubbles: true }))
+  }
+  await waitFor(() => expect(screen.queryByText('商品更新成功')).toBeNull())
+  await act(async () => {
+    cleanup()
+  })
   vi.clearAllMocks()
 })
 
@@ -109,5 +126,6 @@ describe('goods unit label edits', () => {
     expect(payload.get('defaultInPrice')).toBe('9')
     await waitFor(() => expect(view.onSuccess).toHaveBeenCalledOnce())
     expect(view.onSubmittingChange.mock.calls).toEqual([[true], [false]])
+    await screen.findByText('商品更新成功')
   })
 })
