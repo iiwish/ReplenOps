@@ -15,7 +15,10 @@ describe('deployment image security boundaries', () => {
 
     expect(install.split(/\s+/)).toContain('perl-base')
     expect(base.indexOf('apt-get update')).toBeLessThan(base.indexOf(install))
-    expect(base).not.toMatch(/apt(?:-get)?\s+(?:--?\S+\s+)*(?:dist-upgrade|full-upgrade|upgrade)\b/)
+    const tokens = base.split(/\s+/)
+    expect(tokens).not.toContain('dist-upgrade')
+    expect(tokens).not.toContain('full-upgrade')
+    expect(tokens).not.toContain('upgrade')
   })
 
   it('preserves the pinned Node 22 Bookworm image and non-root release stages', () => {
