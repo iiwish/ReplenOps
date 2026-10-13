@@ -64,12 +64,12 @@ export interface GoodsUsage {
   stockOutItemCount: number
 }
 
-export function assertGoodsUnitChangeAllowed(
+export function assertGoodsMeasureTypeChangeAllowed(
   existing: Pick<GoodsSnapshotSource, 'unit' | 'measureType'>,
   next: Pick<GoodsSnapshotSource, 'unit' | 'measureType'>,
   usage: GoodsUsage
 ): void {
-  if (existing.unit === next.unit && existing.measureType === next.measureType) {
+  if (existing.measureType === next.measureType) {
     return
   }
 
@@ -79,8 +79,6 @@ export function assertGoodsUnitChangeAllowed(
     usage.stockInItemCount > 0 ||
     usage.stockOutItemCount > 0
   ) {
-    throw new Error(
-      '商品已有库存或单据记录，不能直接修改单位或计量类型；请新建商品编码或执行库存换算'
-    )
+    throw new Error('商品已有库存或单据记录，不能直接修改计量类型；请新建商品编码')
   }
 }

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { getSingleWarehouseAvailableQty, orderingInventoryWhere } from './ordering-stock-policy'
-import { assertGoodsUnitChangeAllowed } from '@/lib/goods-snapshot'
+import { assertGoodsMeasureTypeChangeAllowed } from '@/lib/goods-snapshot'
 import { archivedCodeError, restorationData, softDeletionData } from '@/lib/master-data-lifecycle'
 import { getNextGoodsCode } from '@/lib/goods-code-policy'
 
@@ -438,7 +438,7 @@ export class GoodsService {
         prisma.stockOutItem.count({ where: { goodsId, isDeleted: false } }),
       ])
 
-    assertGoodsUnitChangeAllowed(existing, data, {
+    assertGoodsMeasureTypeChangeAllowed(existing, data, {
       inventoryCount,
       orderItemCount,
       stockInItemCount,
