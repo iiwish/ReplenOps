@@ -32,4 +32,17 @@ describe('deployment image security boundaries', () => {
     )
     expect(runner.trim()).toMatch(/USER replenops\nEXPOSE 3000\nCMD \["node", "server\.js"\]$/)
   })
+
+  it('removes unused package managers from the non-root direct-node demo seeder', () => {
+    const demoSeeder =
+      dockerfile.split('FROM migrator AS demo-seeder\n')[1]?.split('\nFROM ')[0] ?? ''
+
+    expect(demoSeeder.trim()).toMatch(/^USER root\n/)
+    expect(demoSeeder).toContain(
+      'RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \\\n  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack'
+    )
+    expect(demoSeeder.trim()).toMatch(
+      /USER replenops\nCMD \["node", "node_modules\/tsx\/dist\/cli\.mjs", "prisma\/demo-seed\.ts"\]$/
+    )
+  })
 })
