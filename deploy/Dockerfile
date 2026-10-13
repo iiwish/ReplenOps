@@ -8,6 +8,8 @@ RUN apt-get update \
 
 FROM base AS dependencies
 COPY package.json package-lock.json ./
+COPY packages/next-root-glob ./packages/next-root-glob
+COPY packages/tailwind-compatibility ./packages/tailwind-compatibility
 COPY prisma/schema.prisma ./prisma/schema.prisma
 RUN --mount=type=cache,target=/root/.npm \
   npm ci --ignore-scripts --no-audit --no-fund --prefer-offline

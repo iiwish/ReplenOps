@@ -1,0 +1,10 @@
+{
+  "name": "@replenops/next-root-glob",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.cjs",
+  "dependencies": {
+    "picomatch": "^4.0.5",
+    "tinyglobby": "^0.2.17"
+  }
+}

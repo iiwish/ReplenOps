@@ -30,7 +30,14 @@ const config = [
     },
   },
   {
-    files: ['*.js', 'scripts/**/*.js', 'tests/**/*.js', '__tests__/**/*.js'],
+    files: [
+      '*.js',
+      'scripts/**/*.js',
+      'tests/**/*.js',
+      '__tests__/**/*.js',
+      'packages/next-root-glob/index.cjs',
+      'packages/tailwind-compatibility/index.cjs',
+    ],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
