@@ -60,7 +60,7 @@
     "ioredis": "^5.9.2",
     "jose": "^6.2.12",
     "lucide-react": "^0.562.0",
-    "next": "^16.3.4",
+    "next": "~16.3.8",
     "nuqs": "^2.8.6",
     "prisma": "^5.22.0",
     "react": "^19.2.3",
@@ -72,6 +72,8 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@replenops/tailwind-compatibility": "file:packages/tailwind-compatibility",
+    "@tailwindcss/postcss": "^4.3.3",
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
@@ -82,15 +84,15 @@
     "@typescript-eslint/parser": "^8.51.0",
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.1.11",
-    "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.3.4",
+    "eslint-config-next": "~16.3.8",
+    "fast-glob": "file:packages/next-root-glob",
     "jsdom": "^29.0.1",
     "playwright": "^1.58.2",
     "postcss": "^8.5.25",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "tailwindcss": "^3.4.17",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
@@ -100,6 +102,9 @@
     "npm": ">=9.0.0"
   },
   "overrides": {
+    "@next/eslint-plugin-next": {
+      "fast-glob": "$fast-glob"
+    },
     "esbuild": "^0.28.1",
     "picomatch": "^4.0.5",
     "uuid": "^11.1.1"

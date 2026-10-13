@@ -61,15 +61,17 @@ ReplenOps 将门店订货、审批、库存锁定、仓库履约和审计记录�
 
 ## 技术架构
 
-| 层级 | 技术与职责                                       |
-| ---- | ------------------------------------------------ |
-| Web  | Next.js 16、React 19、TypeScript strict          |
-| UI   | Ant Design、Radix UI、Tailwind CSS、Lucide Icons |
-| 应用 | Server Components、Server Actions、Zod、RBAC     |
-| 数据 | PostgreSQL 17、Prisma、版本化 migrations         |
-| 缓存 | Redis（可选）；单实例可使用进程内缓存            |
-| 测试 | Vitest、Playwright                               |
-| 交付 | Docker、GitHub Actions、CodeQL、Gitleaks、Trivy  |
+| 层级 | 技术与职责                                         |
+| ---- | -------------------------------------------------- |
+| Web  | Next.js 16、React 19、TypeScript strict            |
+| UI   | Ant Design、Radix UI、Tailwind CSS 4、Lucide Icons |
+| 应用 | Server Components、Server Actions、Zod、RBAC       |
+| 数据 | PostgreSQL 17、Prisma、版本化 migrations           |
+| 缓存 | Redis（可选）；单实例可使用进程内缓存              |
+| 测试 | Vitest、Playwright                                 |
+| 交付 | Docker、GitHub Actions、CodeQL、Gitleaks、Trivy    |
+
+Tailwind 通过 `@tailwindcss/postcss` 编译，本地[样式兼容插件](packages/tailwind-compatibility/README.md)保留既有主题、间距和 Ant Design 层叠规则。Next.js ESLint 的目录匹配使用本地[目录适配器](packages/next-root-glob/README.md)与受维护的 glob 库；其余 Next.js lint 规则保持完整启用。
 
 核心目录：
 

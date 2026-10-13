@@ -1,8 +1,35 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@config '../../tailwind.config.ts';
+@custom-variant hover (&:hover);
+
+@theme {
+  --default-ring-width: 3px;
+  --default-ring-color: rgb(59 130 246 / 0.5);
+  --blur-sm: 4px;
+}
+
+@utility rounded {
+  border-radius: 0.25rem;
+}
+
+@utility outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+@utility ring-opacity-* {
+  --tw-ring-opacity: calc(--value(integer) / 100);
+}
 
 @layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -50,6 +77,31 @@
 }
 
 @layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: #fff;
+  }
+
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+
+  dialog {
+    margin: auto;
+  }
+
   * {
     @apply border-border;
   }
