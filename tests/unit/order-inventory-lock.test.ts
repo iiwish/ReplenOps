@@ -576,9 +576,19 @@ describe('order inventory locking', () => {
     expect(order.code).not.toBe('OR202606140001')
   })
 
-  it('keeps document goods snapshots and protects used goods master data', async () => {
+  it('edits used goods unit labels without converting inventory or document snapshots', async () => {
     const fixtures = await seedFixtures(10)
     const order = await createStage2Order(fixtures, 2)
+    const stockIn = await stockInService.create({
+      warehouseId: String(fixtures.warehouseId),
+      createdBy: adminUser.id,
+      items: [{ goodsId: String(fixtures.goodsId), quantity: 4, price: 6 }],
+    })
+    await stockInService.approve(stockIn.id, adminUser.id)
+    await stockInService.complete(stockIn.id, adminUser.id)
+    const lockedInventory = await prisma.inventory.findFirstOrThrow({
+      where: { goodsId: fixtures.goodsId },
+    })
     const newCategory = await prisma.goodsCategory.create({
       data: { code: 'CAT-NEW', name: 'New Category', isActive: true },
     })
@@ -593,7 +603,7 @@ describe('order inventory locking', () => {
         name: 'Renamed Goods',
         categoryId: String(newCategory.id),
         spec: 'New Spec',
-        unit: '件',
+        unit: '个',
         measureType: 'INT',
         costPrice: 5,
         partnerPrice: 8,
@@ -602,6 +612,9 @@ describe('order inventory locking', () => {
       adminUser.id
     )
 
+    expect(await prisma.inventory.findUniqueOrThrow({ where: { id: lockedInventory.id } })).toEqual(
+      lockedInventory
+    )
     const detail = await orderService.getById(String(order.id), adminUser)
     expect(detail?.items[0]).toMatchObject({
       goodsCode: 'G-STAGE2',
@@ -616,6 +629,7 @@ describe('order inventory locking', () => {
       where: { stockOut: { orderId: order.id } },
     })
     expect(stockOutItem.goodsNameSnapshot).toBe('Stage2 Goods')
+    expect(stockOutItem.goodsUnitSnapshot).toBe('件')
     expect(stockOutItem.categoryNameSnapshot).toBe('Stage2 Category')
 
     const stockOut = await prisma.stockOut.findUniqueOrThrow({ where: { orderId: order.id } })
@@ -626,33 +640,134 @@ describe('order inventory locking', () => {
     })
     await stockOutService.complete(String(stockOut.id), adminUser.id)
 
-    await expect(
-      goodsService.update(
-        String(fixtures.goodsId),
-        {
-          name: 'Renamed Goods',
-          categoryId: String(newCategory.id),
-          spec: 'New Spec',
-          unit: '箱',
-          measureType: 'INT',
-          costPrice: 5,
-          partnerPrice: 8,
-          defaultInPrice: 5,
-        },
-        adminUser.id
-      )
-    ).rejects.toThrow('不能直接修改单位或计量类型')
+    const inventoryBefore = await prisma.inventory.findUniqueOrThrow({
+      where: { id: lockedInventory.id },
+    })
+    const orderItemsBefore = await prisma.orderItem.findMany({ where: { orderId: order.id } })
+    const stockInItemsBefore = await prisma.stockInItem.findMany({
+      where: { stockInId: Number(stockIn.id) },
+    })
+    const stockOutItemsBefore = await prisma.stockOutItem.findMany({
+      where: { stockOutId: stockOut.id },
+    })
+    const inventoryLogsBefore = await prisma.inventoryLog.findMany({
+      where: { inventoryId: inventoryBefore.id },
+      orderBy: { id: 'asc' },
+    })
+    const costHistoryBefore = await prisma.costHistory.findMany({
+      where: { goodsId: fixtures.goodsId },
+      orderBy: { id: 'asc' },
+    })
+    expect(costHistoryBefore).toHaveLength(1)
+    expect(inventoryLogsBefore).not.toHaveLength(0)
+    const updated = await goodsService.update(
+      String(fixtures.goodsId),
+      {
+        name: 'Renamed Goods',
+        categoryId: String(newCategory.id),
+        spec: 'New Spec',
+        unit: '箱',
+        measureType: 'INT',
+        costPrice: 5,
+        partnerPrice: 8,
+        defaultInPrice: 5,
+      },
+      adminUser.id
+    )
+
+    expect(updated).toMatchObject({
+      unit: '箱',
+      measureType: 'INT',
+      costPrice: 5,
+      partnerPrice: 8,
+      defaultInPrice: 5,
+    })
+    expect(await prisma.inventory.findUniqueOrThrow({ where: { id: inventoryBefore.id } })).toEqual(
+      inventoryBefore
+    )
+    expect(await prisma.orderItem.findMany({ where: { orderId: order.id } })).toEqual(
+      orderItemsBefore
+    )
+    expect(await prisma.stockInItem.findMany({ where: { stockInId: Number(stockIn.id) } })).toEqual(
+      stockInItemsBefore
+    )
+    expect(await prisma.stockOutItem.findMany({ where: { stockOutId: stockOut.id } })).toEqual(
+      stockOutItemsBefore
+    )
+    expect(stockInItemsBefore[0]?.goodsUnitSnapshot).toBe('件')
+    expect(
+      await prisma.inventoryLog.findMany({
+        where: { inventoryId: inventoryBefore.id },
+        orderBy: { id: 'asc' },
+      })
+    ).toEqual(inventoryLogsBefore)
+    expect(
+      await prisma.costHistory.findMany({
+        where: { goodsId: fixtures.goodsId },
+        orderBy: { id: 'asc' },
+      })
+    ).toEqual(costHistoryBefore)
 
     await expect(goodsService.delete(String(fixtures.goodsId), adminUser.id)).rejects.toThrow(
       '仍有库存、锁定库存或可用库存'
     )
 
-    const audit = await prisma.approvalLog.findFirstOrThrow({
+    const audits = await prisma.approvalLog.findMany({
       where: { entityType: 'GOODS', entityId: String(fixtures.goodsId), action: 'GOODS_UPDATE' },
+      orderBy: { id: 'asc' },
     })
-    expect(audit.beforeJson).toMatchObject({ name: 'Stage2 Goods' })
-    expect(audit.afterJson).toMatchObject({ name: 'Renamed Goods' })
+    expect(audits).toHaveLength(2)
+    expect(audits[0]?.beforeJson).toMatchObject({ name: 'Stage2 Goods', unit: '件' })
+    expect(audits[0]?.afterJson).toMatchObject({ name: 'Renamed Goods', unit: '个' })
+    expect(audits[1]?.beforeJson).toMatchObject({ unit: '个', measureType: 'INT' })
+    expect(audits[1]?.afterJson).toMatchObject({ unit: '箱', measureType: 'INT' })
+    expect(audits.every((audit) => audit.operatedBy === adminUser.id)).toBe(true)
   })
+
+  it.each(['INT', 'DECIMAL'] as const)(
+    'rejects changing a used goods measurement type from %s without updates or audit',
+    async (measureType) => {
+      const fixtures = await seedFixtures(10)
+      const original = await prisma.goods.update({
+        where: { id: fixtures.goodsId },
+        data: { measureType },
+      })
+      await createStage2Order(fixtures, 2)
+      const inventory = await prisma.inventory.findFirstOrThrow({
+        where: { goodsId: fixtures.goodsId },
+      })
+
+      await expect(
+        goodsService.update(
+          String(fixtures.goodsId),
+          {
+            name: original.name,
+            categoryId: String(original.categoryId),
+            unit: '箱',
+            measureType: measureType === 'INT' ? 'DECIMAL' : 'INT',
+            costPrice: 5,
+            partnerPrice: 8,
+            defaultInPrice: 5,
+          },
+          adminUser.id
+        )
+      ).rejects.toThrow('商品已有库存或单据记录，不能直接修改计量类型；请新建商品编码')
+
+      expect(await prisma.goods.findUniqueOrThrow({ where: { id: original.id } })).toEqual(original)
+      expect(await prisma.inventory.findUniqueOrThrow({ where: { id: inventory.id } })).toEqual(
+        inventory
+      )
+      expect(
+        await prisma.approvalLog.count({
+          where: {
+            entityType: 'GOODS',
+            entityId: String(original.id),
+            action: 'GOODS_UPDATE',
+          },
+        })
+      ).toBe(0)
+    }
+  )
 
   it('does not combine stock from different warehouses during approval checks', async () => {
     const fixtures = await seedFixtures(10)

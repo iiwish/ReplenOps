@@ -1,6 +1,6 @@
 'use client'
 
-import { Form, Input, InputNumber, message, Space, Select, Radio } from 'antd'
+import { Alert, Form, Input, InputNumber, message, Space, Select, Radio } from 'antd'
 import { createGoods, updateGoods } from '@/actions/goods-actions'
 import { GOODS_CODE_PATTERN, shouldValidateGoodsCode } from '@/lib/goods-code-policy'
 import { isAllowedProductImageSource } from '@/lib/product-image'
@@ -41,6 +41,8 @@ export default function GoodsFormClient({
   onSubmittingChange,
 }: GoodsFormClientProps) {
   const [form] = Form.useForm()
+  const unit = Form.useWatch<string>('unit', form) ?? initialValues?.unit
+  const unitChanged = mode === 'edit' && initialValues !== undefined && unit !== initialValues.unit
 
   // 表单提交处理
   const handleSubmit = async (values: GoodsFormData) => {
@@ -145,7 +147,7 @@ export default function GoodsFormClient({
         />
       </Form.Item>
 
-      <Space style={{ width: '100%' }} size="large">
+      <Space style={{ width: '100%', rowGap: 0 }} size="large" wrap>
         <Form.Item label="规格" name="spec" style={{ width: 250 }} tooltip="如：500g、1kg、500ml">
           <Input placeholder="如：500g" />
         </Form.Item>
@@ -164,6 +166,15 @@ export default function GoodsFormClient({
         </Form.Item>
       </Space>
 
+      {unitChanged && (
+        <Alert
+          type="warning"
+          showIcon
+          title="仅修改单位名称，不换算库存数量及价格"
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
       <Form.Item
         label="计量类型"
         name="measureType"
@@ -176,7 +187,7 @@ export default function GoodsFormClient({
         </Radio.Group>
       </Form.Item>
 
-      <Space style={{ width: '100%' }} size="large">
+      <Space style={{ width: '100%', rowGap: 0 }} size="large" wrap>
         <Form.Item
           label="成本价（元）"
           name="costPrice"

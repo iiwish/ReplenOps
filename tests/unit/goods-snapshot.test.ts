@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  assertGoodsUnitChangeAllowed,
+  assertGoodsMeasureTypeChangeAllowed,
   buildGoodsSnapshot,
   resolveGoodsSnapshot,
 } from '@/lib/goods-snapshot'
@@ -48,37 +48,70 @@ describe('goods document snapshots', () => {
     expect(snapshot.categoryNameSnapshot).toBe('日用品')
   })
 
-  it('blocks unit changes after the goods has been used', () => {
+  it.each([
+    { inventoryCount: 1, orderItemCount: 0, stockInItemCount: 0, stockOutItemCount: 0 },
+    { inventoryCount: 0, orderItemCount: 1, stockInItemCount: 0, stockOutItemCount: 0 },
+    { inventoryCount: 0, orderItemCount: 0, stockInItemCount: 1, stockOutItemCount: 0 },
+    { inventoryCount: 0, orderItemCount: 0, stockInItemCount: 0, stockOutItemCount: 1 },
+  ])('allows unit label changes for used goods: %j', (usage) => {
     expect(() =>
-      assertGoodsUnitChangeAllowed(
-        goods,
-        { unit: '个', measureType: 'INT' },
-        { inventoryCount: 0, orderItemCount: 1, stockInItemCount: 0, stockOutItemCount: 0 }
+      assertGoodsMeasureTypeChangeAllowed(goods, { unit: '个', measureType: 'INT' }, usage)
+    ).not.toThrow()
+
+    expect(() =>
+      assertGoodsMeasureTypeChangeAllowed(
+        { unit: '公斤', measureType: 'DECIMAL' },
+        { unit: 'kg', measureType: 'DECIMAL' },
+        usage
       )
-    ).toThrow('不能直接修改单位或计量类型')
+    ).not.toThrow()
   })
 
-  it('allows unchanged units and unused goods', () => {
+  it.each([
+    { inventoryCount: 1, orderItemCount: 0, stockInItemCount: 0, stockOutItemCount: 0 },
+    { inventoryCount: 0, orderItemCount: 1, stockInItemCount: 0, stockOutItemCount: 0 },
+    { inventoryCount: 0, orderItemCount: 0, stockInItemCount: 1, stockOutItemCount: 0 },
+    { inventoryCount: 0, orderItemCount: 0, stockInItemCount: 0, stockOutItemCount: 1 },
+  ])('blocks measurement type changes in either direction for used goods: %j', (usage) => {
     expect(() =>
-      assertGoodsUnitChangeAllowed(goods, goods, {
+      assertGoodsMeasureTypeChangeAllowed(goods, { unit: '个', measureType: 'DECIMAL' }, usage)
+    ).toThrow('商品已有库存或单据记录，不能直接修改计量类型；请新建商品编码')
+
+    expect(() =>
+      assertGoodsMeasureTypeChangeAllowed(
+        { unit: 'kg', measureType: 'DECIMAL' },
+        { unit: 'kg', measureType: 'INT' },
+        usage
+      )
+    ).toThrow('商品已有库存或单据记录，不能直接修改计量类型；请新建商品编码')
+  })
+
+  it('allows unchanged measurement types for used goods', () => {
+    expect(() =>
+      assertGoodsMeasureTypeChangeAllowed(goods, goods, {
         inventoryCount: 1,
         orderItemCount: 1,
         stockInItemCount: 1,
         stockOutItemCount: 1,
       })
     ).not.toThrow()
-
-    expect(() =>
-      assertGoodsUnitChangeAllowed(
-        goods,
-        { unit: '个', measureType: 'INT' },
-        {
-          inventoryCount: 0,
-          orderItemCount: 0,
-          stockInItemCount: 0,
-          stockOutItemCount: 0,
-        }
-      )
-    ).not.toThrow()
   })
+
+  it.each(['INT', 'DECIMAL'] as const)(
+    'allows unused goods to change labels and measurement type to %s',
+    (measureType) => {
+      expect(() =>
+        assertGoodsMeasureTypeChangeAllowed(
+          { unit: 'kg', measureType: measureType === 'INT' ? 'DECIMAL' : 'INT' },
+          { unit: '个', measureType },
+          {
+            inventoryCount: 0,
+            orderItemCount: 0,
+            stockInItemCount: 0,
+            stockOutItemCount: 0,
+          }
+        )
+      ).not.toThrow()
+    }
+  )
 })
