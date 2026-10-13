@@ -39,6 +39,10 @@ USER replenops
 CMD ["npm", "run", "db:prepare"]
 
 FROM migrator AS demo-seeder
+USER root
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+USER replenops
 CMD ["node", "node_modules/tsx/dist/cli.mjs", "prisma/demo-seed.ts"]
 
 FROM migrator AS release-migrator
