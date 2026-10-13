@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS base
 WORKDIR /app
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl libpcre2-8-0 \
+  && apt-get install -y --no-install-recommends openssl libpcre2-8-0 perl-base \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --gid 1001 nodejs \
   && useradd --uid 1001 --gid nodejs --create-home --shell /usr/sbin/nologin replenops
